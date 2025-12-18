@@ -102,6 +102,12 @@ import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
+import DateRequestIcon from '@/components/Icons/DateRequestIcon.vue'
+import ProjectAssignIcon from '@/components/Icons/ProjectAssignIcon.vue'
+import TimesheetIcon from '@/components/Icons/TimesheetIcon.vue'
+import LucideLayoutDashboard from '@/components/Icons/LucideLayoutDashboard.vue'
+import ProjectIcon from '@/components/Icons/ProjectIcon.vue'
+import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import { viewsStore } from '@/stores/views'
 import { unreadNotificationsCount } from '@/stores/notifications'
 import { createResource } from 'frappe-ui'
@@ -147,6 +153,43 @@ const links = [
     icon: PhoneIcon,
     to: 'Call Logs',
   },
+   // Project Dashboard
+  {
+    label: 'Project Dashboard',
+    icon: LucideLayoutDashboard,
+    to: 'Project Dashboard',
+  },
+// add Project Tasks link to sidebar
+  {
+    label: 'Project Tasks',
+    icon: ProjectTaskIcon,
+    to: 'Project Tasks',
+  },
+// add Projects link to sidebar
+  {
+    label: 'Projects',
+    icon: ProjectIcon,
+    to: 'Projects',
+  },
+  // add Employee Date Request link to sidebar
+  {
+    label: 'Employee Date Request',
+    icon: DateRequestIcon,
+    to: 'Employee Date Requests',
+  },
+   // add Employee Project Assignment link to sidebar
+  {
+    label: 'Employee Project Assignment',
+    icon: ProjectAssignIcon,
+    to: 'Employee Project Assignments',
+  },
+     // add Timesheets link to sidebar
+  {
+    label: 'Timesheets',
+    icon: TimesheetIcon,
+    to: 'Smart Timesheets',
+  }
+
 ]
 
 const allViews = computed(() => {
@@ -208,6 +251,16 @@ function getIcon(routeName, icon) {
       return PhoneIcon
     default:
       return PinIcon
+    case 'Projects':
+      return ProjectIcon
+    case 'Project Tasks':
+      return ProjectTaskIcon
+    case 'Employee Date Requests':
+      return DateRequestIcon
+    case 'Employee Project Assignments':
+      return ProjectAssignIcon
+    case 'Smart Timesheets':
+      return TimesheetIcon
   }
 }
 </script>

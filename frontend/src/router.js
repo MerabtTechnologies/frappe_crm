@@ -99,6 +99,78 @@ const routes = [
     name: 'Not Permitted',
     component: () => import('@/pages/NotPermitted.vue'),
   },
+  {
+    path: '/not-permitted-project',
+    name: 'Not Permitted Project',
+    component: () => import('@/pages/NotPermittedProject.vue'),
+  },
+  // add Additional routes
+    {
+    alias: '/projects',
+    path: '/projects/view/:viewType?',
+    name: 'Projects',
+    component: () => import('@/pages/Projects.vue'),
+  },
+  {
+    path: '/projects/:projectId',
+    name: 'Project',
+    component: () => import(`@/pages/${handleMobileView('Project')}.vue`),
+    props: true,
+  },
+  {
+    alias: '/project-tasks',
+    path: '/project-tasks/view/:viewType?',
+    name: 'Project Tasks',
+    component: () => import('@/pages/ProjectTasks.vue'),
+  },
+  {
+    path: '/project-tasks/:taskId',
+    name: 'Project Task',
+    component: () => import(`@/pages/${handleMobileView('ProjectTask')}.vue`),
+    props: true,
+  },
+  {
+    alias: '/employee-date-requests',
+    path: '/employee-date-requests/view/:viewType?',
+    name: 'Employee Date Requests',
+    component: () => import('@/pages/EmployeeDateRequests.vue'),
+  },
+  {
+    path: '/employee-date-requests/:requestId',
+    name: 'Employee Date Request',
+    component: () => import(`@/pages/${handleMobileView('EmployeeDateRequest')}.vue`),
+    props: true,
+  },
+  {
+    alias: '/employee-project-assignments',
+    path: '/employee-project-assignments/view/:viewType?',
+    name: 'Employee Project Assignments',
+    component: () => import('@/pages/EmployeeProjectAssignments.vue'),
+  },
+  {
+    path: '/employee-project-assignments/:assignmentId',
+    name: 'Employee Project Assignment',
+    component: () => import(`@/pages/${handleMobileView('EmployeeProjectAssignment')}.vue`),
+    props: true,
+  },
+  {
+    alias: '/timesheets',
+    path: '/timesheets/view/:viewType?',
+    name: 'Smart Timesheets',
+    component: () => import('@/pages/SmartTimesheets.vue'),
+  },
+  {
+    path: '/timesheets/:timesheetId',
+    name: 'Smart Timesheet',
+    component: () => import(`@/pages/${handleMobileView('SmartTimesheet')}.vue`),
+    props: true,
+  },
+  {
+    alias: '/project-dashboard',
+    path: '/project-dashboard',
+    name: 'Project Dashboard',
+    component: () => import('@/pages/DashboardProject.vue'),
+  },
 ]
 
 const handleMobileView = (componentName) => {
@@ -112,7 +184,7 @@ let router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   const { isLoggedIn } = sessionStore()
-  const { users, isWebsiteUser } = usersStore()
+  const { users, isWebsiteUser, isProjectManager } = usersStore()
 
   if (isLoggedIn && !users.fetched) {
     try {
@@ -150,11 +222,27 @@ router.beforeEach(async (to, from, next) => {
     window.location.href = '/login?redirect-to=/crm'
   } else if (to.matched.length === 0) {
     next({ name: 'Invalid Page' })
-  } else if (['Deal', 'Lead'].includes(to.name) && !to.hash) {
+  } else if (['Deal', 'Lead','Employee Date Request','Employee Project Assignment','Project','Project Task', 'Smart Timesheet'].includes(to.name) && !to.hash) {
     let storageKey = to.name === 'Deal' ? 'lastDealTab' : 'lastLeadTab'
     const activeTab = localStorage.getItem(storageKey) || 'activity'
     const hash = '#' + activeTab
     next({ ...to, hash })
+  } else if (
+              (to.name === 'Smart Timesheet' && !isProjectManager()) || 
+              (to.name === 'Smart Timesheets' && !isProjectManager()) ||
+              (to.name === 'Projects' && !isProjectManager()) ||
+              (to.name === 'Project' && !isProjectManager()) ||
+              (to.name === 'Project Tasks' && !isProjectManager()) ||
+              (to.name === 'Project Task' && !isProjectManager()) ||
+              (to.name === 'Project Plannings' && !isProjectManager()) ||
+              (to.name === 'Project Planning' && !isProjectManager()) ||
+              (to.name === 'Employee Date Requests' && !isProjectManager()) ||
+              (to.name === 'Employee Date Request' && !isProjectManager()) ||
+              (to.name === 'Employee Project Assignments' && !isProjectManager()) ||
+              (to.name === 'Employee Project Assignment' && !isProjectManager()) ||
+              (to.name === 'Project Dashboard' && !isProjectManager())
+            ) {
+                next({ name: 'Not Permitted Project' })
   } else {
     next()
   }
