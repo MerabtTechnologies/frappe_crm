@@ -557,4 +557,14 @@ function reloadAssignees(data) {
     assignees.reload()
   }
 }
+
+function statusColor(status) {
+  if (!status) return ''
+  if (status === 'Active') return 'text-green-600'
+  if (status === 'On Hold') return 'text-grey-600'
+  if( status === 'Pending' || status === 'Planning') return 'text-yellow-600'
+  if (status === 'Completed' || status === 'Done') return 'text-blue-600'
+  if (status === 'Cancelled' || status === 'Lost') return 'text-red-600'
+  return 'text-gray-500'
+}
 </script>
