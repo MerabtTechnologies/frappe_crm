@@ -1,0 +1,581 @@
+<template>
+  <LayoutHeader>
+    <template #left-header>
+      <Breadcrumbs :items="breadcrumbs">
+        <template #prefix="{ item }">
+          <Icon v-if="item.icon" :icon="item.icon" class="mr-2 h-4" />
+        </template>
+      </Breadcrumbs>
+    </template>
+    <template v-if="!errorTitle" #right-header>
+      <CustomActions
+        v-if="document._actions?.length"
+        :actions="document._actions"
+      />
+      <CustomActions
+        v-if="document.actions?.length"
+        :actions="document.actions"
+      />
+      <!--TODO Add Buttons Here -->
+      <Button
+          :label="__('Employee Task Assignment')"
+          @click="() => { console.log('Employee Task Assignment clicked') }"
+        />
+      <AssignTo v-model="assignees.data" doctype="Smart Project" :docname="projectId" />
+    
+      <Dropdown v-if="doc && statuses.length" :options="statuses" placement="right">
+        <template #default="{ open }">
+          <Button
+            v-if="doc.status"
+            :label="doc.status"
+            :iconRight="open ? 'chevron-up' : 'chevron-down'"
+          >
+            <template #prefix>
+              <IndicatorIcon :class="statusColor(doc.status)" />
+            </template>
+          </Button>
+        </template>
+      </Dropdown>
+        </template>
+      
+  </LayoutHeader>
+  <div v-if="doc.name" class="flex h-full overflow-hidden">
+    <Tabs as="div" v-model="tabIndex" :tabs="tabs">
+      <template #tab-panel>
+        <Activities
+          ref="activities"
+          doctype="Smart Project"
+          :docname="projectId"
+          :tabs="tabs"
+          v-model:reload="reload"
+          v-model:tabIndex="tabIndex"
+          @beforeSave="beforeStatusChange"
+          @afterSave="reloadAssignees"
+        />
+      </template>
+    </Tabs>
+    <Resizer side="right" class="flex flex-col justify-between border-l">
+      <div
+        class="flex h-10.5 cursor-copy items-center border-b px-5 py-2.5 text-lg font-medium text-ink-gray-9"
+        @click="copyToClipboard(projectId)"
+      >
+        {{ __(projectId) }}
+      </div>
+      <FileUploader
+        @success="(file) => updateField('image', file.file_url)"
+        :validateFile="validateIsImageFile"
+      >
+        <template #default="{ openFileSelector, error }">
+          <div class="flex items-center justify-start gap-5 border-b p-5">
+            <div class="group relative size-12">
+              <Avatar
+                size="3xl"
+                class="size-12"
+                :label="title"
+                :image="doc.image"
+              />
+              <component
+                :is="doc.image ? Dropdown : 'div'"
+                v-bind="
+                  doc.image
+                    ? {
+                        options: [
+                          {
+                            icon: 'upload',
+                            label: doc.image ? __('Change image') : __('Upload image'),
+                            onClick: openFileSelector,
+                          },
+                          {
+                            icon: 'trash-2',
+                            label: __('Remove image'),
+                            onClick: () => updateField('image', ''),
+                          },
+                        ],
+                      }
+                    : { onClick: openFileSelector }
+                "
+                class="!absolute bottom-0 left-0 right-0"
+              >
+                <div
+                  class="z-1 absolute bottom-0.5 left-0 right-0.5 flex h-9 cursor-pointer items-center justify-center rounded-b-full bg-black bg-opacity-40 pt-3 opacity-0 duration-300 ease-in-out group-hover:opacity-100"
+                  style="-webkit-clip-path: inset(12px 0 0 0); clip-path: inset(12px 0 0 0);"
+                >
+                  <CameraIcon class="size-4 cursor-pointer text-white" />
+                </div>
+              </component>
+            </div>
+            <div class="flex flex-col gap-2.5 truncate text-ink-gray-9">
+              <Tooltip :text="doc.name || __('Set a project')">
+                <div class="truncate text-2xl font-medium">
+                  {{ title }}
+                </div>
+              </Tooltip>
+              <div class="flex gap-1.5">
+                <Button
+                  v-if="callEnabled"
+                  :tooltip="__('Make a call')"
+                  :icon="PhoneIcon"
+                  @click="() => (doc.mobile_no ? makeCall(doc.mobile_no) : toast.error(__('No phone number set')))"
+                />
+
+                <Button
+                  v-if="doc.email"
+                  :tooltip="__('Send an email')"
+                  :icon="Email2Icon"
+                  @click="doc.email ? openEmailBox() : toast.error(__('No email set'))"
+                />
+
+                <Button
+                  v-if="doc.website"
+                  :tooltip="__('Go to website')"
+                  :icon="LinkIcon"
+                  @click="doc.website ? openWebsite(doc.website) : toast.error(__('No website set'))"
+                />
+
+                <Button
+                  :tooltip="__('Attach a file')"
+                  :icon="AttachmentIcon"
+                  @click="showFilesUploader = true"
+                />
+
+                <Button
+                  v-if="canDelete"
+                  :tooltip="__('Delete')"
+                  variant="subtle"
+                  icon="trash-2"
+                  theme="red"
+                  @click="deleteDeal"
+                />
+              </div>
+              <ErrorMessage :message="__(error)" />
+            </div>
+          </div>
+        </template>
+      </FileUploader>
+      <SLASection
+        v-if="doc.sla_status"
+        v-model="doc"
+        @updateField="updateField"
+      />
+      <div v-if="sections.data" class="flex flex-1 flex-col justify-between overflow-hidden">
+        <SidePanelLayout
+          :sections="sections.data"
+          doctype="Smart Project"
+          :docname="projectId"
+          @reload="sections.reload"
+          @beforeFieldChange="beforeStatusChange"
+          @afterFieldChange="reloadAssignees"
+        />
+      </div>
+    </Resizer>
+  </div>
+  <ErrorPage
+    v-else-if="errorTitle"
+    :errorTitle="errorTitle"
+    :errorMessage="errorMessage"
+  />
+  <!-- Organization and Contact modals removed as these features are handled elsewhere -->
+  <FilesUploader
+    v-model="showFilesUploader"
+    doctype="Smart Project"
+    :docname="projectId"
+    @after="
+      () => {
+        activities?.all_activities?.reload()
+        changeTabTo('attachments')
+      }
+    "
+  />
+  <DeleteLinkedDocModal
+    v-if="showDeleteLinkedDocModal"
+    v-model="showDeleteLinkedDocModal"
+    :doctype="'Smart Project'"
+    :docname="projectId"
+    name="Projects"
+  />
+  <LostReasonModal
+    v-if="showLostReasonModal"
+    v-model="showLostReasonModal"
+    :deal="document"
+  />
+</template>
+<script setup>
+import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
+import ErrorPage from '@/components/ErrorPage.vue'
+import Icon from '@/components/Icon.vue'
+import Resizer from '@/components/Resizer.vue'
+import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
+import ActivityIcon from '@/components/Icons/ActivityIcon.vue'
+import EmailIcon from '@/components/Icons/EmailIcon.vue'
+import Email2Icon from '@/components/Icons/Email2Icon.vue'
+import CommentIcon from '@/components/Icons/CommentIcon.vue'
+import DetailsIcon from '@/components/Icons/DetailsIcon.vue'
+import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
+import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
+import NoteIcon from '@/components/Icons/NoteIcon.vue'
+import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
+import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
+import LinkIcon from '@/components/Icons/LinkIcon.vue'
+import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
+import SuccessIcon from '@/components/Icons/SuccessIcon.vue'
+import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
+import LayoutHeader from '@/components/LayoutHeader.vue'
+import Activities from '@/components/Activities/Activities.vue'
+import LostReasonModal from '@/components/Modals/LostReasonModal.vue'
+import CameraIcon from '@/components/Icons/CameraIcon.vue'
+import AssignTo from '@/components/AssignTo.vue'
+import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
+ 
+import Section from '@/components/Section.vue'
+import SidePanelLayout from '@/components/SidePanelLayout.vue'
+import SLASection from '@/components/SLASection.vue'
+import CustomActions from '@/components/CustomActions.vue'
+import { openWebsite, setupCustomizations, copyToClipboard, validateIsImageFile } from '@/utils'
+import { getView } from '@/utils/view'
+import { getSettings } from '@/stores/settings'
+import { globalStore } from '@/stores/global'
+import { statusesStore } from '@/stores/statuses'
+import { getMeta } from '@/stores/meta'
+import { useDocument } from '@/data/document'
+import { whatsappEnabled, callEnabled } from '@/composables/settings'
+import {
+  createResource,
+  FileUploader,
+  Dropdown,
+  Tooltip,
+  Avatar,
+  Tabs,
+  Breadcrumbs,
+  call,
+  usePageMeta,
+  toast,
+} from 'frappe-ui'
+import { useOnboarding } from 'frappe-ui/frappe'
+import {
+  ref,
+  computed,
+  h,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+} from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useActiveTabManager } from '@/composables/useActiveTabManager'
+
+const { brand } = getSettings()
+const { $dialog, $socket, makeCall } = globalStore()
+const { statusOptionsAll, getDealStatus } = statusesStore()
+const { doctypeMeta, getFields } = getMeta('Smart Project')
+
+const { updateOnboardingStep, isOnboardingStepsCompleted } =
+  useOnboarding('frappecrm')
+
+const route = useRoute()
+const router = useRouter()
+
+const props = defineProps({
+  projectId: {
+    type: String,
+    required: true,
+  },
+})
+
+const errorTitle = ref('')
+const errorMessage = ref('')
+const showDeleteLinkedDocModal = ref(false)
+
+const { triggerOnChange, assignees, permissions, document, scripts, error } = useDocument(
+  'Smart Project',
+  props.projectId,
+)
+
+const canDelete = computed(() => permissions.data?.permissions?.delete || false)
+
+const doc = computed(() => document.doc || {})
+
+watch(error, (err) => {
+  if (err) {
+    errorTitle.value = __(
+      err.exc_type == 'DoesNotExistError'
+        ? 'Document not found'
+        : 'Error occurred',
+    )
+    errorMessage.value = __(err.messages?.[0] || 'An error occurred')
+  } else {
+    errorTitle.value = ''
+    errorMessage.value = ''
+  }
+})
+
+watch(
+  () => document.doc,
+  async (_doc) => {
+    if (scripts.data?.length) {
+      let s = await setupCustomizations(scripts.data, {
+        doc: _doc,
+        $dialog,
+        $socket,
+        router,
+        toast,
+        updateField,
+        createToast: toast.create,
+        deleteDoc: deleteDeal,
+        call,
+      })
+      document._actions = s.actions || []
+      document._statuses = s.statuses || []
+    }
+  },
+  { once: true },
+)
+
+// Organization/document watch removed — organization handled elsewhere
+
+onMounted(() => {
+  $socket.on('project_created', () => {
+    toast.success(__('Project created successfully'))
+  })
+})
+
+onBeforeUnmount(() => {
+  $socket.off('project_created')
+})
+
+const reload = ref(false)
+const showFilesUploader = ref(false)
+
+const breadcrumbs = computed(() => {
+  let items = [{ label: __('Projects'), route: { name: 'Projects' } }]
+
+  if (route.query.view || route.query.viewType) {
+    let view = getView(route.query.view, route.query.viewType, 'Project')
+    if (view) {
+      items.push({
+        label: __(view.label),
+        icon: view.icon,
+        route: {
+          name: 'Projects',
+          params: { viewType: route.query.viewType },
+          query: { view: route.query.view },
+        },
+      })
+    }
+  }
+
+  items.push({
+    label: title.value,
+    route: { name: 'Project', params: { projectId: props.projectId } },
+  })
+  return items
+})
+
+const title = computed(() => {
+  let t = doctypeMeta['Smart Project']?.title_field || 'name'
+  return doc.value?.[t] || props.projectId
+})
+
+const statuses = computed(() => {
+  // determine custom statuses in order of precedence:
+  // 1. document.statuses (server-provided)
+  // 2. document._statuses (client customizations)
+  // 3. doctype meta `status` field select options
+  let customStatuses = []
+
+  if (document.statuses?.length) {
+    customStatuses = document.statuses
+  } else if (document._statuses?.length) {
+    customStatuses = document._statuses
+  } else {
+    // try to read from doctype meta
+    const fields = getFields()
+    const statusField = (fields || []).find((f) => f.fieldname === 'status')
+    if (statusField?.options?.length) {
+      customStatuses = statusField.options.map((o) => o.value || o.label).filter(Boolean)
+    }
+  }
+
+  return statusOptionsAll('project', customStatuses, triggerStatusChange)
+})
+
+usePageMeta(() => {
+  return {
+    title: title.value,
+    icon: brand.favicon,
+  }
+})
+
+const tabs = computed(() => {
+  let tabOptions = [
+    {
+      name: 'Activity',
+      label: __('Activity'),
+      icon: ActivityIcon,
+    },
+    // {
+    //   name: 'Emails',
+    //   label: __('Emails'),
+    //   icon: EmailIcon,
+    // },
+    {
+      name: 'Comments',
+      label: __('Comments'),
+      icon: CommentIcon,
+    },
+    {
+      name: 'Data',
+      label: __('Data'),
+      icon: DetailsIcon,
+    },
+    // {
+    //   name: 'Calls',
+    //   label: __('Calls'),
+    //   icon: PhoneIcon,
+    // },
+    // {
+    //   name: 'Tasks',
+    //   label: __('Tasks'),
+    //   icon: TaskIcon,
+    // },
+    {
+      name: 'Project Tasks',
+      label: __('Project Tasks'),
+      icon: ProjectTaskIcon,
+    },
+    {
+      name: 'Notes',
+      label: __('Notes'),
+      icon: NoteIcon,
+    },
+    {
+      name: 'Attachments',
+      label: __('Attachments'),
+      icon: AttachmentIcon,
+    },
+    {
+      name: 'WhatsApp',
+      label: __('WhatsApp'),
+      icon: WhatsAppIcon,
+      condition: () => whatsappEnabled.value,
+    },
+  ]
+  return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
+})
+
+const { tabIndex, changeTabTo } = useActiveTabManager(tabs, 'lastDealTab')
+
+const sections = createResource({
+  url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
+  cache: ['sidePanelSections', 'Smart Project'],
+  params: { doctype: 'Smart Project' },
+  transform: (data) => getParsedSections(data),
+})
+
+if (!sections.data) sections.fetch()
+
+function getParsedSections(_sections) {
+  // Simplified: return sections as-is. Organization/contact behaviours
+  // have been removed from this page-level component.
+  return _sections
+}
+
+// Contact-related state and helpers removed from this view.
+
+async function triggerStatusChange(value) {
+  await triggerOnChange('status', value)
+  // setLostReason()
+  console.log('Status Changed: ', value);
+  document.save.submit()
+}
+
+function updateField(name, value) {
+  console.log('OnUpdate Field: ', name, ' - - - ', value);
+  
+  if (name == 'status' && !isOnboardingStepsCompleted.value) {
+    updateOnboardingStep('change_deal_status')
+  }
+
+  value = Array.isArray(name) ? '' : value
+  let oldValues = Array.isArray(name) ? {} : doc.value[name]
+
+  if (Array.isArray(name)) {
+    name.forEach((field) => (doc.value[field] = value))
+  } else {
+    doc.value[name] = value
+  }
+
+  document.save.submit(null, {
+    onSuccess: () => (reload.value = true),
+    onError: (err) => {
+      if (Array.isArray(name)) {
+        name.forEach((field) => (doc.value[field] = oldValues[field]))
+      } else {
+        doc.value[name] = oldValues
+      }
+      toast.error(err.messages?.[0] || __('Error updating field'))
+    },
+  })
+}
+
+function deleteDeal() {
+  showDeleteLinkedDocModal.value = true
+}
+
+const activities = ref(null)
+
+function openEmailBox() {
+  let currentTab = tabs.value[tabIndex.value]
+  if (!['Emails', 'Comments', 'Activities'].includes(currentTab.name)) {
+    activities.value.changeTabTo('emails')
+  }
+  nextTick(() => (activities.value.emailBox.show = true))
+}
+
+const showLostReasonModal = ref(false)
+
+function setLostReason() {
+  if (
+    getDealStatus(document.doc.status).type !== 'Lost' ||
+    (document.doc.lost_reason && document.doc.lost_reason !== 'Other') ||
+    (document.doc.lost_reason === 'Other' && document.doc.lost_notes)
+  ) {
+    document.save.submit()
+    return
+  }
+
+  showLostReasonModal.value = true
+}
+
+function beforeStatusChange(data) {
+  console.log('Data Field Changed: ', data);
+  
+  // if (
+  //   data?.hasOwnProperty('status') &&
+  //   getDealStatus(data.status).type == 'Lost'
+  // ) {
+  //   setLostReason()
+  // } else {
+  //   document.save.submit(null, {
+  //     onSuccess: () => reloadAssignees(data),
+  //   })
+  // }
+  document.save.submit(null, {
+      onSuccess: () => reloadAssignees(data),
+    })
+}
+
+function reloadAssignees(data) {
+  if (data?.hasOwnProperty('deal_owner')) {
+    assignees.reload()
+  }
+}
+function statusColor(status) {
+  if (!status) return ''
+  if (status === 'Active') return 'text-green-600'
+  if (status === 'On Hold') return 'text-red-600'
+  if( status === 'Pending' || status === 'Planning') return 'text-yellow-600'
+  if (status === 'Completed' || status === 'Done') return 'text-blue-600'
+  if (status === 'Cancelled' || status === 'Lost') return 'text-gray-600'
+  return 'text-gray-500'
+}
+</script>
