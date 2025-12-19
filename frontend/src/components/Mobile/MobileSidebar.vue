@@ -105,6 +105,12 @@ import SidebarLink from '@/components/SidebarLink.vue'
 import GammaProposalIcon from '../Icons/GammaProposalIcon.vue'
 import QuotationIcon from '../Icons/QuotationIcon.vue'
 import EventIcon from '../Icons/EventIcon.vue'
+import DateRequestIcon from '@/components/Icons/DateRequestIcon.vue'
+import ProjectAssignIcon from '@/components/Icons/ProjectAssignIcon.vue'
+import TimesheetIcon from '@/components/Icons/TimesheetIcon.vue'
+import LucideLayoutDashboard from '@/components/Icons/LucideLayoutDashboard.vue'
+import ProjectIcon from '@/components/Icons/ProjectIcon.vue'
+import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import { viewsStore } from '@/stores/views'
 import { unreadNotificationsCount } from '@/stores/notifications'
 import { createResource } from 'frappe-ui'
@@ -164,7 +170,50 @@ const links = [
     label: 'Event',
     icon: EventIcon,
     to: 'Events',
+  },
+   // Project Dashboard
+  {
+    label: 'Project Dashboard',
+    icon: LucideLayoutDashboard,
+    to: 'Project Dashboard',
+    condition: () => isProjectManager(),
+  },
+// add Project Tasks link to sidebar
+  {
+    label: 'Project Tasks',
+    icon: ProjectTaskIcon,
+    to: 'Project Tasks',
+    condition: () => isProjectManager(),
+  },
+// add Projects link to sidebar
+  {
+    label: 'Projects',
+    icon: ProjectIcon,
+    to: 'Projects',
+    condition: () => isProjectManager(),
+  },
+  // add Employee Date Request link to sidebar
+  {
+    label: 'Employee Date Request',
+    icon: DateRequestIcon,
+    to: 'Employee Date Requests',
+    condition: () => isProjectManager(),
+  },
+   // add Employee Project Assignment link to sidebar
+  {
+    label: 'Employee Project Assignment',
+    icon: ProjectAssignIcon,
+    to: 'Employee Project Assignments',
+    condition: () => isProjectManager(),
+  },
+     // add Timesheets link to sidebar
+  {
+    label: 'Timesheets',
+    icon: TimesheetIcon,
+    to: 'Smart Timesheets',
+    condition: () => isProjectManager(),
   }
+
 ]
 
 const allViews = computed(() => {
@@ -226,6 +275,16 @@ function getIcon(routeName, icon) {
       return PhoneIcon
     default:
       return PinIcon
+    case 'Projects':
+      return ProjectIcon
+    case 'Project Tasks':
+      return ProjectTaskIcon
+    case 'Employee Date Requests':
+      return DateRequestIcon
+    case 'Employee Project Assignments':
+      return ProjectAssignIcon
+    case 'Smart Timesheets':
+      return TimesheetIcon
   }
 }
 </script>

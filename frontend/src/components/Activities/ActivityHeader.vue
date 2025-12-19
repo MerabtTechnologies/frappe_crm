@@ -48,6 +48,13 @@
       @click="modalRef.showTask()"
     />
     <Button
+      v-else-if="title == 'Project Tasks'"
+      variant="solid"
+      :label="__('New Project Task')"
+      iconLeft="plus"
+      @click="modalRef.showProjectTask()"
+    />
+    <Button
       v-else-if="title == 'Attachments'"
       variant="solid"
       :label="__('Upload Attachment')"
@@ -86,6 +93,7 @@ import CommentIcon from '@/components/Icons/CommentIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
+import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
 import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
 import { globalStore } from '@/stores/global'
@@ -125,14 +133,13 @@ const defaultActions = computed(() => {
       icon: h(PhoneIcon, { class: 'h-4 w-4' }),
       label: __('Log a Call'),
       onClick: () => props.modalRef.createCallLog(),
-      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal',
+      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal' && props.doc?.doctype !== 'Project' && props.doc?.doctype !== 'Project Planning' && props.doc?.doctype !== 'Task',
     },
     {
       icon: h(PhoneIcon, { class: 'h-4 w-4' }),
       label: __('Make a Call'),
       onClick: () => makeCall(props.doc.mobile_no),
-      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal',
-
+      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal' && callEnabled.value && props.doc?.doctype !== 'Project' && props.doc?.doctype !== 'Project Planning' && props.doc?.doctype !== 'Task',
     },
     {
       icon: h(NoteIcon, { class: 'h-4 w-4' }),
@@ -143,7 +150,13 @@ const defaultActions = computed(() => {
       icon: h(TaskIcon, { class: 'h-4 w-4' }),
       label: __('New Task'),
       onClick: () => props.modalRef.showTask(),
-      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal',
+      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal' && props.doc?.doctype !== 'Employee Project Assignment' && props.doc?.doctype !== 'Smart Project' && props.doc?.doctype !== 'Smart Task' && props.doc?.doctype !== 'Employee Date Request' && props.doc?.doctype !== 'Employee Project Assignments',
+    },
+    {
+      icon: h(ProjectTaskIcon, { class: 'h-4 w-4' }),
+      label: __('New Project Task'),
+      onClick: () => props.modalRef.showProjectTask(),
+      condition: () => props.doc?.doctype === 'Smart Project',
     },
     {
       icon: h(AttachmentIcon, { class: 'h-4 w-4' }),
@@ -154,7 +167,7 @@ const defaultActions = computed(() => {
       icon: h(WhatsAppIcon, { class: 'h-4 w-4' }),
       label: __('New WhatsApp Message'),
       onClick: () => (tabIndex.value = getTabIndex('WhatsApp')),
-      condition: () => whatsappEnabled.value,
+      condition: () => whatsappEnabled.value && props.doc?.doctype !== 'Project' && props.doc?.doctype !== 'Project Planning' && props.doc?.doctype !== 'Task',
     },
   ]
   return actions.filter((action) =>

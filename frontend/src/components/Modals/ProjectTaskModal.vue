@@ -3,7 +3,7 @@
     <template #body-title>
       <div class="flex items-center gap-3">
         <h3 class="text-2xl font-semibold leading-6 text-ink-gray-9">
-          {{ editMode ? __('Edit Task') : __('Create Task') }}
+          {{ editMode ? __('Edit Project Task') : __('Create Project Task') }}
         </h3>
         <Button
           v-if="task?.reference_docname"
@@ -11,11 +11,9 @@
           :label="
             task.reference_doctype == 'CRM Deal'
               ? __('Open Deal')
-              : task.reference_doctype == 'Project'
+              : task.reference_doctype == 'Smart Project'
               ? __('Open Project')
-              : task.reference_doctype == 'Project Task'
-              ? __('Open Project Task')
-              : __('Open Lead') 
+              : __('Open Lead')
           "
           :iconRight="ArrowUpRightIcon"
           @click="redirect()"
@@ -34,6 +32,8 @@
           />
         </div>
         <div>
+        </div>
+        <div>
           <div class="mb-1.5 text-xs text-ink-gray-5">
             {{ __('Description') }}
           </div>
@@ -50,7 +50,7 @@
           />
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <Dropdown :options="taskStatusOptions(updateTaskStatus)">
+          <Dropdown :options="projectTaskStatusOptions(updateTaskStatus)">
             <Button :label="_task.status">
               <template #prefix>
                 <TaskStatusIcon :status="_task.status" />
@@ -91,7 +91,7 @@
               input-class="border-none"
             />
           </div>
-          <Dropdown :options="taskPriorityOptions(updateTaskPriority)">
+          <Dropdown :options="projectTaskPriorityOptions(updateTaskPriority)">
             <Button :label="_task.priority">
               <template #prefix>
                 <TaskPriorityIcon :priority="_task.priority" />
@@ -120,7 +120,7 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
-import { taskStatusOptions, taskPriorityOptions, getFormat } from '@/utils'
+import { projectTaskStatusOptions, projectTaskPriorityOptions, getFormat } from '@/utils'
 import { usersStore } from '@/stores/users'
 import { capture } from '@/telemetry'
 import { TextEditor, Dropdown, Tooltip, call, DateTimePicker } from 'frappe-ui'
@@ -160,10 +160,9 @@ const _task = ref({
   description: '',
   assigned_to: '',
   due_date: '',
-  status: 'Backlog',
+  status: 'Open',
   priority: 'Low',
-  reference_doctype: props.doctype,
-  reference_docname: null,
+  project: props.doc || null,
 })
 
 function updateTaskStatus(status) {
@@ -175,32 +174,10 @@ function updateTaskPriority(priority) {
 }
 
 function redirect() {
-  if (!props.task?.reference_docname) return
-
-  let name = "Deal"
-  // convert doctype to route name
-  if (props.task.reference_doctype == 'CRM Lead') {
-    name = 'Lead'
-  } else if (props.task.reference_doctype == 'CRM Deal') {
-    name = 'Deal'
-  } else if (props.task.reference_doctype == 'Project') {
-    name = 'Project'
-  } else if (props.task.reference_doctype == 'Project Task') {
-    name = 'Project Task'
-  }
-
-  let params = { leadId: props.task.reference_docname }
-
-  if (name == 'Deal') {
-    params = { dealId: props.task.reference_docname }
-  }
-  if (name == 'Project') {
-    params = { projectId: props.task.reference_docname }
-  }
-  if (name == 'Project Task') {
-    params = { taskId: props.task.reference_docname }
-  }
-
+  if (!props.task?.doc) return
+  let name = "Project"
+  let params = { projectId: props.task.doc }
+  
   router.push({ name: name, params: params })
 }
 
@@ -210,7 +187,7 @@ async function updateTask() {
   }
   if (_task.value.name) {
     let d = await call('frappe.client.set_value', {
-      doctype: 'CRM Task',
+      doctype: 'Smart Task',
       name: _task.value.name,
       fieldname: _task.value,
     })
@@ -223,9 +200,8 @@ async function updateTask() {
       'frappe.client.insert',
       {
         doc: {
-          doctype: 'CRM Task',
-          reference_doctype: props.doctype,
-          reference_docname: props.doc || null,
+          doctype: 'Smart Task',
+          project: props.doc || null,
           ..._task.value,
         },
       },

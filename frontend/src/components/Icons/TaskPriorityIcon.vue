@@ -6,6 +6,7 @@
         'bg-red-500': priority === 'High',
         'bg-yellow-500': priority === 'Medium',
         'bg-surface-gray-4': priority === 'Low',
+        'bg-red-700': priority === 'Critical',
       }, $attrs.class"
     ></div>
   </div>
