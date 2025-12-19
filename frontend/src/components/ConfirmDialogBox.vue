@@ -15,7 +15,8 @@
           </div>
         </div>
         <div>
-          <div v-if="linkedDocs?.length > 0">
+          <!-- Linked documents found. Action required before continuing -->
+          <div v-if="linkedDocs?.length > 0 && !isQuotation">
             <span class="text-ink-gray-5 text-base">
               {{
                 __(
@@ -45,7 +46,8 @@
               :unlinkLinkedDoc="unlinkLinkedDoc"
             />
           </div>
-          <div v-if="linkedDocs?.length == 0" class="text-ink-gray-5 text-base">
+          <!-- This quotation can be cancelled without affecting linked records. -->
+          <div  v-if="linkedDocs?.length == 0 || isQuotation" class="text-ink-gray-5 text-base">
             {{
               message || __('Are you sure you want to Submit {0} - {1}?', [
                 props.doctype,
@@ -131,6 +133,8 @@ import { computed, ref } from 'vue'
 
 const show = defineModel()
 const router = useRouter()
+// Quotation exception: skip auto-fetching linked documents
+const isQuotation = computed(() => props.doctype === 'Quotation')
 const props = defineProps({
   name: {
     type: String,
@@ -188,7 +192,8 @@ const linkedDocsResource = createResource({
     doctype: props.doctype,
     docname: props.docname,
   },
-  auto: true,
+  // Show simple confirmation when no linked docs or when cancelling a Quotation
+  auto: !isQuotation.value,
   validate(params) {
     if (!params?.doctype || !params?.docname) {
       return false
@@ -197,6 +202,10 @@ const linkedDocsResource = createResource({
 })
 
 const linkedDocs = computed(() => {
+  // Quotation exception: always return empty linked docs list
+   if (isQuotation.value) {
+    return []
+  }
   return (
     linkedDocsResource.data?.map((doc) => ({
       id: doc.reference_docname,

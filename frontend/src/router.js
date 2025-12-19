@@ -100,6 +100,42 @@ const routes = [
     component: () => import('@/pages/NotPermitted.vue'),
   },
   {
+    alias: '/quotations',
+    path: '/quotations/view/:viewType?',
+    name: 'Quotations',
+    component: () => import('@/pages/Quotations.vue'),
+  },
+  {
+    path: '/quotations/:quotationId',
+    name: 'Quotation',
+    component: () => import(`@/pages/${handleMobileView('Quotation')}.vue`),
+    props: true,
+  },
+  {
+    alias: '/Gammas',
+    path: '/Gammas/view/:viewType?',
+    name: 'Gammas',
+    component: () => import('@/pages/GammaProposals.vue'),
+  },
+  {
+    path: '/Gammas/:GammaId',
+    name: 'Gamma',
+    component: () => import(`@/pages/${handleMobileView('GammaProposal')}.vue`),
+    props: true,
+  },
+  {
+    alias: '/events',
+    path: '/events/view/:viewType?',
+    name: 'Events',
+    component: () => import('@/pages/Events.vue'),
+  },
+  {
+    path: '/events/:eventId',
+    name: 'Event',
+    component: () => import(`@/pages/${handleMobileView('Event')}.vue`),
+    props: true,
+  },
+  {
     path: '/not-permitted-project',
     name: 'Not Permitted Project',
     component: () => import('@/pages/NotPermittedProject.vue'),

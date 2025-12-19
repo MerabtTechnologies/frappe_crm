@@ -412,6 +412,17 @@
       />
     </div>
   </FadedScrollableDiv>
+
+  <div>
+
+    <GammaTemplates
+      v-if="title == 'Gamma'"
+      :doctype="doctype"
+      :docname="docname"
+    />
+    </div>
+<!-- Gamma Templates -->
+
   <div>
     <CommunicationArea
       ref="emailBox"
@@ -488,6 +499,9 @@ import InboundCallIcon from '@/components/Icons/InboundCallIcon.vue'
 import OutboundCallIcon from '@/components/Icons/OutboundCallIcon.vue'
 import FadedScrollableDiv from '@/components/FadedScrollableDiv.vue'
 import CommunicationArea from '@/components/CommunicationArea.vue'
+import QuotationIcon from '@/components/Icons/QuotationIcon.vue'
+import GammaTemplates from '@/components/Activities/GammaTemplates.vue'  
+
 import WhatsappTemplateSelectorModal from '@/components/Modals/WhatsappTemplateSelectorModal.vue'
 import AllModals from '@/components/Activities/AllModals.vue'
 import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
