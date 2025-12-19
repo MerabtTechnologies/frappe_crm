@@ -54,7 +54,7 @@
             v-if="tabs.data?.length"
             :tabs="tabs.data"
             :data="deal.doc"
-            doctype="Project"
+            doctype="Employee Date Request"
           />
           <ErrorMessage class="mt-4" v-if="error" :message="__(error)" />
         </div>
@@ -191,7 +191,7 @@ async function createDeal() {
       capture('employee_date_request_created')
       isDealCreating.value = false
       show.value = false
-      router.push({ name: 'Employee Date Request', params: { projectPlanningId: name } })
+      router.push({ name: 'Employee Date Request', params: { requestId: name } })
     },
     onError(err) {
       isDealCreating.value = false
@@ -206,7 +206,7 @@ async function createDeal() {
 
 function openQuickEntryModal() {
   showQuickEntryModal.value = true
-  quickEntryProps.value = { doctype: 'Employee Date Request ' }
+  quickEntryProps.value = { doctype: 'Employee Date Request' }
   nextTick(() => (show.value = false))
 }
 

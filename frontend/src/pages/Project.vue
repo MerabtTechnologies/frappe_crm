@@ -23,16 +23,19 @@
         />
       <AssignTo v-model="assignees.data" doctype="Smart Project" :docname="projectId" />
     
+      <Dropdown v-if="doc && statuses.length" :options="statuses" placement="right">
+        <template #default="{ open }">
           <Button
             v-if="doc.status"
             :label="doc.status"
-            
+            :iconRight="open ? 'chevron-up' : 'chevron-down'"
           >
-          <!-- :iconRight="open ? 'chevron-up' : 'chevron-down'" -->
             <template #prefix>
               <IndicatorIcon :class="statusColor(doc.status)" />
             </template>
           </Button>
+        </template>
+      </Dropdown>
         </template>
       
   </LayoutHeader>
@@ -262,8 +265,8 @@ import { useActiveTabManager } from '@/composables/useActiveTabManager'
 
 const { brand } = getSettings()
 const { $dialog, $socket, makeCall } = globalStore()
-const { statusOptions, getDealStatus } = statusesStore()
-const { doctypeMeta } = getMeta('Smart Project')
+const { statusOptionsAll, getDealStatus } = statusesStore()
+const { doctypeMeta, getFields } = getMeta('Smart Project')
 
 const { updateOnboardingStep, isOnboardingStepsCompleted } =
   useOnboarding('frappecrm')
@@ -373,8 +376,26 @@ const title = computed(() => {
 })
 
 const statuses = computed(() => {
-  let customStatuses = document.doc.status || []
-  return statusOptions('deal', customStatuses, triggerStatusChange)
+  // determine custom statuses in order of precedence:
+  // 1. document.statuses (server-provided)
+  // 2. document._statuses (client customizations)
+  // 3. doctype meta `status` field select options
+  let customStatuses = []
+
+  if (document.statuses?.length) {
+    customStatuses = document.statuses
+  } else if (document._statuses?.length) {
+    customStatuses = document._statuses
+  } else {
+    // try to read from doctype meta
+    const fields = getFields()
+    const statusField = (fields || []).find((f) => f.fieldname === 'status')
+    if (statusField?.options?.length) {
+      customStatuses = statusField.options.map((o) => o.value || o.label).filter(Boolean)
+    }
+  }
+
+  return statusOptionsAll('project', customStatuses, triggerStatusChange)
 })
 
 usePageMeta(() => {

@@ -103,6 +103,34 @@ export const statusesStore = defineStore('crm-statuses', () => {
     return options
   }
 
+  function statusOptionsAll(doctype, statuses = [], triggerStatusChange = null) {
+    let options = []
+    if (Array.isArray(statuses)) {
+      for (const status of statuses) {
+        options.push({
+          label: status,
+          value: status,
+          onClick: async () => {
+            await triggerStatusChange?.(status)
+            capture('status_changed', { doctype, status })
+          },
+        })
+      }
+    } else if (statuses && typeof statuses === 'object') {
+      for (const status in statuses) {
+        options.push({
+          label: status,
+          value: status,
+          onClick: async () => {
+            await triggerStatusChange?.(status)
+            capture('status_changed', { doctype, status })
+          },
+        })
+      }
+    }
+    return options
+  }
+
   return {
     leadStatuses,
     dealStatuses,
@@ -111,5 +139,6 @@ export const statusesStore = defineStore('crm-statuses', () => {
     getDealStatus,
     getCommunicationStatus,
     statusOptions,
+    statusOptionsAll,
   }
 })

@@ -54,7 +54,7 @@
             v-if="tabs.data?.length"
             :tabs="tabs.data"
             :data="deal.doc"
-            doctype="Project"
+            doctype="Employee Project Assignment"
           />
           <ErrorMessage class="mt-4" v-if="error" :message="__(error)" />
         </div>
@@ -191,7 +191,7 @@ async function createDeal() {
       capture('employee_project_assignment_created')
       isDealCreating.value = false
       show.value = false
-      router.push({ name: 'Employee Project Assignment', params: { projectPlanningId: name } })
+      router.push({ name: 'Employee Project Assignment', params: { assignmentId: name } })
     },
     onError(err) {
       isDealCreating.value = false

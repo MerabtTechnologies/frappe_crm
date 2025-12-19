@@ -17,16 +17,20 @@
         :actions="document.actions"
       />
       <AssignTo v-model="assignees.data" doctype="Smart Task" :docname="taskId" />
-      <Button
-        v-if="doc.status"
-        :label="doc.status"
-        
-      >
-      <!-- :iconRight="open ? 'chevron-up' : 'chevron-down'" -->
-        <template #prefix>
-          <IndicatorIcon :class="statusColor(doc.status)" />
+      <Dropdown v-if="doc && statuses.length" :options="statuses" placement="right">
+        <template #default="{ open }">
+          <Button
+            v-if="doc.status"
+            :label="doc.status"
+            :iconRight="open ? 'chevron-up' : 'chevron-down'"
+          >
+            <template #prefix>
+              <IndicatorIcon :class="statusColor(doc.status)" />
+            </template>
+          </Button>
         </template>
-      </Button>
+      </Dropdown>
+
     </template>
   </LayoutHeader>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
@@ -255,8 +259,8 @@ import { useActiveTabManager } from '@/composables/useActiveTabManager'
 
 const { brand } = getSettings()
 const { $dialog, $socket, makeCall } = globalStore()
-const { statusOptions, getDealStatus } = statusesStore()
-const { doctypeMeta } = getMeta('Smart Task')
+const { statusOptionsAll, getDealStatus } = statusesStore()
+const { doctypeMeta, getFields } = getMeta('Smart Task')
 
 const { updateOnboardingStep, isOnboardingStepsCompleted } =
   useOnboarding('frappecrm')
@@ -366,10 +370,26 @@ const title = computed(() => {
 })
 
 const statuses = computed(() => {
-  let customStatuses = document.statuses?.length
-    ? document.statuses
-    : document._statuses || []
-  return statusOptions('deal', customStatuses, triggerStatusChange)
+  // determine custom statuses in order of precedence:
+  // 1. document.statuses (server-provided)
+  // 2. document._statuses (client customizations)
+  // 3. doctype meta `status` field select options
+  let customStatuses = []
+
+  if (document.statuses?.length) {
+    customStatuses = document.statuses
+  } else if (document._statuses?.length) {
+    customStatuses = document._statuses
+  } else {
+    // try to read from doctype meta
+    const fields = getFields()
+    const statusField = (fields || []).find((f) => f.fieldname === 'status')
+    if (statusField?.options?.length) {
+      customStatuses = statusField.options.map((o) => o.value || o.label).filter(Boolean)
+    }
+  }
+
+  return statusOptionsAll('project_task', customStatuses, triggerStatusChange)
 })
 
 usePageMeta(() => {
@@ -457,7 +477,8 @@ function getParsedSections(_sections) {
 
 async function triggerStatusChange(value) {
   await triggerOnChange('status', value)
-  setLostReason()
+  document.save.submit()
+  // setLostReason()
 }
 
 function updateField(name, value) {
