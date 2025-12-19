@@ -339,7 +339,7 @@ const reload = ref(false)
 const showFilesUploader = ref(false)
 
 const breadcrumbs = computed(() => {
-  let items = [{ label: __('Smart Timesheets'), route: { name: 'Smart Timesheets' } }]
+  let items = [{ label: __('Timesheets'), route: { name: 'Smart Timesheets' } }]
 
   if (route.query.view || route.query.viewType) {
     let view = getView(route.query.view, route.query.viewType, 'Smart Timesheet')

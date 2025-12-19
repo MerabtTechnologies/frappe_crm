@@ -1,26 +1,41 @@
 <template>
   <LayoutHeader>
-    <header class="relative flex h-10.5 items-center justify-between gap-2 py-2.5 pl-2">
+    <header
+      class="relative flex h-10.5 items-center justify-between gap-2 py-2.5 pl-2"
+    >
       <Breadcrumbs :items="breadcrumbs">
         <template #prefix="{ item }">
           <Icon v-if="item.icon" :icon="item.icon" class="mr-2 h-4" />
         </template>
       </Breadcrumbs>
       <div class="absolute right-0">
-        <Button v-if="doc.status" :label="doc.status">
+        <Button
+            v-if="doc.status"
+            :label="doc.status"
+            
+          >
           <!-- :iconRight="open ? 'chevron-up' : 'chevron-down'" -->
-          <template #prefix>
-            <IndicatorIcon :class="statusColor(doc.status)" />
-          </template>
-        </Button>
+            <template #prefix>
+              <IndicatorIcon :class="statusColor(doc.status)" />
+            </template>
+          </Button>
       </div>
     </header>
   </LayoutHeader>
-  <div v-if="doc.name" class="flex h-12 items-center justify-between gap-2 border-b px-3 py-2.5">
-    <AssignTo v-model="assignees.data" doctype="Employee Project Assignment" :docname="assignmentId" />
+  <div
+    v-if="doc.name"
+    class="flex h-12 items-center justify-between gap-2 border-b px-3 py-2.5"
+  >
+    <AssignTo v-model="assignees.data" doctype="Smart Timesheet" :docname="timesheetId" />
     <div class="flex items-center gap-2">
-      <CustomActions v-if="document._actions?.length" :actions="document._actions" />
-      <CustomActions v-if="document.actions?.length" :actions="document.actions" />
+      <CustomActions
+        v-if="document._actions?.length"
+        :actions="document._actions"
+      />
+      <CustomActions
+        v-if="document.actions?.length"
+        :actions="document.actions"
+      />
     </div>
   </div>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
@@ -43,8 +58,8 @@
           >
             <SidePanelLayout
               :sections="sections.data"
-              doctype="Employee Project Assignment"
-              :docname="assignmentId"
+              doctype="Smart Timesheet"
+              :docname="timesheetId"
               @reload="sections.reload"
               @afterFieldChange="reloadAssignees"
             />
@@ -52,8 +67,8 @@
         </div>
         <Activities
           v-else
-          doctype="Employee Project Assignment"
-          :docname="assignmentId"
+          doctype="Smart Timesheet"
+          :docname="timesheetId"
           :tabs="tabs"
           v-model:reload="reload"
           v-model:tabIndex="tabIndex"
@@ -63,12 +78,25 @@
       </template>
     </Tabs>
   </div>
-  <ErrorPage v-else-if="errorTitle" :errorTitle="errorTitle" :errorMessage="errorMessage" />
+  <ErrorPage
+    v-else-if="errorTitle"
+    :errorTitle="errorTitle"
+    :errorMessage="errorMessage"
+  />
 
 
-  <DeleteLinkedDocModal v-if="showDeleteLinkedDocModal" v-model="showDeleteLinkedDocModal"
-    :doctype="'Employee Project Assignment'" :docname="assignmentId" name="Employee Project Assignments" />
-  <LostReasonModal v-if="showLostReasonModal" v-model="showLostReasonModal" :deal="document" />
+  <DeleteLinkedDocModal
+    v-if="showDeleteLinkedDocModal"
+    v-model="showDeleteLinkedDocModal"
+    :doctype="'Smart Timesheet'"
+    :docname="timesheetId"
+    name="Projects"
+  />
+  <LostReasonModal
+    v-if="showLostReasonModal"
+    v-model="showLostReasonModal"
+    :deal="document"
+  />
 </template>
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
@@ -127,12 +155,12 @@ import { useRoute, useRouter } from 'vue-router'
 const { brand } = getSettings()
 const { $dialog, $socket } = globalStore()
 const { statusOptions, getDealStatus } = statusesStore()
-const { doctypeMeta } = getMeta('Employee Project Assignment')
+const { doctypeMeta } = getMeta('Smart Timesheet')
 const route = useRoute()
 const router = useRouter()
 
 const props = defineProps({
-  assignmentId: {
+  timesheetId: {
     type: String,
     required: true,
   },
@@ -143,8 +171,8 @@ const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 
 const { triggerOnChange, assignees, document, scripts, error } = useDocument(
-  'Employee Project Assignment',
-  props.assignmentId,
+  'Smart Timesheet',
+  props.timesheetId,
 )
 
 const doc = computed(() => document.doc || {})
@@ -188,16 +216,16 @@ watch(
 
 
 const breadcrumbs = computed(() => {
-  let items = [{ label: __('Employee Project Assignments'), route: { name: 'Employee Project Assignments' } }]
+  let items = [{ label: __('Timesheets'), route: { name: 'Smart Timesheets' } }]
 
   if (route.query.view || route.query.viewType) {
-    let view = getView(route.query.view, route.query.viewType, 'Employee Project Assignment')
+    let view = getView(route.query.view, route.query.viewType, 'Smart Timesheet')
     if (view) {
       items.push({
         label: __(view.label),
         icon: view.icon,
         route: {
-          name: 'Employee Project Assignments',
+          name: 'Smart Timesheets',
           params: { viewType: route.query.viewType },
           query: { view: route.query.view },
         },
@@ -207,14 +235,14 @@ const breadcrumbs = computed(() => {
 
   items.push({
     label: title.value,
-    route: { name: 'Employee Project Assignment', params: { assignmentId: props.assignmentId } },
+    route: { name: 'Smart Timesheet', params: { timesheetId: props.timesheetId } },
   })
   return items
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['Employee Project Assignment']?.title_field || 'name'
-  return doc.value?.[t] || props.assignmentId
+  let t = doctypeMeta['Smart Timesheet']?.title_field || 'name'
+  return doc.value?.[t] || props.timesheetId
 })
 
 usePageMeta(() => {
@@ -263,11 +291,6 @@ const tabs = computed(() => {
     //   label: __('Tasks'),
     //   icon: TaskIcon,
     // },
-    // {
-    //   name: 'Project Tasks',
-    //   label: __('Project Tasks'),
-    //   icon: TaskIcon,
-    // },
     {
       name: 'Notes',
       label: __('Notes'),
@@ -291,18 +314,17 @@ const { tabIndex } = useActiveTabManager(tabs, 'lastDealTab')
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
-  cache: ['sidePanelSections', 'Employee Project Assignment'],
-  params: { doctype: 'Employee Project Assignment' },
+  cache: ['sidePanelSections', 'Smart Timesheet'],
+  params: { doctype: 'Smart Timesheet' },
   auto: true,
   transform: (data) => getParsedFields(data),
 })
 
+if (!sections.data) sections.fetch()
+
 function getParsedFields(sections) {
   return sections
 }
-
-if (!sections.data) sections.fetch()
-
 
 function updateField(name, value) {
   value = Array.isArray(name) ? '' : value
@@ -363,8 +385,8 @@ function beforeStatusChange(data) {
   //   })
   // }
   document.save.submit(null, {
-    onSuccess: () => reloadAssignees(data),
-  })
+      onSuccess: () => reloadAssignees(data),
+    })
 }
 
 function reloadAssignees(data) {
@@ -375,11 +397,11 @@ function reloadAssignees(data) {
 
 function statusColor(status) {
   if (!status) return ''
-  if (status === 'Approved') return 'text-green-600'
-  if (status === 'Reject') return 'text-red-600'
-  if (status === 'Pending Approval' || status === 'Planning') return 'text-yellow-600'
+  if (status === 'Active') return 'text-green-600'
+  if (status === 'On Hold') return 'text-red-600'
+  if( status === 'Pending' || status === 'Planning') return 'text-yellow-600'
   if (status === 'Completed' || status === 'Done') return 'text-blue-600'
-  if (status === 'Draft' || status === 'Cancelled') return 'text-gray-600'
+  if (status === 'Cancelled' || status === 'Lost') return 'text-gray-600'
   return 'text-gray-500'
 }
 
