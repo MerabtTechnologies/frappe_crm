@@ -102,6 +102,9 @@ import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
+import GammaProposalIcon from '../Icons/GammaProposalIcon.vue'
+import QuotationIcon from '../Icons/QuotationIcon.vue'
+import EventIcon from '../Icons/EventIcon.vue'
 import { viewsStore } from '@/stores/views'
 import { unreadNotificationsCount } from '@/stores/notifications'
 import { createResource } from 'frappe-ui'
@@ -147,6 +150,21 @@ const links = [
     icon: PhoneIcon,
     to: 'Call Logs',
   },
+  {
+    label: 'Quotation',
+    icon: QuotationIcon,
+    to: 'Quotations',
+  },
+  {
+    label: 'Gamma',
+    icon: GammaProposalIcon,
+    to: 'Gammas',
+  },
+  {
+    label: 'Event',
+    icon: EventIcon,
+    to: 'Events',
+  }
 ]
 
 const allViews = computed(() => {

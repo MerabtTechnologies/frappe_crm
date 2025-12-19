@@ -13,6 +13,13 @@
       iconLeft="plus"
       @click="emailBox.show = true"
     />
+     <Button
+      v-if="title == 'Gamma'"
+      variant="solid"
+      :label="__('New Gamma')"
+      iconLeft="plus"
+      @click="emailBox.show = true"
+    />
     <Button
       v-else-if="title == 'Comments'"
       variant="solid"
@@ -32,6 +39,7 @@
       iconLeft="plus"
       @click="modalRef.showNote()"
     />
+    
     <Button
       v-else-if="title == 'Tasks'"
       variant="solid"
@@ -107,6 +115,7 @@ const defaultActions = computed(() => {
       label: __('New Email'),
       onClick: () => (props.emailBox.show = true),
     },
+    
     {
       icon: h(CommentIcon, { class: 'h-4 w-4' }),
       label: __('New Comment'),
@@ -116,12 +125,14 @@ const defaultActions = computed(() => {
       icon: h(PhoneIcon, { class: 'h-4 w-4' }),
       label: __('Log a Call'),
       onClick: () => props.modalRef.createCallLog(),
+      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal',
     },
     {
       icon: h(PhoneIcon, { class: 'h-4 w-4' }),
       label: __('Make a Call'),
       onClick: () => makeCall(props.doc.mobile_no),
-      condition: () => callEnabled.value,
+      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal',
+
     },
     {
       icon: h(NoteIcon, { class: 'h-4 w-4' }),
@@ -132,6 +143,7 @@ const defaultActions = computed(() => {
       icon: h(TaskIcon, { class: 'h-4 w-4' }),
       label: __('New Task'),
       onClick: () => props.modalRef.showTask(),
+      condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal',
     },
     {
       icon: h(AttachmentIcon, { class: 'h-4 w-4' }),
