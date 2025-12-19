@@ -192,7 +192,7 @@ async function createDeal() {
       isDealCreating.value = true
     },
     onSuccess(name) {
-      capture('task_created')
+      capture('project_task_created')
       
       isDealCreating.value = false
       show.value = false

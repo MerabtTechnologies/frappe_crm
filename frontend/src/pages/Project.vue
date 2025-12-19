@@ -330,13 +330,13 @@ watch(
 // Organization/document watch removed — organization handled elsewhere
 
 onMounted(() => {
-  $socket.on('crm_customer_created', () => {
-    toast.success(__('Customer created successfully'))
+  $socket.on('project_created', () => {
+    toast.success(__('Project created successfully'))
   })
 })
 
 onBeforeUnmount(() => {
-  $socket.off('crm_customer_created')
+  $socket.off('project_created')
 })
 
 const reload = ref(false)
@@ -373,9 +373,7 @@ const title = computed(() => {
 })
 
 const statuses = computed(() => {
-  let customStatuses = document.statuses?.length
-    ? document.statuses
-    : document._statuses || []
+  let customStatuses = document.doc.status || []
   return statusOptions('deal', customStatuses, triggerStatusChange)
 })
 
@@ -464,10 +462,14 @@ function getParsedSections(_sections) {
 
 async function triggerStatusChange(value) {
   await triggerOnChange('status', value)
-  setLostReason()
+  // setLostReason()
+  console.log('Status Changed: ', value);
+  document.save.submit()
 }
 
 function updateField(name, value) {
+  console.log('OnUpdate Field: ', name, ' - - - ', value);
+  
   if (name == 'status' && !isOnboardingStepsCompleted.value) {
     updateOnboardingStep('change_deal_status')
   }
@@ -524,6 +526,8 @@ function setLostReason() {
 }
 
 function beforeStatusChange(data) {
+  console.log('Data Field Changed: ', data);
+  
   // if (
   //   data?.hasOwnProperty('status') &&
   //   getDealStatus(data.status).type == 'Lost'

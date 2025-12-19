@@ -330,13 +330,13 @@ watch(
 // Organization/document watch removed — organization handled elsewhere
 
 onMounted(() => {
-  $socket.on('crm_customer_created', () => {
-    toast.success(__('Customer created successfully'))
+  $socket.on('smart_timesheet_created', () => {
+    toast.success(__('Smart Timesheet created successfully'))
   })
 })
 
 onBeforeUnmount(() => {
-  $socket.off('crm_customer_created')
+  $socket.off('smart_timesheet_created')
 })
 
 const reload = ref(false)

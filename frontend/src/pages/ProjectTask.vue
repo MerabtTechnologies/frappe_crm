@@ -323,13 +323,13 @@ watch(
 // Organization/document watch removed — organization handled elsewhere
 
 onMounted(() => {
-  $socket.on('crm_customer_created', () => {
-    toast.success(__('Customer created successfully'))
+  $socket.on('project_task_created', () => {
+    toast.success(__('Project Task created successfully'))
   })
 })
 
 onBeforeUnmount(() => {
-  $socket.off('crm_customer_created')
+  $socket.off('project_task_created')
 })
 
 const reload = ref(false)

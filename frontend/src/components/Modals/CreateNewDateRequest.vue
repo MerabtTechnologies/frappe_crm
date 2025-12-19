@@ -188,7 +188,7 @@ async function createDeal() {
       isDealCreating.value = true
     },
     onSuccess(name) {
-      capture('project_planning_created')
+      capture('employee_date_request_created')
       isDealCreating.value = false
       show.value = false
       router.push({ name: 'Employee Date Request', params: { projectPlanningId: name } })

@@ -239,7 +239,7 @@ async function updateTask() {
     )
     if (d.name) {
       updateOnboardingStep('create_first_task')
-      capture('task_created')
+      capture('project_task_created')
       tasks.value?.reload()
       emit('after', d, true)
     }

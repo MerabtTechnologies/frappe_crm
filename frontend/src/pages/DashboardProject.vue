@@ -47,7 +47,7 @@
           </div>
         </div>
 
-        <div class="grid gap-4" style="grid-template-columns: 2fr 1fr;">
+        <!-- <div class="grid gap-4" style="grid-template-columns: 2fr 1fr;">
           <div class="card p-4">
             <div class="flex items-center justify-between mb-3">
               <h4 class="m-0">{{ __('Tasks Over Time') }}</h4>
@@ -62,7 +62,7 @@
             <DonutChart v-if="donutConfig" :config="donutConfig" />
             <div v-else class="text-center text-ink-gray-5 py-8">{{ __('No data') }}</div>
           </div>
-        </div>
+        </div> -->
       </div>
     </div>
   </div>
