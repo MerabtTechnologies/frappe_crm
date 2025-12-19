@@ -157,6 +157,9 @@ import UserDropdown from '@/components/UserDropdown.vue'
 import SquareAsterisk from '@/components/Icons/SquareAsterisk.vue'
 import LeadsIcon from '@/components/Icons/LeadsIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
+import QuotationIcon from '../Icons/QuotationIcon.vue'  
+import GammaProposalIcon from '../Icons/GammaProposalIcon.vue'  
+import EventIcon from '../Icons/EventIcon.vue'
 import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
 import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
@@ -193,6 +196,7 @@ import { capture } from '@/telemetry'
 import router from '@/router'
 import { useStorage } from '@vueuse/core'
 import { ref, reactive, computed, h, markRaw, onMounted } from 'vue'
+import DotIcon from '../Icons/DotIcon.vue'
 
 const { getPinnedViews, getPublicViews } = viewsStore()
 const { toggle: toggleNotificationPanel } = notificationsStore()
@@ -248,6 +252,21 @@ const links = [
     label: 'Call Logs',
     icon: PhoneIcon,
     to: 'Call Logs',
+  },
+  {
+    label: 'Quotation',
+    icon: QuotationIcon,
+    to: 'Quotations',
+  },
+  {
+    label: 'Gamma',
+    icon: GammaProposalIcon,
+    to: 'Gammas',
+  },
+  {
+    label:'Event',
+    icon: EventIcon,
+    to:'Events',  
   },
    // Project Dashboard
   {
@@ -346,7 +365,7 @@ function getIcon(routeName, icon) {
   switch (routeName) {
     case 'Leads':
       return LeadsIcon
-    case 'Deals':
+    case 'Quotation':
       return DealsIcon
     case 'Contacts':
       return ContactsIcon

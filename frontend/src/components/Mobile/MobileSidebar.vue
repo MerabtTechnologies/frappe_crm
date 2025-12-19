@@ -102,6 +102,9 @@ import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
+import GammaProposalIcon from '../Icons/GammaProposalIcon.vue'
+import QuotationIcon from '../Icons/QuotationIcon.vue'
+import EventIcon from '../Icons/EventIcon.vue'
 import DateRequestIcon from '@/components/Icons/DateRequestIcon.vue'
 import ProjectAssignIcon from '@/components/Icons/ProjectAssignIcon.vue'
 import TimesheetIcon from '@/components/Icons/TimesheetIcon.vue'
@@ -152,6 +155,21 @@ const links = [
     label: 'Call Logs',
     icon: PhoneIcon,
     to: 'Call Logs',
+  },
+  {
+    label: 'Quotation',
+    icon: QuotationIcon,
+    to: 'Quotations',
+  },
+  {
+    label: 'Gamma',
+    icon: GammaProposalIcon,
+    to: 'Gammas',
+  },
+  {
+    label: 'Event',
+    icon: EventIcon,
+    to: 'Events',
   },
    // Project Dashboard
   {
