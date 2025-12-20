@@ -9,18 +9,7 @@
         </template>
       </Breadcrumbs>
       <div class="absolute right-0">
-        <Dropdown
-          v-if="doc"
-          :options="
-            statusOptions(
-              'deal',
-              document.statuses?.length
-                ? document.statuses
-                : document._statuses,
-              triggerStatusChange,
-            )
-          "
-        >
+        <Dropdown v-if="doc && statuses.length" :options="statuses" placement="right">
           <template #default="{ open }">
             <Button
               v-if="doc.status"
@@ -28,7 +17,7 @@
               :iconRight="open ? 'chevron-up' : 'chevron-down'"
             >
               <template #prefix>
-                <IndicatorIcon :class="getDealStatus(doc.status).color" />
+                <IndicatorIcon :class="statusColor(doc.status)" />
               </template>
             </Button>
           </template>
@@ -53,9 +42,13 @@
     </div>
   </div>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
-    <Tabs as="div" v-model="tabIndex" :tabs="tabs" class="overflow-auto">
-      <TabList class="!px-3" />
-      <TabPanel v-slot="{ tab }">
+    <Tabs
+      as="div"
+      v-model="tabIndex"
+      :tabs="tabs"
+      class="flex flex-1 overflow-auto flex-col [&_[role='tab']]:px-0 [&_[role='tablist']]:px-3 [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
+    >
+      <template #tab-panel="{ tab }">
         <div v-if="tab.name == 'Details'">
           <SLASection
             v-if="doc.sla_status"
@@ -71,142 +64,8 @@
               doctype="Event"
               :docname="eventId"
               @reload="sections.reload"
-              @beforeFieldChange="beforeStatusChange"
               @afterFieldChange="reloadAssignees"
-            >
-              <template #actions="{ section }">
-                <div v-if="section.name == 'contacts_section'" class="pr-2">
-                  <Link
-                    value=""
-                    doctype="Contact"
-                    @change="(e) => addContact(e)"
-                    :onCreate="
-                      (value, close) => {
-                        _contact = {
-                          first_name: value,
-                          company_name: doc.organization,
-                        }
-                        showContactModal = true
-                        close()
-                      }
-                    "
-                  >
-                    <template #target="{ togglePopover }">
-                      <Button
-                        class="h-7 px-3"
-                        variant="ghost"
-                        icon="plus"
-                        @click="togglePopover()"
-                      />
-                    </template>
-                  </Link>
-                </div>
-              </template>
-              <template #default="{ section }">
-                <div
-                  v-if="section.name == 'contacts_section'"
-                  class="contacts-area"
-                >
-                  <div
-                    v-if="
-                      dealContacts?.loading && dealContacts?.data?.length == 0
-                    "
-                    class="flex min-h-20 flex-1 items-center justify-center gap-3 text-base text-ink-gray-4"
-                  >
-                    <LoadingIndicator class="h-4 w-4" />
-                    <span>{{ __('Loading...') }}</span>
-                  </div>
-                  <div
-                    v-else-if="section.contacts.length"
-                    v-for="(contact, i) in section.contacts"
-                    :key="contact.name"
-                  >
-                    <div
-                      class="px-2 pb-2.5"
-                      :class="[i == 0 ? 'pt-5' : 'pt-2.5']"
-                    >
-                      <Section :opened="contact.opened">
-                        <template #header="{ opened, toggle }">
-                          <div
-                            class="flex cursor-pointer items-center justify-between gap-2 pr-1 text-base leading-5 text-ink-gray-7"
-                          >
-                            <div
-                              class="flex h-7 items-center gap-2 truncate"
-                              @click="toggle()"
-                            >
-                              <Avatar
-                                :label="contact.full_name"
-                                :image="contact.image"
-                                size="md"
-                              />
-                              <div class="truncate">
-                                {{ contact.full_name }}
-                              </div>
-                              <Badge
-                                v-if="contact.is_primary"
-                                class="ml-2"
-                                variant="outline"
-                                :label="__('Primary')"
-                                theme="green"
-                              />
-                            </div>
-                            <div class="flex items-center">
-                              <Dropdown :options="contactOptions(contact.name)">
-                                <Button
-                                  icon="more-horizontal"
-                                  class="text-ink-gray-5"
-                                  variant="ghost"
-                                />
-                              </Dropdown>
-                              <Button
-                                variant="ghost"
-                                @click="
-                                  router.push({
-                                    name: 'Contact',
-                                    params: { contactId: contact.name },
-                                  })
-                                "
-                              >
-                                <ArrowUpRightIcon class="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" @click="toggle()">
-                                <FeatherIcon
-                                  name="chevron-right"
-                                  class="h-4 w-4 text-ink-gray-9 transition-all duration-300 ease-in-out"
-                                  :class="{ 'rotate-90': opened }"
-                                />
-                              </Button>
-                            </div>
-                          </div>
-                        </template>
-                        <div
-                          class="flex flex-col gap-1.5 text-base text-ink-gray-8"
-                        >
-                          <div class="flex items-center gap-3 pb-1.5 pl-1 pt-4">
-                            <Email2Icon class="h-4 w-4" />
-                            {{ contact.email }}
-                          </div>
-                          <div class="flex items-center gap-3 p-1 py-1.5">
-                            <PhoneIcon class="h-4 w-4" />
-                            {{ contact.mobile_no }}
-                          </div>
-                        </div>
-                      </Section>
-                    </div>
-                    <div
-                      v-if="i != section.contacts.length - 1"
-                      class="mx-2 h-px border-t border-outline-gray-modals"
-                    />
-                  </div>
-                  <div
-                    v-else
-                    class="flex h-20 items-center justify-center text-base text-ink-gray-5"
-                  >
-                    {{ __('No contacts added') }}
-                  </div>
-                </div>
-              </template>
-            </SidePanelLayout>
+            />
           </div>
         </div>
         <Activities
@@ -216,10 +75,10 @@
           :tabs="tabs"
           v-model:reload="reload"
           v-model:tabIndex="tabIndex"
-          @beforeSave="beforeStatusChange"
+          @beforeSave="saveChanges"
           @afterSave="reloadAssignees"
         />
-      </TabPanel>
+      </template>
     </Tabs>
   </div>
   <ErrorPage
@@ -305,8 +164,6 @@ import {
   Dropdown,
   Avatar,
   Tabs,
-  TabList,
-  TabPanel,
   Breadcrumbs,
   call,
   usePageMeta,
@@ -317,8 +174,8 @@ import { useRoute, useRouter } from 'vue-router'
 
 const { brand } = getSettings()
 const { $dialog, $socket } = globalStore()
-const { statusOptions, getDealStatus } = statusesStore()
-const { doctypeMeta } = getMeta('Event')
+const { statusOptionsAll, getDealStatus } = statusesStore()
+const { doctypeMeta, getFields } = getMeta('Event')
 const route = useRoute()
 const router = useRouter()
 
@@ -655,5 +512,38 @@ function reloadAssignees(data) {
   if (data?.hasOwnProperty('deal_owner')) {
     assignees.reload()
   }
+}
+
+const statuses = computed(() => {
+  // determine custom statuses in order of precedence:
+  // 1. document.statuses (server-provided)
+  // 2. document._statuses (client customizations)
+  // 3. doctype meta `status` field select options
+  let customStatuses = []
+
+  if (document.statuses?.length) {
+    customStatuses = document.statuses
+  } else if (document._statuses?.length) {
+    customStatuses = document._statuses
+  } else {
+    // try to read from doctype meta
+    const fields = getFields()
+    const statusField = (fields || []).find((f) => f.fieldname === 'status')
+    if (statusField?.options?.length) {
+      customStatuses = statusField.options.map((o) => o.value || o.label).filter(Boolean)
+    }
+  }
+
+  return statusOptionsAll('project', customStatuses, triggerStatusChange)
+})
+
+function statusColor(status) {
+  if (!status) return ''
+  if (status === 'Active' || status === 'Open') return 'text-green-600'
+  if (status === 'Closed') return 'text-red-600'
+  if( status === 'Pending') return 'text-yellow-600'
+  if (status === 'Completed' || status === 'Done') return 'text-blue-600'
+  if (status === 'Cancelled' || status === 'Lost') return 'text-gray-600'
+  return 'text-gray-500'
 }
 </script>
