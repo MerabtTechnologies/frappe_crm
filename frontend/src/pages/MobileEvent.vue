@@ -86,24 +86,7 @@
     :errorTitle="errorTitle"
     :errorMessage="errorMessage"
   />
-  <OrganizationModal
-    v-if="showOrganizationModal"
-    v-model="showOrganizationModal"
-    :data="_organization"
-    :options="{
-      redirect: false,
-      afterInsert: (_doc) => updateField('organization', _doc.name),
-    }"
-  />
-  <ContactModal
-    v-if="showContactModal"
-    v-model="showContactModal"
-    :contact="_contact"
-    :options="{
-      redirect: false,
-      afterInsert: (_doc) => addContact(_doc.name),
-    }"
-  />
+
   <DeleteLinkedDocModal
     v-if="showDeleteLinkedDocModal"
     v-model="showDeleteLinkedDocModal"
@@ -343,86 +326,10 @@ const sections = createResource({
 })
 
 function getParsedFields(sections) {
-  sections.forEach((section) => {
-    if (section.name == 'contacts_section') return
-    section.columns[0].fields.forEach((field) => {
-      if (field.name == 'organization') {
-        field.create = (value, close) => {
-          _organization.value.organization_name = value
-          showOrganizationModal.value = true
-          close()
-        }
-        field.link = (org) =>
-          router.push({
-            name: 'Organization',
-            params: { organizationId: org },
-          })
-      }
-    })
-  })
+
   return sections
 }
 
-const showContactModal = ref(false)
-const _contact = ref({})
-
-function contactOptions(contact) {
-  let options = [
-    {
-      label: __('Delete'),
-      icon: 'trash-2',
-      onClick: () => removeContact(contact),
-    },
-  ]
-
-  if (!contact.is_primary) {
-    options.push({
-      label: __('Set as Primary Contact'),
-      icon: h(SuccessIcon, { class: 'h-4 w-4' }),
-      onClick: () => setPrimaryContact(contact.name),
-    })
-  }
-
-  return options
-}
-
-async function addContact(contact) {
-  if (dealContacts.data?.find((c) => c.name === contact)) {
-    toast.error(__('Contact already added'))
-    return
-  }
-
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.add_contact', {
-    deal: props.eventId,
-    contact,
-  })
-  if (d) {
-    dealContacts.reload()
-    toast.success(__('Contact added'))
-  }
-}
-
-async function removeContact(contact) {
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.remove_contact', {
-    deal: props.eventId,
-    contact,
-  })
-  if (d) {
-    dealContacts.reload()
-    toast.success(__('Contact removed'))
-  }
-}
-
-async function setPrimaryContact(contact) {
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.set_primary_contact', {
-    deal: props.eventId,
-    contact,
-  })
-  if (d) {
-    dealContacts.reload()
-    toast.success(__('Primary contact set'))
-  }
-}
 
 const dealContacts = createResource({
   url: 'crm.fcrm.doctype.crm_deal.api.get_deal_contacts',

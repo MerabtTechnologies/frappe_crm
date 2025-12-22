@@ -86,24 +86,7 @@
     :errorTitle="errorTitle"
     :errorMessage="errorMessage"
   />
-  <OrganizationModal
-    v-if="showOrganizationModal"
-    v-model="showOrganizationModal"
-    :data="_organization"
-    :options="{
-      redirect: false,
-      afterInsert: (_doc) => updateField('organization', _doc.name),
-    }"
-  />
-  <ContactModal
-    v-if="showContactModal"
-    v-model="showContactModal"
-    :contact="_contact"
-    :options="{
-      redirect: false,
-      afterInsert: (_doc) => addContact(_doc.name),
-    }"
-  />
+
   <DeleteLinkedDocModal
     v-if="showDeleteLinkedDocModal"
     v-model="showDeleteLinkedDocModal"
