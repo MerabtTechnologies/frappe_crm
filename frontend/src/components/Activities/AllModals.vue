@@ -15,6 +15,14 @@
     :doc="doc?.name"
     @after="redirect('project-tasks')"
   />
+  <GammaModal
+    v-model="showGammaProposalModal"
+    v-model:reloadProposals="activities"
+    :proposal="gammaProposal"
+    :doctype="doctype"
+    :doc="doc?.name"
+    @after="redirect('gamma-proposal')"
+  />
   <NoteModal
     v-model="showNoteModal"
     v-model:reloadNotes="activities"
@@ -39,6 +47,7 @@ import { call } from 'frappe-ui'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ProjectTaskModal from '@/components/Modals/ProjectTaskModal.vue'
+import GammaModal from '../Modals/GammaModal.vue'
 
 const props = defineProps({
   doctype: String,
@@ -98,6 +107,32 @@ function showProjectTask(t) {
   showProjectTaskModal.value = true
 }
 
+// function gammaProposalModal() {
+//   import('@/components/Modals/GammaModal.vue')
+//     .then((module) => {
+//       return module.default
+//     })
+//     .then((GammaModal) => {
+//       defineComponent({
+//         components: { GammaModal },
+//         setup() {
+//           return {}
+//         },
+//       })        
+// }
+const showGammaProposalModal = ref(false)
+const gammaProposal = ref({})
+function showGammaProposal(t) {
+  gammaProposal.value = t || {
+    title: '',
+    description: '',
+    customer: '',
+    valid_till: '',
+    status: 'Draft',
+  }
+  showGammaProposalModal.value = true
+}
+
 async function deleteProjectTask(name) {
   await call('frappe.client.delete', {
     doctype: 'Task',
@@ -116,6 +151,16 @@ function updateProjectTaskStatus(status, task) {
     activities.value.reload()
   })
 }
+// function updateGammaProposalStatus(status, task) {
+//   call('frappe.client.set_value', {
+//     doctype: 'Gamma Proposal',
+//     name: task.name,
+//     fieldname: 'status',
+//     value: status,
+//   }).then(() => {
+//     activities.value.reload()
+//   })
+// }
 
 // Notes
 const showNoteModal = ref(false)
@@ -167,5 +212,7 @@ defineExpose({
   showProjectTask,
   deleteProjectTask,
   updateProjectTaskStatus,
+  showGammaProposal,
+  
 })
 </script>
