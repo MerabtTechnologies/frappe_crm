@@ -18,7 +18,7 @@
       variant="solid"
       :label="__('New Gamma')"
       iconLeft="plus"
-      @click="emailBox.show = true"
+      @click="modalRef.showGammaProposal()"
     />
     <Button
       v-else-if="title == 'Comments'"
@@ -157,6 +157,12 @@ const defaultActions = computed(() => {
       label: __('New Project Task'),
       onClick: () => props.modalRef.showProjectTask(),
       condition: () => props.doc?.doctype === 'Smart Project',
+    },
+    {
+      icon: h(ProjectTaskIcon, { class: 'h-4 w-4' }),
+      label: __('New Gamma Proposal'),
+      onClick: () => props.modalRef.showGammaProposal(),
+      condition: () => props.doc?.doctype === 'Gamma Proposal',
     },
     {
       icon: h(AttachmentIcon, { class: 'h-4 w-4' }),
