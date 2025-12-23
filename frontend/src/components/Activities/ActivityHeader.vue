@@ -14,7 +14,7 @@
       @click="emailBox.show = true"
     />
      <Button
-      v-if="title == 'Gamma'"
+      v-else-if="title == 'Gamma'"
       variant="solid"
       :label="__('New Gamma')"
       iconLeft="plus"

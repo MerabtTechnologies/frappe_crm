@@ -2,9 +2,9 @@
 <template>
   <div class="p-4 space-y-4">
 
-    <div class="text-lg font-semibold">
+    <!-- <div class="text-lg font-semibold">
       Gamma Templates
-    </div>
+    </div> -->
 
     <!-- Quotation Info -->
     <div class="border rounded p-3 bg-gray-50">
@@ -19,12 +19,12 @@
     <!-- No Data -->
     <div v-if="loading" class="text-gray-500">Loading templates...</div>
 
-    <div v-else-if="proposals.length === 0" class="text-gray-500">
+    <div v-else-if="props.proposals.length === 0" class="text-gray-500">
       No Gamma presentation found for this Quotation.
     </div>
 
     <!-- Gamma Embed -->
-    <div v-for="item in proposals" :key="item.name"
+    <div v-for="item in props.proposals" :key="item.name"
          class="border rounded shadow-sm bg-white overflow-hidden">
 
       <!-- Header -->
@@ -95,6 +95,7 @@ import { Button, call } from 'frappe-ui'
 const props = defineProps({
   doctype: String,
   docname: String,
+  proposals: [Object],
 })
 
 const proposals = ref([])
@@ -105,15 +106,16 @@ async function loadGammaTemplates() {
   loading.value = true
 
   try {
-    const res = await call('merabt_crm.custom.quotation.get_quotation_proposals', {
-      quotation_name: props.docname
-    })
+    // const res = await call('merabt_crm.custom.quotation.get_quotation_proposals', {
+    //   quotation_name: props.docname
+    // })
 
-    proposals.value = res || []
+    // props.proposals = res || []
 
+  console.log('Proposals: ', props.proposals);
   
 
-    proposals.value.forEach(p => {
+    props.proposals.forEach(p => {
       console.log(" Gamma URL:", p.gamma_url)
       console.log("Embed ID:", p.gamma_embed_id)
     })
@@ -137,7 +139,7 @@ async function unlinkProposal(name) {
     )
 
     // Remove from UI
-    proposals.value = proposals.value.filter(p => p.name !== name)
+    props.proposals = props.proposals.filter(p => p.name !== name)
 
     alert(`✅ Gamma proposal "${name}" unlinked successfully.`)
 
