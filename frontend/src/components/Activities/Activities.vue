@@ -68,6 +68,13 @@
       <div v-else-if="title == 'Project Tasks'" class="px-3 pb-3 sm:px-10 sm:pb-5">
         <ProjectTaskArea :modalRef="projectModalProxy" :tasks="activities" :doctype="doctype" />
       </div>
+      <div v-else-if="title == 'Gamma'" class="px-3 pb-3 sm:px-10 sm:pb-5">
+        <GammaTemplates
+          :doctype="doctype"
+          :docname="docname"
+          :proposals="activities"
+        />
+      </div>
       <div v-else-if="title == 'Calls'" class="activity">
         <div v-for="(call, i) in activities">
           <div
@@ -406,7 +413,7 @@
         @click="modalRef.showProjectTask()"
       />
       <Button
-        v-else-if="title == 'Gamma Proposal'"
+        v-else-if="title == 'Gamma'"
         :label="__('Create Gamma Proposal')"
         @click="modalRef.showGammaProposal()"
       />
@@ -416,16 +423,17 @@
         @click="showFilesUploader = true"
       />
     </div>
+    
+
+
   </FadedScrollableDiv>
-
-  <div>
-
-    <GammaTemplates
+    <!-- <div>
+       <GammaTemplates
       v-if="title == 'Gamma'"
       :doctype="doctype"
       :docname="docname"
     />
-    </div>
+   </div> -->
 <!-- Gamma Templates -->
 
   <div>
@@ -595,8 +603,8 @@ const all_activities = createResource({
   params: { name: props.docname },
   cache: ['activity', props.docname],
   auto: true,
-  transform: ([versions, calls, notes, tasks, attachments]) => {
-    return { versions, calls, notes, tasks, attachments }
+  transform: ([versions, calls, notes, tasks, attachments, proposals]) => {
+    return { versions, calls, notes, tasks, attachments, proposals }
   },
   onSuccess: () => nextTick(() => scroll()),
 })
@@ -691,6 +699,9 @@ const activities = computed(() => {
   } else if (title.value == 'Attachments') {
     if (!all_activities.data?.attachments) return []
     return sortByModified(all_activities.data.attachments)
+  } else if (title.value == 'Gamma') {
+    if (!all_activities.data.proposals) return []    
+    return sortByModified(all_activities.data.proposals)
   }
 
   _activities.forEach((activity) => {
@@ -763,6 +774,8 @@ const emptyText = computed(() => {
     text = 'No WhatsApp Messages'
   } else if (title.value == 'Project Tasks') {
     text = 'No Project Tasks'
+  } else if (title.value == 'Gamma') {
+    text = 'No Gamma Proposals'
   }
   return text
 })
