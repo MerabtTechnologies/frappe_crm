@@ -17,11 +17,7 @@
         :actions="document.actions"
       />
       <AssignTo v-model="assignees.data" doctype="Gamma Proposal" :docname="GammaId" />
-      <Dropdown
-        v-if="doc && document.statuses"
-        :options="statuses"
-        placement="right"
-      >
+      <Dropdown v-if="doc && statuses.length" :options="statuses" placement="right">
         <template #default="{ open }">
           <Button
             v-if="doc.status"
@@ -29,7 +25,7 @@
             :iconRight="open ? 'chevron-up' : 'chevron-down'"
           >
             <template #prefix>
-              <IndicatorIcon :class="getDealStatus(doc.status).color" />
+              <IndicatorIcon :class="statusColor(doc.status)" />
             </template>
           </Button>
         </template>
@@ -392,8 +388,8 @@ import { useActiveTabManager } from '@/composables/useActiveTabManager'
 
 const { brand } = getSettings()
 const { $dialog, $socket, makeCall } = globalStore()
-const { statusOptions, getDealStatus } = statusesStore()
-const { doctypeMeta } = getMeta('Gamma Proposal')
+const { statusOptionsAll, getDealStatus } = statusesStore()
+const { doctypeMeta, getFields } = getMeta('Gamma Proposal')
 
 const { updateOnboardingStep, isOnboardingStepsCompleted } =
   useOnboarding('frappecrm')
@@ -527,11 +523,28 @@ const title = computed(() => {
 })
 
 const statuses = computed(() => {
-  let customStatuses = document.statuses?.length
-    ? document.statuses
-    : document._statuses || []
-  return statusOptions('deal', customStatuses, triggerStatusChange)
+  // determine custom statuses in order of precedence:
+  // 1. document.statuses (server-provided)
+  // 2. document._statuses (client customizations)
+  // 3. doctype meta `status` field select options
+  let customStatuses = []
+
+  if (document.statuses?.length) {
+    customStatuses = document.statuses
+  } else if (document._statuses?.length) {
+    customStatuses = document._statuses
+  } else {
+    // try to read from doctype meta
+    const fields = getFields()
+    const statusField = (fields || []).find((f) => f.fieldname === 'status')
+    if (statusField?.options?.length) {
+      customStatuses = statusField.options.map((o) => o.value || o.label).filter(Boolean)
+    }
+  }
+
+  return statusOptionsAll('gamma-proposal', customStatuses, triggerStatusChange)
 })
+
 
 usePageMeta(() => {
   return {
@@ -718,7 +731,13 @@ function triggerCall() {
 
 async function triggerStatusChange(value) {
   await triggerOnChange('status', value)
-  setLostReason()
+  // setLostReason()
+  document.save.submit(null, {
+    // onSuccess: () => (reload.value = true),
+    onError: (err) => {
+      toast.error(err.messages?.[0] || __('Error updating field'))
+    },
+  })
 }
 
 function updateField(name, value) {
@@ -796,4 +815,15 @@ function reloadAssignees(data) {
     assignees.reload()
   }
 }
+
+function statusColor(status) {
+  if (!status) return ''
+  if (status === 'Active' || status === 'Approved') return 'text-green-600'
+  if (status === 'On Hold' || status === 'Shared') return 'text-red-500'
+  if( status === 'Pending' || status === 'In Review') return 'text-yellow-600'
+  if (status === 'Completed' || status === 'Done') return 'text-blue-600'
+  if (status === 'Cancelled' || status === 'Rejected') return 'text-red-600'
+  return 'text-gray-500'
+}
+
 </script>

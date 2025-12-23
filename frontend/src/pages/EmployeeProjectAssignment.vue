@@ -476,7 +476,12 @@ function getParsedSections(_sections) {
 
 async function triggerStatusChange(value) {
   await triggerOnChange('status', value)
-  document.save.submit()
+  document.save.submit(null, {
+    // onSuccess: () => (reload.value = true),
+    onError: (err) => {
+      toast.error(err.messages?.[0] || __('Error updating field'))
+    },
+  })
 
   // setLostReason()
 }

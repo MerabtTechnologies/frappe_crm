@@ -26,23 +26,16 @@
                 />
               </div>
       <AssignTo v-model="assignees.data" doctype="Quotation" :docname="quotationId" />
-      <Dropdown
-        v-if="doc && document.statuses"
-        :options="statuses"
-        placement="right"
-      >
-        <template #default="{ open }">
+
           <Button
             v-if="doc.status"
             :label="doc.status"
-            :iconRight="open ? 'chevron-up' : 'chevron-down'"
           >
             <template #prefix>
-              <IndicatorIcon :class="getDealStatus(doc.status).color" />
+              <IndicatorIcon :class="statusColor(doc.status)" />
             </template>
           </Button>
-        </template>
-      </Dropdown>
+
     </template>
   </LayoutHeader>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
@@ -760,7 +753,13 @@ function triggerCall() {
 
 async function triggerStatusChange(value) {
   await triggerOnChange('status', value)
-  setLostReason()
+  // setLostReason()
+  document.save.submit(null, {
+    // onSuccess: () => (reload.value = true),
+    onError: (err) => {
+      toast.error(err.messages?.[0] || __('Error updating field'))
+    },
+  })
 }
 
 function updateField(name, value) {
@@ -841,6 +840,15 @@ function reloadAssignees(data) {
   }
 }
 
+function statusColor(status) {
+  if (!status) return ''
+  if (status === 'Active' || status === 'Open') return 'text-green-600'
+  if (status === 'On Hold') return 'text-red-600'
+  if( status === 'Pending' || status === 'Planning') return 'text-yellow-600'
+  if (status === 'Completed' || status === 'Done') return 'text-blue-600'
+  if (status === 'Cancelled' || status === 'Lost') return 'text-gray-600'
+  return 'text-gray-500'
+}
 
 
 
