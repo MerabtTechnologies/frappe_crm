@@ -98,8 +98,8 @@ const show = defineModel()
 const router = useRouter()
 const error = ref(null)
 
-// const { document: deal, triggerOnBeforeCreate } = useDocument('Quotation')
-const { document: deal } = useDocument('Quotation')
+const { document: deal, triggerOnBeforeCreate } = useDocument('Quotation')
+// const { document: deal } = useDocument('Quotation')
 
 // 🔥 FIX: initialize child table
 // if (!deal.doc.items) {
@@ -184,7 +184,7 @@ const tabs = createResource({
 
 async function createDeal() {
 
-  // await triggerOnBeforeCreate?.()
+  await triggerOnBeforeCreate?.()
 
   createResource({
     url: 'merabt_crm.portal_api.api.create_new_doc',
