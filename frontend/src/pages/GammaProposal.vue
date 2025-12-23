@@ -797,8 +797,15 @@ function setLostReason() {
 }
 
 function beforeStatusChange(data) {
-
-  document.save.submit(null, {
+  // if (
+  //   data?.hasOwnProperty('status') &&
+  //   getDealStatus(data.status).type == 'Lost'
+  // ) {
+  //   setLostReason()
+  // } 
+  // }
+  // else {
+    document.save.submit(null, {
       onSuccess: () => reloadAssignees(data),
     })
 }
