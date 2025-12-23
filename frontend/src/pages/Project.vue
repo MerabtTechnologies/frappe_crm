@@ -17,13 +17,17 @@
         :actions="document.actions"
       />
       <!--TODO Add Buttons Here -->
-      <Button
-          :label="__('Employee Task Assignment')"
-          @click="() => { console.log('Employee Task Assignment clicked') }"
-        />
+      <!-- <Button
+          :label="__('Employee Project Assignment')"
+          @click="() => { console.log('Employee Project Assignment clicked') }"
+        /> -->
       <AssignTo v-model="assignees.data" doctype="Smart Project" :docname="projectId" />
     
-      <Dropdown v-if="doc && statuses.length" :options="statuses" placement="right">
+      <Dropdown
+        v-if="doc && statuses?.length"
+        :options="statuses"
+        placement="right"
+      >
         <template #default="{ open }">
           <Button
             v-if="doc.status"
