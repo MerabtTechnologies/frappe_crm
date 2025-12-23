@@ -166,17 +166,48 @@ const tabs = createResource({
   },
 })
 
-// const dealStatuses = computed(() => {
-//   let statuses = statusOptions('deal')
-//   if (!deal.doc.status) {
-//     deal.doc.status = statuses[0].value
-//   }
-//   return statuses
-// })
+const dealStatuses = computed(() => {
+  let statuses = statusOptions('deal')
+  if (!deal.doc.status) {
+    deal.doc.status = statuses[0].value
+  }
+  return statuses
+})
+
 
 async function createDeal() {
 
   await triggerOnBeforeCreate?.()
+
+  // If a Quotation is linked on the Gamma Proposal, ensure it's submitted before creating
+  const quotationId =
+    deal.doc.quotation ||
+    deal.doc.quotation_name ||
+    deal.doc.quotation_id ||
+    deal.doc.Quotation
+
+  if (quotationId) {
+    try {
+      const res = await fetch(
+        `/api/resource/Quotation/${encodeURIComponent(quotationId)}`
+      )
+      if (res.ok) {
+        const json = await res.json()
+        const quotation = json.data
+        // In Frappe, docstatus === 0 means Draft. Quotation may also have a 'status' field set to 'Draft'.
+        if (
+          quotation &&
+          (quotation.docstatus === 0 ||
+            (quotation.status && String(quotation.status).toLowerCase() === 'draft'))
+        ) {
+          error.value = 'Please submit the quotation'
+          return
+        }
+      }
+    } catch (err) {
+      console.warn('Could not verify quotation status', err)
+    }
+  }
 
   createResource({
     url: 'merabt_crm.portal_api.api.create_new_doc',
