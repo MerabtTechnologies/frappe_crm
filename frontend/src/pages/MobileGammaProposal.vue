@@ -408,17 +408,12 @@ function setLostReason() {
 }
 
 function beforeStatusChange(data) {
-  if (
-    data?.hasOwnProperty('status') &&
-    getDealStatus(data.status).type == 'Lost'
-  ) {
-    setLostReason()
-  } else {
+
     document.save.submit(null, {
       onSuccess: () => reloadAssignees(data),
     })
-  }
 }
+
 
 function reloadAssignees(data) {
   if (data?.hasOwnProperty('deal_owner')) {
