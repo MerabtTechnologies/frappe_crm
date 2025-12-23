@@ -267,6 +267,12 @@ const detailFields = computed(() => {
       color: data.status.color,
     },
     {
+      icon: NoteIcon,
+      name: 'custom_remarks',
+      value: data.custom_remarks,
+      tooltip: data.custom_remarks,
+    },
+    {
       icon: h(FeatherIcon, {
         name: 'play-circle',
         class: 'h-4 w-4 mt-2',

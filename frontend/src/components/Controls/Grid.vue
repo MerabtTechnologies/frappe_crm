@@ -17,8 +17,9 @@
         >
           <Checkbox
             class="cursor-pointer duration-300"
-            :modelValue="allRowsSelected"
-            @click.stop="toggleSelectAllRows($event.target.checked)"
+              :modelValue="allRowsSelected"
+              :disabled="!isEditable"
+              @click.stop="toggleSelectAllRows($event.target.checked)"
           />
         </div>
         <div
@@ -54,6 +55,7 @@
         </div>
         <div class="flex items-center justify-center w-12">
           <Button
+            v-if="isEditable"
             :tooltip="__('Edit grid fields')"
             class="rounded !bg-surface-gray-2 border-0 !text-ink-gray-5"
             variant="outline"
@@ -70,18 +72,13 @@
           :delay="isTouchScreenDevice() ? 200 : 0"
           group="rows"
           item-key="name"
+          :disabled="!isEditable"
           @end="reorder"
         >
           <template #item="{ element: row, index }">
             <div
               class="grid-row flex cursor-pointer items-center border-b border-outline-gray-modals bg-surface-modals last:rounded-b last:border-b-0"
-              @click.stop="
-                () => {
-                  if (!gridSettings.editable_grid) {
-                    showRowList[index] = true
-                  }
-                }
-              "
+              @click.stop="() => { showRowList[index] = true }"
             >
               <div
                 class="grid-row-checkbox inline-flex h-9.5 items-center bg-surface-white justify-center border-r border-outline-gray-modals p-2 w-12"
@@ -89,6 +86,7 @@
                 <Checkbox
                   class="cursor-pointer duration-300"
                   :modelValue="selectedRows.has(row.name)"
+                  :disabled="!isEditable"
                   @click.stop="toggleSelectRow(row)"
                 />
               </div>
@@ -122,51 +120,55 @@
                     v-model="row[field.fieldname]"
                     :disabled="true"
                   />
-                  <Link
-                    v-else-if="
-                      ['Link', 'Dynamic Link'].includes(field.fieldtype)
-                    "
-                    class="text-sm text-ink-gray-8"
-                    :value="row[field.fieldname]"
-                    :doctype="
-                      field.fieldtype == 'Link'
-                        ? field.options
-                        : row[field.options]
-                    "
-                    :filters="field.filters"
-                    @change="(v) => fieldChange(v, field, row)"
-                    :onCreate="
-                      (value, close) => field.create(v, field, row, close)
-                    "
-                  />
-                  <Link
-                    v-else-if="field.fieldtype === 'User'"
-                    class="form-control"
-                    :value="getUser(row[field.fieldname]).full_name"
-                    :doctype="field.options"
-                    :filters="field.filters"
-                    @change="(v) => fieldChange(v, field, row)"
-                    :placeholder="field.placeholder"
-                    :hideMe="true"
-                  >
-                    <template #prefix>
-                      <UserAvatar
-                        class="mr-2"
-                        :user="row[field.fieldname]"
-                        size="sm"
-                      />
-                    </template>
-                    <template #item-prefix="{ option }">
-                      <UserAvatar class="mr-2" :user="option.value" size="sm" />
-                    </template>
-                    <template #item-label="{ option }">
-                      <Tooltip :text="option.value">
-                        <div class="cursor-pointer">
-                          {{ getUser(option.value).full_name }}
-                        </div>
-                      </Tooltip>
-                    </template>
-                  </Link>
+                  <template v-else-if="['Link', 'Dynamic Link'].includes(field.fieldtype)">
+                    <Link
+                      v-if="isEditable"
+                      class="text-sm text-ink-gray-8"
+                      :value="row[field.fieldname]"
+                      :doctype="
+                        field.fieldtype == 'Link'
+                          ? field.options
+                          : row[field.options]
+                      "
+                      :filters="field.filters"
+                      @change="(v) => fieldChange(v, field, row)"
+                      :onCreate="
+                        (value, close) => field.create(v, field, row, close)
+                      "
+                    />
+                    <div v-else class="text-sm text-ink-gray-8 truncate">{{ row[field.fieldname] }}</div>
+                  </template>
+                  <template v-else-if="field.fieldtype === 'User'">
+                    <Link
+                      v-if="isEditable"
+                      class="form-control"
+                      :value="getUser(row[field.fieldname]).full_name"
+                      :doctype="field.options"
+                      :filters="field.filters"
+                      @change="(v) => fieldChange(v, field, row)"
+                      :placeholder="field.placeholder"
+                      :hideMe="true"
+                    >
+                      <template #prefix>
+                        <UserAvatar
+                          class="mr-2"
+                          :user="row[field.fieldname]"
+                          size="sm"
+                        />
+                      </template>
+                      <template #item-prefix="{ option }">
+                        <UserAvatar class="mr-2" :user="option.value" size="sm" />
+                      </template>
+                      <template #item-label="{ option }">
+                        <Tooltip :text="option.value">
+                          <div class="cursor-pointer">
+                            {{ getUser(option.value).full_name }}
+                          </div>
+                        </Tooltip>
+                      </template>
+                    </Link>
+                    <div v-else class="text-sm text-ink-gray-8 truncate">{{ row[field.fieldname] && getUser(row[field.fieldname]).full_name }}</div>
+                  </template>
                   <div
                     v-else-if="field.fieldtype === 'Check'"
                     class="flex h-full bg-surface-white justify-center items-center"
@@ -174,7 +176,7 @@
                     <Checkbox
                       class="cursor-pointer duration-300"
                       v-model="row[field.fieldname]"
-                      :disabled="!gridSettings.editable_grid"
+                      :disabled="!isEditable"
                       @change="(e) => fieldChange(e.target.checked, field, row)"
                     />
                   </div>
@@ -185,6 +187,7 @@
                     variant="outline"
                     :formatter="(date) => getFormat(date, '', true)"
                     input-class="border-none text-sm text-ink-gray-8"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="(v) => fieldChange(v, field, row)"
                   />
                   <DateTimePicker
@@ -194,6 +197,7 @@
                     variant="outline"
                     :formatter="(date) => getFormat(date, '', true, true)"
                     input-class="border-none text-sm text-ink-gray-8"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="(v) => fieldChange(v, field, row)"
                   />
                   <FormControl
@@ -206,6 +210,7 @@
                     type="textarea"
                     variant="outline"
                     :value="row[field.fieldname]"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="fieldChange($event.target.value, field, row)"
                   />
                   <FormControl
@@ -215,13 +220,14 @@
                     variant="outline"
                     v-model="row[field.fieldname]"
                     :options="field.options"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="(e) => fieldChange(e.target.value, field, row)"
                   />
                   <Password
                     v-else-if="field.fieldtype === 'Password'"
                     variant="outline"
                     :value="row[field.fieldname]"
-                    :disabled="Boolean(field.read_only)"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="fieldChange($event.target.value, field, row)"
                   />
                   <FormattedInput
@@ -230,7 +236,7 @@
                     type="text"
                     variant="outline"
                     :value="row[field.fieldname] || '0'"
-                    :disabled="Boolean(field.read_only)"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="fieldChange($event.target.value, field, row)"
                   />
                   <FormattedInput
@@ -240,7 +246,7 @@
                     variant="outline"
                     :value="getFloatWithPrecision(field.fieldname, row)"
                     :formattedValue="(row[field.fieldname] || '0') + '%'"
-                    :disabled="Boolean(field.read_only)"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="fieldChange(flt($event.target.value), field, row)"
                   />
                   <FormattedInput
@@ -250,7 +256,7 @@
                     variant="outline"
                     :value="getFloatWithPrecision(field.fieldname, row)"
                     :formattedValue="row[field.fieldname]"
-                    :disabled="Boolean(field.read_only)"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="fieldChange(flt($event.target.value), field, row)"
                   />
                   <FormattedInput
@@ -262,7 +268,7 @@
                     :formattedValue="
                       getFormattedCurrency(field.fieldname, row, parentDoc)
                     "
-                    :disabled="Boolean(field.read_only)"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="fieldChange(flt($event.target.value), field, row)"
                   />
                   <Autocomplete
@@ -273,7 +279,7 @@
                     @change="(v) => fieldChange(typeof v == 'object' ? v.value : v, field, row)"
                     :options="field.options"
                     :placeholder="field.placeholder"
-                    :disabled="Boolean(field.read_only)"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                   />
                   <FormControl
                     v-else
@@ -282,12 +288,14 @@
                     variant="outline"
                     v-model="row[field.fieldname]"
                     :options="field.options"
+                    :disabled="Boolean(field.read_only) || !isEditable"
                     @change="fieldChange($event.target.value, field, row)"
                   />
                 </div>
               </div>
               <div class="edit-row flex items-center justify-center w-12">
                 <Button
+                  v-if="isEditable"
                   :tooltip="__('Edit row')"
                   class="rounded border-0 !text-ink-gray-7"
                   variant="outline"
@@ -303,6 +311,7 @@
                 :data="row"
                 :doctype="doctype"
                 :parentDoctype="parentDoctype"
+                :rowReadOnly="!isEditable"
               />
             </div>
           </template>
@@ -319,13 +328,13 @@
 
     <div v-if="fields?.length" class="mt-2 flex flex-row gap-2">
       <Button
-        v-if="showDeleteBtn"
+        v-if="showDeleteBtn && isEditable"
         :label="__('Delete')"
         variant="solid"
         theme="red"
         @click="deleteRows"
       />
-      <Button :label="__('Add Row')" @click="addRow" />
+      <Button v-if="isEditable" :label="__('Add Row')" @click="addRow" />
     </div>
     <GridRowFieldsModal
       v-if="showGridRowFieldsModal"
@@ -389,6 +398,10 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   }
+  ,readOnly: {
+    type: Boolean,
+    default: false,
+  }
 })
 
 const triggerOnChange = inject('triggerOnChange', () => {})
@@ -418,6 +431,7 @@ const showGridFieldsEditorModal = ref(false)
 const showGridRowFieldsModal = ref(false)
 
 const gridSettings = computed(() => getGridSettings())
+const isEditable = computed(() => !props.readOnly && gridSettings.value.editable_grid)
 
 const fields = computed(() => {
   let gridViewSettings = getGridViewSettings(props.parentDoctype)
@@ -546,6 +560,7 @@ const reorder = () => {
 
 
 function fieldChange(value, field, row) {
+  if (!isEditable.value) return
   triggerOnChange(field.fieldname, value, row)
 }
 
