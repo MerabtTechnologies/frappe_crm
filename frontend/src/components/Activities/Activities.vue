@@ -406,6 +406,11 @@
         @click="modalRef.showProjectTask()"
       />
       <Button
+        v-else-if="title == 'Gamma Proposal'"
+        :label="__('Create Gamma Proposal')"
+        @click="modalRef.showGammaProposal()"
+      />
+      <Button
         v-else-if="title == 'Attachments'"
         :label="__('Upload Attachment')"
         @click="showFilesUploader = true"
@@ -568,7 +573,13 @@ const projectModalProxy = {
   updateTaskStatus: (status, task) =>
     modalRef.value?.updateProjectTaskStatus?.(status, task),
 }
-
+ 
+const gammaModalProxy = {
+  showGammaProposal: (t) => modalRef.value?.showGammaProposal?.(t),
+  deleteGammaProposal: (name) => modalRef.value?.deleteGammaProposal?.(name),
+  updateGammaProposalStatus: (status, task) =>
+    modalRef.value?.updateGammaProposalStatus?.(status, task),
+}
 
 const title = computed(() => props.tabs?.[tabIndex.value]?.name || 'Activity')
 
