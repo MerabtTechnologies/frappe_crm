@@ -547,14 +547,14 @@ function beforeStatusChange(data) {
 
   console.log('Document: ', document);
   
-  // document.save.submit(null, {
-  //   onSuccess: () => reloadAssignees(data),
-  //   onError: (err) => {
-  //     console.log('Error: ', err);
+  document.save.submit(null, {
+    onSuccess: () => reloadAssignees(data),
+    onError: (err) => {
+      console.log('Error: ', err);
       
-  //     toast.error(err.messages?.[0] || __('Error updating field'))
-  //   },
-  // })
+      toast.error(err.messages?.[0] || __('Error updating field'))
+    },
+  })
 }
 
 function reloadAssignees(data) {
