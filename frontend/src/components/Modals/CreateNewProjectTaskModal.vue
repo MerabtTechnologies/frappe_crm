@@ -178,9 +178,11 @@ async function createDeal() {
 
   await triggerOnBeforeCreate?.()
 
+  let payload = { ...deal.doc }
+  if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
   createResource({
     url: 'merabt_crm.portal_api.api.create_new_doc',
-    params: { args: deal.doc, doctype: 'Smart Task' },
+    params: { args: payload, doctype: 'Smart Task' },
     auto: true,
     validate() {
       error.value = null

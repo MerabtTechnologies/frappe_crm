@@ -362,10 +362,22 @@ const getPlaceholder = (field) => {
 }
 
 function fieldChange(value, df) {
+  let _value = value
+  try {
+    if (df?.fieldtype === 'Datetime' && _value) {
+      _value = getFormat(_value, 'YYYY-MM-DD HH:mm:ss')
+    } else if (df?.fieldtype === 'Date' && _value) {
+      _value = getFormat(_value, 'YYYY-MM-DD')
+    }
+  } catch (e) {
+    // fall back to original value
+    _value = value
+  }
+
   if (isGridRow) {
-    triggerOnChange(df.fieldname, value, data.value)
+    triggerOnChange(df.fieldname, _value, data.value)
   } else {
-    triggerOnChange(df.fieldname, value)
+    triggerOnChange(df.fieldname, _value)
   }
 }
 
