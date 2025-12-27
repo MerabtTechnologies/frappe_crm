@@ -561,7 +561,17 @@ const reorder = () => {
 
 function fieldChange(value, field, row) {
   if (!isEditable.value) return
-  triggerOnChange(field.fieldname, value, row)
+  let _value = value
+  try {
+    if (field?.fieldtype === 'Datetime' && _value) {
+      _value = getFormat(_value, 'YYYY-MM-DD HH:mm:ss')
+    } else if (field?.fieldtype === 'Date' && _value) {
+      _value = getFormat(_value, 'YYYY-MM-DD')
+    }
+  } catch (e) {
+    _value = value
+  }
+  triggerOnChange(field.fieldname, _value, row)
 }
 
 function getDefaultValue(defaultValue, fieldtype) {

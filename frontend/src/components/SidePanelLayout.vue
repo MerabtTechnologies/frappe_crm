@@ -425,7 +425,18 @@ const attrs = instance?.vnode?.props ?? {}
 async function fieldChange(value, df) {
   if (props.preview) return
 
-  await triggerOnChange(df.fieldname, value)
+  let _value = value
+  try {
+    if (df?.fieldtype === 'Datetime' && _value) {
+      _value = getFormat(_value, 'YYYY-MM-DD HH:mm:ss')
+    } else if (df?.fieldtype === 'Date' && _value) {
+      _value = getFormat(_value, 'YYYY-MM-DD')
+    }
+  } catch (e) {
+    _value = value
+  }
+
+  await triggerOnChange(df.fieldname, _value)
 
   const hasListener = attrs['onBeforeFieldChange'] !== undefined
 

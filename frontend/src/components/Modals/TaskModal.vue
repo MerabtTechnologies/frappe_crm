@@ -209,16 +209,20 @@ async function updateTask() {
     _task.value.assigned_to = getUser().name
   }
   if (_task.value.name) {
+    const payload = { ..._task.value }
+    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
     let d = await call('frappe.client.set_value', {
       doctype: 'CRM Task',
       name: _task.value.name,
-      fieldname: _task.value,
+      fieldname: payload,
     })
     if (d.name) {
       tasks.value?.reload()
       emit('after', d)
     }
   } else {
+    const payload = { ..._task.value }
+    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
     let d = await call(
       'frappe.client.insert',
       {
@@ -226,7 +230,7 @@ async function updateTask() {
           doctype: 'CRM Task',
           reference_doctype: props.doctype,
           reference_docname: props.doc || null,
-          ..._task.value,
+          ...payload,
         },
       },
       {
