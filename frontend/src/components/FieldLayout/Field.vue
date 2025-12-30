@@ -14,7 +14,7 @@
     <FormControl
       v-if="
         field.read_only &&
-        !['Int', 'Float', 'Currency', 'Percent', 'Check'].includes(
+        !['Int', 'Float', 'Currency', 'Percent', 'Check', 'Table'].includes(
           field.fieldtype,
         )
       "
@@ -31,6 +31,7 @@
       :doctype="field.options"
       :parentDoctype="doctype"
       :parentFieldname="field.fieldname"
+      :readOnly="field.read_only"
     />
     <FormControl
       v-else-if="field.fieldtype === 'Select'"
@@ -236,6 +237,7 @@ const data = inject('data')
 const doctype = inject('doctype')
 const preview = inject('preview')
 const isGridRow = inject('isGridRow')
+const rowReadOnly = inject('rowReadOnly')
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta(doctype)
@@ -305,6 +307,25 @@ const field = computed(() => {
       data.value,
     ),
   }
+  // Make fields read-only when the document is submitted (docstatus === 1)
+  // unless the field explicitly allows editing on submit via `allow_on_submit`.
+  const docstatus = isGridRow ? parentDoc?.docstatus : data.value?.docstatus
+  // Read-only rules:
+  // - If document is cancelled (docstatus === 2): everything is read-only.
+  // - If document is submitted (docstatus === 1): read-only unless `allow_on_submit`.
+  if (docstatus === 2) {
+    _field.read_only = true
+  } else if (docstatus === 1) {
+    _field.read_only = Boolean(field.read_only) || !field.allow_on_submit
+  } else {
+    _field.read_only = Boolean(field.read_only)
+  }
+
+  // If this field belongs to a grid row modal and the modal requested rowReadOnly,
+  // force the field to be read-only so modal shows non-editable values.
+  if (isGridRow && rowReadOnly) {
+    _field.read_only = true
+  }
 
   _field.visible = isFieldVisible(_field)
   return _field
@@ -341,10 +362,22 @@ const getPlaceholder = (field) => {
 }
 
 function fieldChange(value, df) {
+  let _value = value
+  try {
+    if (df?.fieldtype === 'Datetime' && _value) {
+      _value = getFormat(_value, 'YYYY-MM-DD HH:mm:ss')
+    } else if (df?.fieldtype === 'Date' && _value) {
+      _value = getFormat(_value, 'YYYY-MM-DD')
+    }
+  } catch (e) {
+    // fall back to original value
+    _value = value
+  }
+
   if (isGridRow) {
-    triggerOnChange(df.fieldname, value, data.value)
+    triggerOnChange(df.fieldname, _value, data.value)
   } else {
-    triggerOnChange(df.fieldname, value)
+    triggerOnChange(df.fieldname, _value)
   }
 }
 

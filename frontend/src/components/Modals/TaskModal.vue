@@ -11,7 +11,11 @@
           :label="
             task.reference_doctype == 'CRM Deal'
               ? __('Open Deal')
-              : __('Open Lead')
+              : task.reference_doctype == 'Project'
+              ? __('Open Project')
+              : task.reference_doctype == 'Project Task'
+              ? __('Open Project Task')
+              : __('Open Lead') 
           "
           :iconRight="ArrowUpRightIcon"
           @click="redirect()"
@@ -172,11 +176,31 @@ function updateTaskPriority(priority) {
 
 function redirect() {
   if (!props.task?.reference_docname) return
-  let name = props.task.reference_doctype == 'CRM Deal' ? 'Deal' : 'Lead'
+
+  let name = "Deal"
+  // convert doctype to route name
+  if (props.task.reference_doctype == 'CRM Lead') {
+    name = 'Lead'
+  } else if (props.task.reference_doctype == 'CRM Deal') {
+    name = 'Deal'
+  } else if (props.task.reference_doctype == 'Project') {
+    name = 'Project'
+  } else if (props.task.reference_doctype == 'Project Task') {
+    name = 'Project Task'
+  }
+
   let params = { leadId: props.task.reference_docname }
+
   if (name == 'Deal') {
     params = { dealId: props.task.reference_docname }
   }
+  if (name == 'Project') {
+    params = { projectId: props.task.reference_docname }
+  }
+  if (name == 'Project Task') {
+    params = { taskId: props.task.reference_docname }
+  }
+
   router.push({ name: name, params: params })
 }
 
@@ -185,16 +209,20 @@ async function updateTask() {
     _task.value.assigned_to = getUser().name
   }
   if (_task.value.name) {
+    const payload = { ..._task.value }
+    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
     let d = await call('frappe.client.set_value', {
       doctype: 'CRM Task',
       name: _task.value.name,
-      fieldname: _task.value,
+      fieldname: payload,
     })
     if (d.name) {
       tasks.value?.reload()
       emit('after', d)
     }
   } else {
+    const payload = { ..._task.value }
+    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
     let d = await call(
       'frappe.client.insert',
       {
@@ -202,7 +230,7 @@ async function updateTask() {
           doctype: 'CRM Task',
           reference_doctype: props.doctype,
           reference_docname: props.doc || null,
-          ..._task.value,
+          ...payload,
         },
       },
       {
@@ -215,7 +243,7 @@ async function updateTask() {
     )
     if (d.name) {
       updateOnboardingStep('create_first_task')
-      capture('task_created')
+      capture('project_task_created')
       tasks.value?.reload()
       emit('after', d, true)
     }

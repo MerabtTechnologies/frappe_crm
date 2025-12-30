@@ -103,6 +103,45 @@ export const statusesStore = defineStore('crm-statuses', () => {
     return options
   }
 
+  function statusOptionsAll(doctype, statuses = [], triggerStatusChange = null) {
+    let options = []
+    if (Array.isArray(statuses)) {
+      for (const status of statuses) {
+        options.push({
+          label: status,
+          value: status,
+          // icon: () => h(IndicatorIcon, { class: statusColor(status) }),
+          onClick: async () => {
+            await triggerStatusChange?.(status)
+            capture('status_changed', { doctype, status })
+          },
+        })
+      }
+    } else if (statuses && typeof statuses === 'object') {
+      for (const status in statuses) {
+        options.push({
+          label: status,
+          value: status,
+          onClick: async () => {
+            await triggerStatusChange?.(status)
+            capture('status_changed', { doctype, status })
+          },
+        })
+      }
+    }
+    return options
+  }
+
+  function statusColor(status) {
+    if (!status) return ''
+    if (status === 'Active') return 'text-green-600'
+    if (status === 'On Hold') return 'text-red-600'
+    if( status === 'Pending' || status === 'Planning') return 'text-yellow-600'
+    if (status === 'Completed' || status === 'Done') return 'text-blue-600'
+    if (status === 'Cancelled' || status === 'Lost') return 'text-gray-600'
+    return 'text-gray-500'
+  }
+
   return {
     leadStatuses,
     dealStatuses,
@@ -111,5 +150,6 @@ export const statusesStore = defineStore('crm-statuses', () => {
     getDealStatus,
     getCommunicationStatus,
     statusOptions,
+    statusOptionsAll,
   }
 })
