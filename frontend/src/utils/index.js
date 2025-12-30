@@ -8,6 +8,29 @@ import { getMeta } from '@/stores/meta'
 import { toast, dayjsLocal, dayjs, getConfig, FeatherIcon } from 'frappe-ui'
 import { h } from 'vue'
 
+export function toServerDatetime(date) {
+  if (!date) return ''
+  let systemTimezone = getConfig('systemTimezone')
+  // console.log('TimeZone: ', systemTimezone);
+  
+  let tz = systemTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  // If dayjs timezone plugin is available use it, otherwise fallback to local formatting
+  if (dayjs && typeof dayjs.tz === 'function') {
+    return dayjs(date).tz(tz).format('YYYY-MM-DD HH:mm:ss')
+  }
+  return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
+}
+
+export function toServerDate(date) {
+  if (!date) return ''
+  let systemTimezone = getConfig('systemTimezone')
+  let tz = systemTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  if (dayjs && typeof dayjs.tz === 'function') {
+    return dayjs(date).tz(tz).format('YYYY-MM-DD')
+  }
+  return dayjs(date).format('YYYY-MM-DD')
+}
+
 export function formatTime(seconds) {
   const days = Math.floor(seconds / (3600 * 24))
   const hours = Math.floor((seconds % (3600 * 24)) / 3600)

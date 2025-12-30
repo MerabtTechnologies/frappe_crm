@@ -120,7 +120,7 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
-import { taskStatusOptions, taskPriorityOptions, getFormat } from '@/utils'
+import { taskStatusOptions, taskPriorityOptions, getFormat, toServerDatetime } from '@/utils'
 import { usersStore } from '@/stores/users'
 import { capture } from '@/telemetry'
 import { TextEditor, Dropdown, Tooltip, call, DateTimePicker } from 'frappe-ui'
@@ -210,7 +210,7 @@ async function updateTask() {
   }
   if (_task.value.name) {
     const payload = { ..._task.value }
-    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
+    if (payload.due_date) payload.due_date = toServerDatetime(payload.due_date)
     let d = await call('frappe.client.set_value', {
       doctype: 'CRM Task',
       name: _task.value.name,
@@ -222,7 +222,7 @@ async function updateTask() {
     }
   } else {
     const payload = { ..._task.value }
-    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
+    if (payload.due_date) payload.due_date = toServerDatetime(payload.due_date)
     let d = await call(
       'frappe.client.insert',
       {

@@ -320,7 +320,7 @@ import SidePanelModal from '@/components/Modals/SidePanelModal.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { isMobileView } from '@/composables/settings'
-import { getFormat, evaluateDependsOnValue } from '@/utils'
+import { getFormat, evaluateDependsOnValue, toServerDatetime, toServerDate } from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
 import { Tooltip, DateTimePicker, DatePicker } from 'frappe-ui'
 import { useDocument } from '@/data/document'
@@ -428,9 +428,9 @@ async function fieldChange(value, df) {
   let _value = value
   try {
     if (df?.fieldtype === 'Datetime' && _value) {
-      _value = getFormat(_value, 'YYYY-MM-DD HH:mm:ss')
+      _value = toServerDatetime(_value)
     } else if (df?.fieldtype === 'Date' && _value) {
-      _value = getFormat(_value, 'YYYY-MM-DD')
+      _value = toServerDate(_value)
     }
   } catch (e) {
     _value = value

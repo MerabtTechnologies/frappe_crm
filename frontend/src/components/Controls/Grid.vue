@@ -360,7 +360,7 @@ import GridRowModal from '@/components/Controls/GridRowModal.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import Link from '@/components/Controls/Link.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
-import { getRandom, getFormat, isTouchScreenDevice } from '@/utils'
+import { getRandom, toServerDatetime, toServerDate, isTouchScreenDevice } from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
 import { usersStore } from '@/stores/users'
 import { getMeta } from '@/stores/meta'
@@ -564,9 +564,9 @@ function fieldChange(value, field, row) {
   let _value = value
   try {
     if (field?.fieldtype === 'Datetime' && _value) {
-      _value = getFormat(_value, 'YYYY-MM-DD HH:mm:ss')
+      _value = toServerDatetime(_value)
     } else if (field?.fieldtype === 'Date' && _value) {
-      _value = getFormat(_value, 'YYYY-MM-DD')
+      _value = toServerDate(_value)
     }
   } catch (e) {
     _value = value
