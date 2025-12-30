@@ -77,6 +77,7 @@
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import { usersStore } from '@/stores/users'
+import { toServerDatetime } from '@/utils'
 import { statusesStore } from '@/stores/statuses'
 import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
@@ -179,7 +180,7 @@ async function createDeal() {
   await triggerOnBeforeCreate?.()
 
   let payload = { ...deal.doc }
-  if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
+  if (payload.due_date) payload.due_date = toServerDatetime(payload.due_date)
   createResource({
     url: 'merabt_crm.portal_api.api.create_new_doc',
     params: { args: payload, doctype: 'Smart Task' },
