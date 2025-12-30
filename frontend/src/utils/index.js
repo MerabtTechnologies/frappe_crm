@@ -60,7 +60,9 @@ export function getFormat(
   if (onlyTime && onlyDate) format = `${dateFormat} ${timeFormat}`
 
   if (withDate) {
-    return dayjs(date).format(format)
+    // Format date/time using the user's local timezone (or configured localTimezone)
+    const localTimezone = getConfig('localTimezone') || getBrowserTimezone()
+    return dayjs(date).tz(localTimezone).format(format)
   }
   return format
 }
