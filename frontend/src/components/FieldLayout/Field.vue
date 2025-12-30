@@ -221,7 +221,7 @@ import TableMultiselectInput from '@/components/Controls/TableMultiselectInput.v
 import Link from '@/components/Controls/Link.vue'
 import Grid from '@/components/Controls/Grid.vue'
 import { createDocument } from '@/composables/document'
-import { getFormat, evaluateDependsOnValue, toServerDatetime, toServerDate } from '@/utils'
+import { getFormat, evaluateDependsOnValue } from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
@@ -365,9 +365,9 @@ function fieldChange(value, df) {
   let _value = value
   try {
     if (df?.fieldtype === 'Datetime' && _value) {
-      _value = toServerDatetime(_value)
+      _value = getFormat(_value, 'YYYY-MM-DD HH:mm:ss')
     } else if (df?.fieldtype === 'Date' && _value) {
-      _value = toServerDate(_value)
+      _value = getFormat(_value, 'YYYY-MM-DD')
     }
   } catch (e) {
     // fall back to original value

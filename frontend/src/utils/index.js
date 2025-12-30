@@ -5,36 +5,8 @@ import ProjectTaskStatusIcon from '@/components/Icons/ProjectTaskStatusIcon.vue'
 import { usersStore } from '@/stores/users'
 import { gemoji } from 'gemoji'
 import { getMeta } from '@/stores/meta'
-import { toast, dayjsLocal, dayjs, dayjsSystem, getConfig, FeatherIcon } from 'frappe-ui'
+import { toast, dayjsLocal, dayjs, getConfig, FeatherIcon } from 'frappe-ui'
 import { h } from 'vue'
-
-export function toServerDatetime(date) {
-  if (!date) return ''
-  if (typeof dayjsSystem === 'function') {
-    return dayjsSystem(date).format('YYYY-MM-DD HH:mm:ss')
-  }
-  let systemTimezone = getConfig('systemTimezone')
-  let tz = systemTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-  if (dayjs && typeof dayjs.tz === 'function') {
-    return dayjs(date).tz(tz).format('YYYY-MM-DD HH:mm:ss')
-  }
-  console.log('TimeZone: ', systemTimezone, ' - ', tz);
-  
-  return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
-}
-
-export function toServerDate(date) {
-  if (!date) return ''
-  if (typeof dayjsSystem === 'function') {
-    return dayjsSystem(date).format('YYYY-MM-DD')
-  }
-  let systemTimezone = getConfig('systemTimezone')
-  let tz = systemTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-  if (dayjs && typeof dayjs.tz === 'function') {
-    return dayjs(date).tz(tz).format('YYYY-MM-DD')
-  }
-  return dayjs(date).format('YYYY-MM-DD')
-}
 
 export function formatTime(seconds) {
   const days = Math.floor(seconds / (3600 * 24))
