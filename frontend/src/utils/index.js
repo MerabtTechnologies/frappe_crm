@@ -62,8 +62,16 @@ export function getFormat(
   if (withDate) {
     // Format date/time using the user's local timezone (or configured localTimezone)
     const localTimezone = getConfig('localTimezone') || getBrowserTimezone()
+    console.log('Timezone: ',localTimezone, '  -  ', getConfig('systemTimezone'));
+    console.log('BrowserTimezone: ', getBrowserTimezone());
+    console.log('Input Date: ', date);
+    console.log('Output Time: ', dayjs(date).tz(localTimezone).format(format));
+    
+    
     return dayjs(date).tz(localTimezone).format(format)
   }
+  console.log('Format Only: ',format);
+  
   return format
 }
 
