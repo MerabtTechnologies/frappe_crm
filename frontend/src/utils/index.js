@@ -68,15 +68,13 @@ export function getFormat(
 
 export function toServerDatetime(date) {
   if (!date) return null
-  console.log('Input Date: ', date);
 
-  const formated = dayjs
-    .tz(date, 'YYYY-MM-DD h:mm a', getConfig('systemTimezone'))
-    // .utc()
+  console.log('Input Date (raw):', date, typeof date)
+
+  // DateTimePicker already gives UTC Date
+  return dayjs(date)
+    .utc()
     .format('YYYY-MM-DD HH:mm:ss')
-
-    console.log(formated)
-    return formated
 }
 
 export function timeAgo(date) {
