@@ -69,9 +69,11 @@ export function getFormat(
 export function toServerDatetime(date) {
   if (!date) return null
   console.log('Input Date: ', date);
- const formated = dayjs
-  .utc(date)
-  .format('YYYY-MM-DD HH:mm:ss')
+
+  const formated = dayjs
+    .tz(date, 'YYYY-MM-DD h:mm a', getConfig('systemTimezone'))
+    // .utc()
+    .format('YYYY-MM-DD HH:mm:ss')
 
     console.log(formated)
     return formated
