@@ -60,35 +60,7 @@ export function getFormat(
   if (onlyTime && onlyDate) format = `${dateFormat} ${timeFormat}`
 
   if (withDate) {
-    // Format date/time using the user's local timezone (or configured localTimezone)
-    const localTimezone = getConfig('localTimezone') || getBrowserTimezone()
-
-    // If no explicit format provided and the input string contains am/pm,
-    // prefer a 12-hour format so the displayed time remains like the input.
-    if (!format && typeof date === 'string' && /\b(am|pm)\b/i.test(date)) {
-      const hasISODate = /^\s*\d{4}-\d{2}-\d{2}/.test(date)
-      format = hasISODate ? 'YYYY-MM-DD h:mm a' : 'ddd, MMM D, YYYY h:mm a'
-    }
-
-    let formatted
-    try {
-      // If we have a format that includes hour tokens, try parsing with that
-      // format to avoid accidental timezone/format conversions that change AM/PM.
-      if (typeof date === 'string' && format && /\b(h|H|a)\b/.test(format)) {
-        formatted = dayjs.tz(date, format, localTimezone).format(format)
-      } else {
-        formatted = dayjs(date).tz(localTimezone).format(format)
-      }
-    } catch (e) {
-      formatted = dayjs(date).tz(localTimezone).format(format)
-    }
-
-    console.log('Timezone: ', localTimezone, '  -  ', getConfig('systemTimezone'))
-    console.log('BrowserTimezone: ', getBrowserTimezone())
-    console.log('Input Date: ', date)
-    console.log('Output Time: ', formatted)
-
-    return formatted
+    return dayjs(date).format(format)
   }
   return format
 }
