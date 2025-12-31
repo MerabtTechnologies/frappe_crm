@@ -87,7 +87,7 @@
               class="datepicker"
               v-model="_task.due_date"
               :placeholder="__('01/04/2024 11:30 PM')"
-              :format="getFormat('', '', true, true, false)"
+              :format="getFormat('YYYY-MM-DD HH:mm:ss', '', true, true, false)"
               input-class="border-none"
             />
           </div>
@@ -205,11 +205,15 @@ function redirect() {
 }
 
 async function updateTask() {
+  console.log('Task: ', _task);
+  
   if (!_task.value.assigned_to) {
     _task.value.assigned_to = getUser().name
   }
   if (_task.value.name) {
     const payload = { ..._task.value }
+    console.log('Due Date: ', payload.due_date);
+    
     if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
     let d = await call('frappe.client.set_value', {
       doctype: 'CRM Task',
