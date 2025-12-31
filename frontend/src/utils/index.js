@@ -39,6 +39,7 @@ export function formatDate(date, format, onlyDate = false, onlyTime = false) {
   return dayjsLocal(date).format(format)
 }
 
+
 export function getFormat(
   date,
   format,
@@ -60,31 +61,20 @@ export function getFormat(
   if (onlyTime && onlyDate) format = `${dateFormat} ${timeFormat}`
 
   if (withDate) {
-    const localTimezone = getConfig('systemTimezone')
-
-    console.log('Timezone:', localTimezone)
-    console.log('BrowserTimezone:', getBrowserTimezone())
-    console.log('Input Date:', date)
-
-    let formatted
-    try {
-      if (typeof date === 'string') {
-        formatted = dayjs
-          .tz(date, 'YYYY-MM-DD h:mm a', localTimezone)
-          .format(format)
-      } else {
-        formatted = dayjs(date).tz(localTimezone).format(format)
-      }
-
-      console.log('Formatted:', formatted)
-    } catch (e) {
-      formatted = dayjs(date).format(format)
-    }
-
-    return formatted
+    return dayjs(date).format(format)
   }
-
   return format
+}
+
+export function toServerDatetime(date) {
+  if (!date) return null
+  console.log('Input Date: ', date);
+ const formated = dayjs
+  .utc(date)
+  .format('YYYY-MM-DD HH:mm:ss')
+
+    console.log(formated)
+    return formated
 }
 
 export function timeAgo(date) {
