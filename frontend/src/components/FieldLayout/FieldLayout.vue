@@ -46,6 +46,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  rowReadOnly: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const tabIndex = ref(0)
@@ -64,6 +68,7 @@ provide('hasTabs', hasTabs)
 provide('doctype', props.doctype)
 provide('preview', props.preview)
 provide('isGridRow', props.isGridRow)
+provide('rowReadOnly', props.rowReadOnly)
 </script>
 <style scoped>
 .section:not(:has(.field)) {

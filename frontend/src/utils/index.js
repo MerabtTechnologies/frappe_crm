@@ -1,6 +1,7 @@
 import LucideCheck from '~icons/lucide/check'
 import TaskStatusIcon from '@/components/Icons/TaskStatusIcon.vue'
 import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
+import ProjectTaskStatusIcon from '@/components/Icons/ProjectTaskStatusIcon.vue'
 import { usersStore } from '@/stores/users'
 import { gemoji } from 'gemoji'
 import { getMeta } from '@/stores/meta'
@@ -38,6 +39,7 @@ export function formatDate(date, format, onlyDate = false, onlyTime = false) {
   return dayjsLocal(date).format(format)
 }
 
+
 export function getFormat(
   date,
   format,
@@ -62,6 +64,17 @@ export function getFormat(
     return dayjs(date).format(format)
   }
   return format
+}
+
+export function toServerDatetime(date) {
+  if (!date) return null
+
+  console.log('Input Date (raw):', date, typeof date)
+
+  // DateTimePicker already gives UTC Date
+  return dayjs(date)
+    .utc()
+    .format('YYYY-MM-DD HH:mm:ss')
 }
 
 export function timeAgo(date) {
@@ -214,6 +227,47 @@ export function taskStatusOptions(action, data) {
     }
   })
 }
+
+// Change for Project Task Status Options
+export function projectTaskStatusOptions(action, data) {
+  let options = ['Open', 'Working', 'Pending Review', 'Completed', 'Cancelled']
+  let statusMeta = getMeta('Smart Task')
+    .getFields()
+    ?.find((field) => field.fieldname == 'status')
+  if (statusMeta) {
+    options = statusMeta.options
+      .map((option) => option.value)
+      .filter((option) => option)
+  }
+  return options.map((status) => {
+    return {
+      icon: () => h(ProjectTaskStatusIcon, { status }),
+      label: status,
+      onClick: () => action && action(status, data),
+    }
+  })
+}
+// End Change for Project Task Status Options
+export function projectTaskPriorityOptions(action, data) {
+  let options = ['Low', 'Medium', 'High', 'Critical']
+  let priorityMeta = getMeta('Smart Task')
+    .getFields()
+    ?.find((field) => field.fieldname == 'priority')
+  if (priorityMeta) {
+    options = priorityMeta.options
+      .map((option) => option.value)
+      .filter((option) => option)
+  }
+
+  return options.map((priority) => {
+    return {
+      label: priority,
+      icon: () => h(TaskPriorityIcon, { priority }),
+      onClick: () => action && action(priority, data),
+    }
+  })
+}
+
 
 export function taskPriorityOptions(action, data) {
   let options = ['Low', 'Medium', 'High']

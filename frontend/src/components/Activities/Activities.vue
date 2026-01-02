@@ -65,6 +65,16 @@
       <div v-else-if="title == 'Tasks'" class="px-3 pb-3 sm:px-10 sm:pb-5">
         <TaskArea :modalRef="modalRef" :tasks="activities" :doctype="doctype" />
       </div>
+      <div v-else-if="title == 'Project Tasks'" class="px-3 pb-3 sm:px-10 sm:pb-5">
+        <ProjectTaskArea :modalRef="projectModalProxy" :tasks="activities" :doctype="doctype" />
+      </div>
+      <div v-else-if="title == 'Gamma'" class="px-3 pb-3 sm:px-10 sm:pb-5">
+        <GammaTemplates
+          :doctype="doctype"
+          :docname="docname"
+          :proposals="activities"
+        />
+      </div>
       <div v-else-if="title == 'Calls'" class="activity">
         <div v-for="(call, i) in activities">
           <div
@@ -398,12 +408,34 @@
         @click="modalRef.showTask()"
       />
       <Button
+        v-else-if="title == 'Project Tasks'"
+        :label="__('Create Project Task')"
+        @click="modalRef.showProjectTask()"
+      />
+      <Button
+        v-else-if="title == 'Gamma'"
+        :label="__('Create Gamma Proposal')"
+        @click="modalRef.showGammaProposal()"
+      />
+      <Button
         v-else-if="title == 'Attachments'"
         :label="__('Upload Attachment')"
         @click="showFilesUploader = true"
       />
     </div>
+    
+
+
   </FadedScrollableDiv>
+    <!-- <div>
+       <GammaTemplates
+      v-if="title == 'Gamma'"
+      :doctype="doctype"
+      :docname="docname"
+    />
+   </div> -->
+<!-- Gamma Templates -->
+
   <div>
     <CommunicationArea
       ref="emailBox"
@@ -480,9 +512,14 @@ import InboundCallIcon from '@/components/Icons/InboundCallIcon.vue'
 import OutboundCallIcon from '@/components/Icons/OutboundCallIcon.vue'
 import FadedScrollableDiv from '@/components/FadedScrollableDiv.vue'
 import CommunicationArea from '@/components/CommunicationArea.vue'
+import QuotationIcon from '@/components/Icons/QuotationIcon.vue'
+import GammaTemplates from '@/components/Activities/GammaTemplates.vue'  
+
 import WhatsappTemplateSelectorModal from '@/components/Modals/WhatsappTemplateSelectorModal.vue'
 import AllModals from '@/components/Activities/AllModals.vue'
 import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
+import ProjectTaskArea from '@/components/Activities/ProjectTaskArea.vue'
+import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import { timeAgo, formatDate, startCase } from '@/utils'
 import { globalStore } from '@/stores/global'
 import { usersStore } from '@/stores/users'
@@ -536,6 +573,22 @@ const reload_email = ref(false)
 const modalRef = ref(null)
 const showFilesUploader = ref(false)
 
+
+// Proxy object to map TaskArea actions to Project-specific modal functions
+const projectModalProxy = {
+  showTask: (t) => modalRef.value?.showProjectTask?.(t),
+  deleteTask: (name) => modalRef.value?.deleteProjectTask?.(name),
+  updateTaskStatus: (status, task) =>
+    modalRef.value?.updateProjectTaskStatus?.(status, task),
+}
+ 
+const gammaModalProxy = {
+  showGammaProposal: (t) => modalRef.value?.showGammaProposal?.(t),
+  deleteGammaProposal: (name) => modalRef.value?.deleteGammaProposal?.(name),
+  updateGammaProposalStatus: (status, task) =>
+    modalRef.value?.updateGammaProposalStatus?.(status, task),
+}
+
 const title = computed(() => props.tabs?.[tabIndex.value]?.name || 'Activity')
 
 const changeTabTo = (tabName) => {
@@ -550,8 +603,8 @@ const all_activities = createResource({
   params: { name: props.docname },
   cache: ['activity', props.docname],
   auto: true,
-  transform: ([versions, calls, notes, tasks, attachments]) => {
-    return { versions, calls, notes, tasks, attachments }
+  transform: ([versions, calls, notes, tasks, attachments, proposals]) => {
+    return { versions, calls, notes, tasks, attachments, proposals }
   },
   onSuccess: () => nextTick(() => scroll()),
 })
@@ -637,12 +690,18 @@ const activities = computed(() => {
   } else if (title.value == 'Tasks') {
     if (!all_activities.data?.tasks) return []
     return sortByModified(all_activities.data.tasks)
+  } else if (title.value == 'Project Tasks') {
+    if (!all_activities.data.tasks) return []
+    return sortByModified(all_activities.data.tasks)
   } else if (title.value == 'Notes') {
     if (!all_activities.data?.notes) return []
     return sortByModified(all_activities.data.notes)
   } else if (title.value == 'Attachments') {
     if (!all_activities.data?.attachments) return []
     return sortByModified(all_activities.data.attachments)
+  } else if (title.value == 'Gamma') {
+    if (!all_activities.data.proposals) return []    
+    return sortByModified(all_activities.data.proposals)
   }
 
   _activities.forEach((activity) => {
@@ -713,6 +772,10 @@ const emptyText = computed(() => {
     text = 'No Attachments'
   } else if (title.value == 'WhatsApp') {
     text = 'No WhatsApp Messages'
+  } else if (title.value == 'Project Tasks') {
+    text = 'No Project Tasks'
+  } else if (title.value == 'Gamma') {
+    text = 'No Gamma Proposals'
   }
   return text
 })
@@ -735,6 +798,8 @@ const emptyTextIcon = computed(() => {
     icon = AttachmentIcon
   } else if (title.value == 'WhatsApp') {
     icon = WhatsAppIcon
+  } else  if (title.value == 'Project Tasks') {
+    icon = ProjectTaskIcon
   }
   return h(icon, { class: 'text-ink-gray-4' })
 })
