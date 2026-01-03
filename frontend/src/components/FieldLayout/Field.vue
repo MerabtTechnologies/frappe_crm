@@ -382,9 +382,9 @@ const getOptions = (options) => {
 function fieldChange(value, df) {
   value = typeof value === 'object' && value !== null ? value.value : value
   if (isGridRow) {
-    triggerOnChange(df.fieldname, _value, data.value)
+    triggerOnChange(df.fieldname, value, data.value)
   } else {
-    triggerOnChange(df.fieldname, _value)
+    triggerOnChange(df.fieldname, value)
   }
 }
 
