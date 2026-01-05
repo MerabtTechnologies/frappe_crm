@@ -2476,7 +2476,7 @@ fraction.js@^4.3.7:
 
 frappe-ui@0.1.244:
   version "0.1.244"
-  resolved "https://registry.yarnpkg.com/frappe-ui/-/frappe-ui-0.1.244.tgz#9fdb37a7db08e1e5d8b7033ea77b0977f185b8e9"
+  resolved "https://registry.npmjs.org/frappe-ui/-/frappe-ui-0.1.244.tgz"
   integrity sha512-ZO3BDmA5zp655D11Nhw5ZD1f0vppSPAgXW3VxsxnfF0iFymkn2sAZadD+oObJzN2iIpRJ4SHro5UEG40koesOg==
   dependencies:
     "@floating-ui/vue" "^1.1.6"
