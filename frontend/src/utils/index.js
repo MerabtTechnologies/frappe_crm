@@ -71,11 +71,15 @@ export function toServerDatetime(date) {
 
   console.log('Input Date (raw):', date, typeof date)
 
-  // DateTimePicker already gives UTC Date
-  return dayjs(date)
-    .utc()
+const formatted = dayjs(date)
+    // .utc()
     .format('YYYY-MM-DD HH:mm:ss')
+     console.log('Output Date: ', formatted)
+  // DateTimePicker already gives UTC Date
+
+  return formatted
 }
+ 
 
 export function timeAgo(date) {
   return prettyDate(date)
