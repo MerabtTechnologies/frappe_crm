@@ -39,6 +39,7 @@ export function formatDate(date, format, onlyDate = false, onlyTime = false) {
   return dayjsLocal(date).format(format)
 }
 
+
 export function getFormat(
   date,
   format,
@@ -64,6 +65,21 @@ export function getFormat(
   }
   return format
 }
+
+export function toServerDatetime(date) {
+  if (!date) return null
+
+  console.log('Input Date (raw):', date, typeof date)
+
+const formatted = dayjs(date)
+    // .utc()
+    .format('YYYY-MM-DD HH:mm:ss')
+     console.log('Output Date: ', formatted)
+  // DateTimePicker already gives UTC Date
+
+  return formatted
+}
+ 
 
 export function timeAgo(date) {
   return prettyDate(date)
