@@ -87,7 +87,7 @@
               class="datepicker"
               v-model="_task.due_date"
               :placeholder="__('01/04/2024 11:30 PM')"
-              :formatter="(date) => getFormat(date, '', true, true)"
+              :format="getFormat('', '', true, true, false)"
               input-class="border-none"
             />
           </div>
@@ -120,7 +120,7 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
-import { taskStatusOptions, taskPriorityOptions, getFormat } from '@/utils'
+import { taskStatusOptions, taskPriorityOptions, getFormat, toServerDatetime } from '@/utils'
 import { usersStore } from '@/stores/users'
 import { capture } from '@/telemetry'
 import { TextEditor, Dropdown, Tooltip, call, DateTimePicker } from 'frappe-ui'
@@ -159,7 +159,7 @@ const _task = ref({
   title: '',
   description: '',
   assigned_to: '',
-  due_date: '',
+  due_date: null,
   status: 'Backlog',
   priority: 'Low',
   reference_doctype: props.doctype,
@@ -205,24 +205,28 @@ function redirect() {
 }
 
 async function updateTask() {
+  // console.log('Task: ', _task.value);
+  
   if (!_task.value.assigned_to) {
     _task.value.assigned_to = getUser().name
   }
   if (_task.value.name) {
-    const payload = { ..._task.value }
-    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
+    // const payload = { ..._task.value }
+    // console.log('Due Date: ', _task.value.due_date);
+    
+    // if (payload.due_date) payload.due_date = toServerDatetime(payload.due_date)
     let d = await call('frappe.client.set_value', {
       doctype: 'CRM Task',
       name: _task.value.name,
-      fieldname: payload,
+      fieldname: {  ..._task.value, due_date: toServerDatetime(_task.value.due_date) },
     })
     if (d.name) {
       tasks.value?.reload()
       emit('after', d)
     }
   } else {
-    const payload = { ..._task.value }
-    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
+    // const payload = { ..._task.value }
+    // if (payload.due_date) payload.due_date = toServerDatetime(payload.due_date)
     let d = await call(
       'frappe.client.insert',
       {
@@ -230,7 +234,9 @@ async function updateTask() {
           doctype: 'CRM Task',
           reference_doctype: props.doctype,
           reference_docname: props.doc || null,
-          ...payload,
+          ..._task.value,
+          due_date: _task.value.due_date ? toServerDatetime(_task.value.due_date) : null,
+
         },
       },
       {
