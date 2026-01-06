@@ -196,5 +196,8 @@ onMounted(() => {
   if (!lead.doc?.status && leadStatuses.value[0]?.value) {
     lead.doc.status = leadStatuses.value[0].value
   }
+  if (!lead.doc?.custom_country) {
+    lead.doc.custom_country = 'India'
+  }
 })
 </script>

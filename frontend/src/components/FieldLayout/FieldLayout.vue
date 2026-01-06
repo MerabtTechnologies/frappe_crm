@@ -17,8 +17,13 @@
           class="sections overflow-hidden"
           :class="{ 'my-4 sm:my-5': hasTabs }"
         >
-          <template v-for="section in tab.sections" :key="section.name">
-            <Section :section="section" :data-name="section.name" />
+          <template v-if="tab.label === 'Meta Info'">
+            <MetaInfo />
+          </template>
+          <template v-else>
+            <template v-for="section in tab.sections" :key="section.name">
+              <Section :section="section" :data-name="section.name" />
+            </template>
           </template>
         </div>
       </template>
@@ -28,12 +33,19 @@
 
 <script setup>
 import Section from '@/components/FieldLayout/Section.vue'
+import MetaInfo from '@/components/FieldLayout/MetaInfo.vue'
 import { Tabs } from 'frappe-ui'
 import { ref, computed, provide } from 'vue'
 
 const props = defineProps({
-  tabs: Array,
-  data: Object,
+  tabs: {
+    type: Array,
+    default: () => [],
+  },
+  data: {
+    type: Object,
+    default: () => ({}),
+  },
   doctype: {
     type: String,
     default: 'CRM Lead',
@@ -60,10 +72,7 @@ const hasTabs = computed(() => {
   )
 })
 
-provide(
-  'data',
-  computed(() => props.data),
-)
+provide('data', computed(() => props.data))
 provide('hasTabs', hasTabs)
 provide('doctype', props.doctype)
 provide('preview', props.preview)
