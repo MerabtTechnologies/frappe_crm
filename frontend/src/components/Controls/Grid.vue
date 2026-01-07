@@ -77,8 +77,11 @@
         >
           <template #item="{ element: row, index }">
             <div
-              class="grid-row flex cursor-pointer items-center border-b border-outline-gray-modals bg-surface-modals last:rounded-b last:border-b-0"
-              @click.stop="() => { showRowList[index] = true }"
+              :class="[
+                'grid-row flex items-center border-b border-outline-gray-modals bg-surface-modals last:rounded-b last:border-b-0',
+                { 'cursor-pointer': props.readOnly }
+              ]"
+              @click.stop="onRowClick(index)"
             >
               <div
                 class="grid-row-checkbox inline-flex h-9.5 items-center bg-surface-white justify-center border-r border-outline-gray-modals p-2 w-12"
@@ -554,6 +557,12 @@ const reorder = () => {
   rows.value.forEach((row, index) => {
     row.idx = index + 1
   })
+}
+
+const onRowClick = (index) => {
+  if (props.readOnly) {
+    showRowList.value[index] = true
+  }
 }
 
 function fieldChange(value, field, row) {
