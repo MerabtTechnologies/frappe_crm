@@ -328,11 +328,38 @@
     v-model="showLostReasonModal"
     :deal="document"
   />
-  <WonAmountModal
+  <!-- <WonAmountModal
     v-if="showWonAmountModal"
     v-model="showWonAmountModal"
     :deal="document"
-  />
+  /> -->
+  <Dialog
+  :options="{
+    title: 'Add Payments',
+    message: 'Please enter the payment details for this won deal. In product tab in Data Tab of this deal.',
+    size: 'lg',
+    icon: {
+      name: 'alert-triangle',
+      appearance: 'warning',
+    },
+    actions: [
+      {
+        label: 'OK',
+        variant: 'solid',
+        autoFocus: true,
+        onClick: () => {
+          showWonAmountModal = false;
+          router.push({
+            name: 'Deal',
+            params: { dealId: props.dealId },
+            hash: '#data'
+          });
+        },
+      },
+    ],
+  }"
+  v-model="showWonAmountModal"
+/>
 </template>
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
@@ -725,10 +752,10 @@ async function triggerStatusChange(value) {
     //TODO: show won amount modal 
     // Removed to everything except setWonAmount() modal
 
-    // setWonAmount()
-    document.save.submit(null, {
-      onSuccess: () => reloadAssignees({ status: value }),
-    })
+    setWonAmount()
+    // document.save.submit(null, {
+    //   onSuccess: () => reloadAssignees({ status: value }),
+    // })
 
   } else {
     document.save.submit(null, {
@@ -800,12 +827,14 @@ function setWonAmount() {
   
   if (
       getDealStatus(document.doc.status).type !== 'Won' 
-      // || (document.doc.custom_paid_amount !== null && document.doc.custom_paid_amount > 0)
+      || (document.doc.custom_paid_amount !== null && document.doc.custom_paid_amount > 0)
     ) {
       document.save.submit()
       return
   }
-
+  
+// reload the document to get the latest data
+  document.reload()
   showWonAmountModal.value = true
 }
 
@@ -824,10 +853,10 @@ function beforeStatusChange(data) {
   ) {
     //TODO: show won amount modal 
     // Removed to everything except setWonAmount() modal
-    // setWonAmount()
-    document.save.submit(null, {
-      onSuccess: () => reloadAssignees(data),
-    })
+    setWonAmount()
+    // document.save.submit(null, {
+    //   onSuccess: () => reloadAssignees(data),
+    // })
 
   }
   else {
