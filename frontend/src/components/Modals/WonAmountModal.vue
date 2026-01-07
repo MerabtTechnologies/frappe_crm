@@ -10,20 +10,31 @@
       </div>
       <div class="flex flex-col gap-3">
         <div>
-          <!-- <Grid
-            :modelValue="payments"
-            :parent="props.deal.doc"
-            doctype="CRM Deal Paid Amount"
-            parentDoctype="CRM Deal"
-            parentFieldname="custom_payments"
-          /> -->
-          <Grid 
+          <!-- <Grid 
             v-model="payments"
             v-model:parent="props.deal.doc"
             doctype="CRM Deal Paid Amount"
             parentDoctype="CRM Deal"
             parentFieldname="custom_payments"
+          /> -->
+
+          <!-- <Grid
+            v-model="test"
+            doctype="Facebook Lead Form Question"
+            parentDoctype="Facebook Lead Form"
+            parentFieldname="questions"
+            
+          /> -->
+
+           <Grid
+            v-model="payments"
+            doctype="CRM Deal Paid Amount"
+            parentDoctype="CRM Deal"
+            parentFieldname="custom_payments"
+            
           />
+
+
         </div>
         <div>
           <div class="mb-2 text-sm text-ink-gray-5">
@@ -73,8 +84,9 @@ const props = defineProps({
 })
 
 const show = defineModel()
+const test = ref([])
 
-const payments = ref([])
+const payments = ref(props.deal.doc.custom_payments || [])
 const totalAmount = computed(() => {
   if (props.deal.doc.custom_paid_amount !== undefined && props.deal.doc.custom_paid_amount !== null) {
     return Number(props.deal.doc.custom_paid_amount)
@@ -106,3 +118,4 @@ function save() {
   // props.deal.save.submit()
 }
 </script>
+<!-- Fix: Not working in CRM Deal Child tables -->
