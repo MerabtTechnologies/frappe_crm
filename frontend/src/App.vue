@@ -45,7 +45,7 @@ getToken(messaging,
     if (currentToken) {
       // Send the token to your server and update the UI if necessary
       // ...
-      console.log('current token for client: ', currentToken);
+      // console.log('current token for client: ', currentToken);
       // send token to frappe server
       const fcmToken = {
         token: currentToken,
