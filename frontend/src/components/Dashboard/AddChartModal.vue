@@ -87,6 +87,7 @@ const numberCharts = [
     label: __('Avg time to close a deal'),
     value: 'average_time_to_close_a_deal',
   },
+  { label: __('Total qualified leads'), value: 'total_qualified_leads' },
 ]
 
 const axisChart = ref('sales_trend')
@@ -98,6 +99,8 @@ const axisCharts = [
   { label: __('Lost deal reasons'), value: 'lost_deal_reasons' },
   { label: __('Deals by territory'), value: 'deals_by_territory' },
   { label: __('Deals by salesperson'), value: 'deals_by_salesperson' },
+  { label: __('Conversion ratio by salesperson'), value: 'conversion_ratio_by_salesperson' },
+  { label: __('Lead source performance'), value: 'leads_by_source_performance' },
 ]
 
 const donutChart = ref('deals_by_stage_donut')
