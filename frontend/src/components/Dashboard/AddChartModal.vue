@@ -124,6 +124,8 @@ const donutCharts = [
   { label: __('Deals by stage'), value: 'deals_by_stage_donut' },
   { label: __('Leads by source'), value: 'leads_by_source' },
   { label: __('Deals by source'), value: 'deals_by_source' },
+  { label: __('Qualified Lead Status'), value:'user_status_leads'},
+
 ]
 
 async function addChart() {
