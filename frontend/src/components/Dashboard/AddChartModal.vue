@@ -87,6 +87,7 @@ const numberCharts = [
     label: __('Avg time to close a deal'),
     value: 'average_time_to_close_a_deal',
   },
+  { label: __('Total qualified leads'), value: 'total_qualified_leads' },
 ]
 
 const axisChart = ref('sales_trend')
