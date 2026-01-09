@@ -114,6 +114,9 @@ const donutCharts = [
   { label: __('Deals by source'), value: 'deals_by_source' },
   { label: __('Won Deals by Source'), value: 'won_deals_by_source_for_owner_donut'},
   { label: __('Qualified Lead Status'), value:'user_status_leads'},
+  { label: __('Tasks by stage'), value:'tasks_by_stage'},
+  { label: __('Deals by Stage Deal Value'), value:'deals_by_stage_deal_value'},
+
 
 ]
 
