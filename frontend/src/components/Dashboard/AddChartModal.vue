@@ -88,6 +88,9 @@ const numberCharts = [
     value: 'average_time_to_close_a_deal',
   },
   { label: __('Total qualified leads'), value: 'total_qualified_leads' },
+  { label: __('Total deal value'), value: 'total_deal_value' },
+  { label: __('Total won deal value'), value: 'total_won_deal_value' },
+  { label: __('Total won deal balance value'), value: 'total_won_deal_balance_value' },
 ]
 
 const axisChart = ref('sales_trend')
@@ -101,6 +104,7 @@ const axisCharts = [
   { label: __('Deals by salesperson'), value: 'deals_by_salesperson' },
   { label: __('Conversion ratio by salesperson'), value: 'conversion_ratio_by_salesperson' },
   { label: __('Lead source performance'), value: 'leads_by_source_performance' },
+  { label: __('Deal Value by Stage'), value: 'deal_value_by_stage' },
 ]
 
 const donutChart = ref('deals_by_stage_donut')
@@ -110,6 +114,9 @@ const donutCharts = [
   { label: __('Deals by source'), value: 'deals_by_source' },
   { label: __('Won Deals by Source'), value: 'won_deals_by_source_for_owner_donut'},
   { label: __('Qualified Lead Status'), value:'user_status_leads'},
+  { label: __('Tasks by stage'), value:'tasks_by_stage'},
+  { label: __('Deals by Stage Deal Value'), value:'deals_by_stage_deal_value'},
+
 
 ]
 
