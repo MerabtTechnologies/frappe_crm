@@ -1,6 +1,7 @@
 <template>
   <Dialog
     v-model="show"
+    :options="{ title: __('Add chart') }"
     @close="show = false"
   >
     <template #body-content>
@@ -32,15 +33,6 @@
           :label="__('Donut chart')"
           :options="donutCharts"
         />
-        <FormControl
-          v-if="chartType === 'horizontal_bar_chart'"
-          v-model="horizontalChart"
-          type="select"
-          :label="__('Horizontal Chart')"
-          :options="horizontalCharts"
-        />
-
-
       </div>
     </template>
     <template #actions>
@@ -77,9 +69,6 @@ const chartTypes = [
   { label: __('Number chart'), value: 'number_chart' },
   { label: __('Axis chart'), value: 'axis_chart' },
   { label: __('Donut chart'), value: 'donut_chart' },
-  { label: __('Horizontal Bar Chart'), value: 'horizontal_bar_chart' }
-
-
 ]
 
 const numberChart = ref('')
@@ -98,15 +87,11 @@ const numberCharts = [
     label: __('Avg time to close a deal'),
     value: 'average_time_to_close_a_deal',
   },
+  { label: __('Total qualified leads'), value: 'total_qualified_leads' },
+  { label: __('Total deal value'), value: 'total_deal_value' },
+  { label: __('Total won deal value'), value: 'total_won_deal_value' },
+  { label: __('Total won deal balance value'), value: 'total_won_deal_balance_value' },
 ]
-
-const horizontalChart = ref('')
-const horizontalCharts = [
-  { label: __('Deals by territory'), value: 'deals_by_territory' },
-  { label: __('Deals by salesperson'), value: 'deals_by_salesperson' },
-  
-]
-
 
 const axisChart = ref('sales_trend')
 const axisCharts = [
@@ -117,6 +102,9 @@ const axisCharts = [
   { label: __('Lost deal reasons'), value: 'lost_deal_reasons' },
   { label: __('Deals by territory'), value: 'deals_by_territory' },
   { label: __('Deals by salesperson'), value: 'deals_by_salesperson' },
+  { label: __('Conversion ratio by salesperson'), value: 'conversion_ratio_by_salesperson' },
+  { label: __('Lead source performance'), value: 'leads_by_source_performance' },
+  { label: __('Deal Value by Stage'), value: 'deal_value_by_stage' },
 ]
 
 const donutChart = ref('deals_by_stage_donut')
@@ -124,6 +112,12 @@ const donutCharts = [
   { label: __('Deals by stage'), value: 'deals_by_stage_donut' },
   { label: __('Leads by source'), value: 'leads_by_source' },
   { label: __('Deals by source'), value: 'deals_by_source' },
+  { label: __('Won Deals by Source'), value: 'won_deals_by_source_for_owner_donut'},
+  { label: __('Qualified Lead Status'), value:'user_status_leads'},
+  { label: __('Tasks by stage'), value:'tasks_by_stage'},
+  { label: __('Deals by Stage Deal Value'), value:'deals_by_stage_deal_value'},
+
+
 ]
 
 async function addChart() {
@@ -140,28 +134,12 @@ async function addChart() {
 }
 
 async function getChart(type: string) {
-  let name = ''
-
-      if (type === 'number_chart') {
-        name = numberChart.value
-      } else if (type === 'axis_chart') {
-        name = axisChart.value
-      } else if (type === 'donut_chart') {
-        name = donutChart.value
-      } else if (type === 'horizontal_bar_chart') {
-        name = horizontalChart.value
-      }
-
-  // let name =
-  //   type == 'number_chart'
-  //     ? numberChart.value
-  //     : type == 'axis_chart'
-  //       ? axisChart.value
-  //       : donutChart.value
-  //         type == 'horizontal_bar_chart'  
-  //           ? horizontalChart.value
-  //           : ''
-
+  let name =
+    type == 'number_chart'
+      ? numberChart.value
+      : type == 'axis_chart'
+        ? axisChart.value
+        : donutChart.value
 
   await createResource({
     url: 'crm.api.dashboard.get_chart',
@@ -177,7 +155,7 @@ async function getChart(type: string) {
       let width = 4
       let height = 2
 
-      if (['axis_chart', 'donut_chart','line_chart','horizontal_bar_chart'].includes(type)) {
+      if (['axis_chart', 'donut_chart'].includes(type)) {
         width = 10
         height = 7
       }

@@ -77,8 +77,11 @@
         >
           <template #item="{ element: row, index }">
             <div
-              class="grid-row flex cursor-pointer items-center border-b border-outline-gray-modals bg-surface-modals last:rounded-b last:border-b-0"
-              @click.stop="() => { showRowList[index] = true }"
+              :class="[
+                'grid-row flex items-center border-b border-outline-gray-modals bg-surface-modals last:rounded-b last:border-b-0',
+                { 'cursor-pointer': props.readOnly }
+              ]"
+              @click.stop="onRowClick(index)"
             >
               <div
                 class="grid-row-checkbox inline-flex h-9.5 items-center bg-surface-white justify-center border-r border-outline-gray-modals p-2 w-12"
@@ -271,13 +274,13 @@
                     :disabled="Boolean(field.read_only) || !isEditable"
                     @change="fieldChange(flt($event.target.value), field, row)"
                   />
-                  <Autocomplete
+                  <Combobox
                     v-else-if="field.fieldtype === 'Autocomplete'"
-                    class="text-sm text-ink-gray-8"
-                    :modelValue="row[field.fieldname]"
-                    @update:modelValue="(v) => row[field.fieldname] = typeof v == 'object' ? v.value : v"
-                    @change="(v) => fieldChange(typeof v == 'object' ? v.value : v, field, row)"
-                    :options="field.options"
+                    class="combobox"
+                    v-model="row[field.fieldname]"
+                    variant="outline"
+                    @update:modelValue="(v) => fieldChange(v, field, row)"
+                    :options="getOptions(field.options)"
                     :placeholder="field.placeholder"
                     :disabled="Boolean(field.read_only) || !isEditable"
                   />
@@ -372,7 +375,7 @@ import {
   DatePicker,
   Tooltip,
   dayjs,
-  Autocomplete
+  Combobox,
 } from 'frappe-ui'
 import Draggable from 'vuedraggable'
 import { ref, reactive, computed, inject, provide } from 'vue'
@@ -397,8 +400,8 @@ const props = defineProps({
   overrides: {
     type: Object,
     default: () => ({}),
-  }
-  ,readOnly: {
+  },
+  readOnly: {
     type: Boolean,
     default: false,
   }
@@ -471,17 +474,15 @@ function getFieldObj(field) {
     })
   }
 
-  const fieldObjWithFilters ={
+  const fieldObjWithFilters = {
     ...field,
     filters: field.link_filters && JSON.parse(field.link_filters),
     placeholder: field.placeholder || field.label,
   }
-  
+
   return {
     ...fieldObjWithFilters,
-    ...props.overrides.fields?.find(
-      (f) => f.fieldname === field.fieldname,
-    ),
+    ...props.overrides.fields?.find((f) => f.fieldname === field.fieldname),
   }
 }
 
@@ -558,20 +559,15 @@ const reorder = () => {
   })
 }
 
+const onRowClick = (index) => {
+  if (props.readOnly) {
+    showRowList.value[index] = true
+  }
+}
 
 function fieldChange(value, field, row) {
-  if (!isEditable.value) return
-  let _value = value
-  try {
-    if (field?.fieldtype === 'Datetime' && _value) {
-      _value = getFormat(_value, 'YYYY-MM-DD HH:mm:ss')
-    } else if (field?.fieldtype === 'Date' && _value) {
-      _value = getFormat(_value, 'YYYY-MM-DD')
-    }
-  } catch (e) {
-    _value = value
-  }
-  triggerOnChange(field.fieldname, _value, row)
+  value = typeof value === 'object' && value !== null ? value.value : value
+  triggerOnChange(field.fieldname, value, row)
 }
 
 function getDefaultValue(defaultValue, fieldtype) {
@@ -604,6 +600,18 @@ function getDefaultValue(defaultValue, fieldtype) {
 
   return defaultValue
 }
+
+const getOptions = (options) => {
+  if (Array.isArray(options)) {
+    return options
+  } else if (typeof options === 'string') {
+    return options.split('\n').map((option) => {
+      return { label: option, value: option }
+    })
+  } else {
+    return []
+  }
+}
 </script>
 
 <style scoped>
@@ -633,8 +641,9 @@ function getDefaultValue(defaultValue, fieldtype) {
   height: 38px;
 }
 
-/* For Autocomplete */
-:deep(.grid-row button) {
+/* For Autocomplete, Link */
+:deep(.grid-row button),
+:deep(.grid-row .combobox > div > div) {
   border: none;
   border-radius: 0;
   background-color: var(--surface-white);
