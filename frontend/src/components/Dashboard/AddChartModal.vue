@@ -116,6 +116,7 @@ const donutCharts = [
   { label: __('Qualified Lead Status'), value:'user_status_leads'},
   { label: __('Tasks by stage'), value:'tasks_by_stage'},
   { label: __('Deals by Stage Deal Value'), value:'deals_by_stage_deal_value'},
+  { label: __('Deals Target vs Achieved'), value:'deal_with_target_vs_achieved' },
 
 
 ]
