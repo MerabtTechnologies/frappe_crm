@@ -36,9 +36,10 @@
         :label="document.doc.docstatus === 1 ? __('Cancel') : __('Submit')"
         variant="solid"
         :loading="document.save.loading"
-        @click="() => {console.log('Submit clicked', document);
-          console.log('Document is dirty:', document.isDirty);
-          console.log('Submitable or not:', document.doc.hasOwnProperty('amended_from'));
+        @click="() => {
+          // console.log('Submit clicked', document);
+          // console.log('Document is dirty:', document.isDirty);
+          // console.log('Submitable or not:', document.doc.hasOwnProperty('amended_from'));
           showConfirm()
         }"
       />
@@ -83,7 +84,7 @@
     name="Employee Task Assignments"
     @confirm="() => submitChanges()"
     @cancel="()=> {
-      console.log('Submission cancelled Data Fields.vue')
+      // console.log('Submission cancelled Data Fields.vue')
       showConfirmDialogBox = false
     }"
   />
@@ -170,14 +171,14 @@ function cancelSubmission() {
   showConfirmDialogBox.value = false
   document.doc.docstatus = 2
   document.save.submit()
-  console.log("Document Cancelled");
+  // console.log("Document Cancelled");
 }
 
 function confirmSubmission() {
   showConfirmDialogBox.value = false
   document.doc.docstatus = 1
   document.save.submit()
-  console.log("Document Submitted");
+  // console.log("Document Submitted");
 }
 
 function showConfirm() {

@@ -36,7 +36,7 @@
 
 
         </div>
-        <div>
+        <!-- <div>
           <div class="mb-2 text-sm text-ink-gray-5">
             {{ __('Total Paid Amount') }}
           </div>
@@ -46,7 +46,7 @@
             :value="totalAmount"
             :disabled="true"
           />
-        </div>
+        </div> -->
         <div>
           <div class="mb-2 text-sm text-ink-gray-5">
             {{ __('Remarks') }}
@@ -73,8 +73,8 @@
 </template>
 <script setup>
 import { Dialog } from 'frappe-ui'
-import { ref, computed } from 'vue'
-import Grid from '@/components/Controls/Grid.vue'
+import { ref, computed, watch } from 'vue'
+import Grid from '@/components/Controls/PaymentsGridWon.vue'
 
 const props = defineProps({
   deal: {
@@ -86,15 +86,27 @@ const props = defineProps({
 const show = defineModel()
 const test = ref([])
 
-const payments = ref(props.deal.doc.custom_payments || [])
+// keep a local copy of payments to avoid mutating parent's reactive array
+const payments = ref((props.deal.doc.custom_payments || []).map((r) => ({ ...r })))
+
 const totalAmount = computed(() => {
   if (props.deal.doc.custom_paid_amount !== undefined && props.deal.doc.custom_paid_amount !== null) {
     return Number(props.deal.doc.custom_paid_amount)
   }
-  return (props.deal.doc.custom_payments || []).reduce((s, p) => s + Number(p.amount || 0), 0)
+  return (payments.value || []).reduce((s, p) => s + Number(p.paid_amount || 0), 0)
 })
+
 const wonNotes = ref(props.deal.doc.custom_paid_amount_remarks || '')
 const error = ref('')
+
+// keep in sync if parent doc reloads/updates
+watch(
+  () => props.deal.doc.custom_payments,
+  (v) => {
+    payments.value = (v || []).map((r) => ({ ...r }))
+  },
+  { deep: true }
+)
 
 function cancel() {
   show.value = false
@@ -107,15 +119,15 @@ function save() {
   // set remarks from modal input
   props.deal.doc.custom_paid_amount_remarks = wonNotes.value
 
-  console.log(props.deal.doc);
-  console.log('Payments Props: ', props.deal.doc.custom_payments);
-  console.log("Payments: ", payments.value);
+  // console.log(props.deal.doc);
+  // console.log('Payments Props: ', props.deal.doc.custom_payments);
+  // console.log("Payments: ", payments.value);
   
-  
+  props.deal.doc.custom_payments = payments.value.map((r) => ({ ...r }))
   
   error.value = ''
-  // show.value = false
-  // props.deal.save.submit()
+  show.value = false
+  props.deal.save.submit()
 }
 </script>
 <!-- Fix: Not working in CRM Deal Child tables -->

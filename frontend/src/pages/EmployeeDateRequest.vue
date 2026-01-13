@@ -545,12 +545,12 @@ function setLostReason() {
 // TODO: handle error from here. error of the submited document is not editable...
 function beforeStatusChange(data) {
 
-  console.log('Document: ', document);
+  // console.log('Document: ', document);
   
   document.save.submit(null, {
     onSuccess: () => reloadAssignees(data),
     onError: (err) => {
-      console.log('Error: ', err);
+      // console.log('Error: ', err);
       
       toast.error(err.messages?.[0] || __('Error updating field'))
     },
