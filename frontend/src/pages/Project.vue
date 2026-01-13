@@ -497,7 +497,7 @@ async function triggerStatusChange(value) {
 }
 
 function updateField(name, value) {
-  console.log('OnUpdate Field: ', name, ' - - - ', value);
+  // console.log('OnUpdate Field: ', name, ' - - - ', value);
   
   if (name == 'status' && !isOnboardingStepsCompleted.value) {
     updateOnboardingStep('change_deal_status')
@@ -555,7 +555,7 @@ function setLostReason() {
 }
 
 function beforeStatusChange(data) {
-  console.log('Data Field Changed: ', data);
+  // console.log('Data Field Changed: ', data);
   
   // if (
   //   data?.hasOwnProperty('status') &&

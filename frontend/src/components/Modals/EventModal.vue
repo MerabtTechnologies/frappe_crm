@@ -184,7 +184,7 @@ const tabs = createResource({
 async function createDeal() {
 
   await triggerOnBeforeCreate?.()
-    console.log("Creating Event", deal.doc);
+    // console.log("Creating Event", deal.doc);
 
   createResource({
     url: 'merabt_crm.portal_api.api.create_new_doc',

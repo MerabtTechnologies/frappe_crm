@@ -840,7 +840,7 @@ function setWonAmount() {
 
 
 function beforeStatusChange(data) {
-  console.log('Before Status Change: ', data);
+  // console.log('Before Status Change: ', data);
   
   if (
     data?.hasOwnProperty('status') &&
