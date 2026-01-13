@@ -328,12 +328,12 @@
     v-model="showLostReasonModal"
     :deal="document"
   />
-  <!-- <WonAmountModal
+  <WonAmountModal
     v-if="showWonAmountModal"
     v-model="showWonAmountModal"
     :deal="document"
-  /> -->
-  <Dialog
+  />
+  <!-- <Dialog
   :options="{
     title: 'Add Payments',
     message: 'Please enter the payment details for this won deal. In product tab in Data Tab of this deal.',
@@ -359,7 +359,7 @@
     ],
   }"
   v-model="showWonAmountModal"
-/>
+/> -->
 </template>
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
@@ -840,7 +840,7 @@ function setWonAmount() {
 
 
 function beforeStatusChange(data) {
-  console.log('Before Status Change: ', data);
+  // console.log('Before Status Change: ', data);
   
   if (
     data?.hasOwnProperty('status') &&

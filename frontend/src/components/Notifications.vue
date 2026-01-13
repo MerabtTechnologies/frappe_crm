@@ -131,7 +131,7 @@ onMounted(() => {
 })
 
 function getRoute(notification) {
-  console.log('Notification Route: ', notification);
+  // console.log('Notification Route: ', notification);
   
   if(notification?.reference_name){
     let params = {
