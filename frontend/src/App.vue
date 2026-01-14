@@ -31,8 +31,11 @@ const firebaseConfig = {
   appId: "1:594102127532:web:bee57cbafd666a1fb6c809",
   measurementId: "G-PVXM42V748"
 };
-const app = initializeApp(firebaseConfig);
-
+try {
+  initializeApp(firebaseConfig);
+} catch (error) {
+  console.error("Firebase initialization error", error);
+}
 const { users, getUser } = usersStore()
 
 
@@ -82,11 +85,34 @@ getToken(messaging,
         )
     }
 }).catch((err) => {
+  // ignore known permission / suspended consumer errors from FCM unsubscribe
+  const msg = (err && err.message) ? String(err.message) : ''
+  const code = err && err.code ? String(err.code) : ''
+  if (
+    code === 'messaging/token-unsubscribe-failed' ||
+    msg.includes('Permission denied') ||
+    msg.includes('has been suspended') ||
+    msg.includes('token-unsubscribe-failed')
+  ) {
+    console.warn('FCM token issue (ignored):', code || msg)
+    return
+  }
+
+  if (code === 'messaging/permission-blocked' ){
+    toast.error(
+        __(
+          'Notification Permission Issue: {0}. Please enable notifications permission in your browser settings.',
+          [msg],
+        ),
+      )
+    return
+  }
+
   // console.log('An error occurred while retrieving token. ', err);
   toast.error(
         __(
-          'Error retrieving notification token: {0} - {1}',
-          [err.code, err.message],
+          'Error: {0} - {1}',
+          [code || err, msg],
         ),
       )
 });
