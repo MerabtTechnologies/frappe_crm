@@ -69,12 +69,12 @@ export function getFormat(
 export function toServerDatetime(date) {
   if (!date) return null
 
-  console.log('Input Date (raw):', date, typeof date)
+  // console.log('Input Date (raw):', date, typeof date)
 
 const formatted = dayjs(date)
     // .utc()
     .format('YYYY-MM-DD HH:mm:ss')
-     console.log('Output Date: ', formatted)
+     // console.log('Output Date: ', formatted)
   // DateTimePicker already gives UTC Date
 
   return formatted

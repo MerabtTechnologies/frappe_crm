@@ -142,8 +142,8 @@ async function updateNote() {
 function redirect() {
   if (!props.note?.reference_docname) return
   let name = ''
-  console.log('Reference Doctype: ',props.note?.reference_doctype);
-  console.log('Reference Doctype: ',props.note?.reference_docname)
+  // console.log('Reference Doctype: ',props.note?.reference_doctype);
+  // console.log('Reference Doctype: ',props.note?.reference_docname)
 
     // convert doctype to route name
   if (props.note?.reference_doctype == 'CRM Lead') {
@@ -174,7 +174,7 @@ function redirect() {
     params = { planningId: props.note.reference_docname }
   }
 
-  console.log('Route name',name);
+  // console.log('Route name',name);
   
   router.push({ name: name, params: params })
 }

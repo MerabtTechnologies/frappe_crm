@@ -112,12 +112,12 @@ async function loadGammaTemplates() {
 
     // props.proposals = res || []
 
-  console.log('Proposals: ', props.proposals);
+  // console.log('Proposals: ', props.proposals);
   
 
     props.proposals.forEach(p => {
-      console.log(" Gamma URL:", p.gamma_url)
-      console.log("Embed ID:", p.gamma_embed_id)
+      // console.log(" Gamma URL:", p.gamma_url)
+      // console.log("Embed ID:", p.gamma_embed_id)
     })
 
   } catch (err) {
@@ -164,7 +164,7 @@ function shareLink(url) {
     return
   }
 
-  console.log("Opening Share URL:", url)
+  // console.log("Opening Share URL:", url)
   window.open(url, "_blank")
 }
 

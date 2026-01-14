@@ -287,12 +287,12 @@ const removeDocLinks = () => {
 }
 
 const deleteDoc = async () => {
-console.log('Delete Confirmed');
+// console.log('Delete Confirmed');
 emit('confirm')
 
 }
 const close = () => {
-  console.log("Dialog Closed");
+  // console.log("Dialog Closed");
   
   show.value = false
   emit('cancel')
