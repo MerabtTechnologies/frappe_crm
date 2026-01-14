@@ -91,6 +91,9 @@ const numberCharts = [
   { label: __('Total deal value'), value: 'total_deal_value' },
   { label: __('Total won deal value'), value: 'total_won_deal_value' },
   { label: __('Total won deal balance value'), value: 'total_won_deal_balance_value' },
+  { label: __('Deal Target Amount'), value: 'target_amount_number_chart' },
+  { label: __('Deal Achieved Amount'), value: 'achieved_amount_number_chart' },
+  
 ]
 
 const axisChart = ref('sales_trend')
