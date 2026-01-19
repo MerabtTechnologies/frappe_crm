@@ -169,6 +169,7 @@ import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CollapseSidebar from '@/components/Icons/CollapseSidebar.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import HelpIcon from '@/components/Icons/HelpIcon.vue'
+import ChartLineIcon from '@/components/Icons/ChartLineIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
 import Notifications from '@/components/Notifications.vue'
 import Settings from '@/components/Settings/Settings.vue'
@@ -221,7 +222,7 @@ const links = [
   // PErfomance Review
   {
     label: 'Performance Review',
-    icon: DotIcon,
+    icon:   ChartLineIcon,
     to: 'PerformanceReview',
     condition: () => isSalesMasterManager(),
   },
