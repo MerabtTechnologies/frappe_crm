@@ -224,6 +224,16 @@ const routes = [
     name: 'Project Dashboard',
     component: () => import('@/pages/DashboardProject.vue'),
   },
+ 
+  // router.js
+  {
+  path: '/performance-review',
+  name: 'PerformanceReview',
+  component: () => import('@/components/DealPerfomanceSummary.vue'),
+},
+
+
+
 ]
 
 const handleMobileView = (componentName) => {
@@ -293,7 +303,8 @@ router.beforeEach(async (to, from, next) => {
               (to.name === 'Employee Date Request' && !isProjectManager()) ||
               (to.name === 'Employee Project Assignments' && !isProjectManager()) ||
               (to.name === 'Employee Project Assignment' && !isProjectManager()) ||
-              (to.name === 'Project Dashboard' && !isProjectManager())
+              (to.name === 'Project Dashboard' && !isProjectManager()) ||
+              (to.name === 'Performance Review' && !isSalesMasterManager())
             ) {
                 next({ name: 'Not Permitted Project' })
   } else {
