@@ -169,6 +169,7 @@ import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CollapseSidebar from '@/components/Icons/CollapseSidebar.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import HelpIcon from '@/components/Icons/HelpIcon.vue'
+import ChartLineIcon from '@/components/Icons/ChartLineIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
 import Notifications from '@/components/Notifications.vue'
 import Settings from '@/components/Settings/Settings.vue'
@@ -208,7 +209,7 @@ const isDemoSite = ref(window.is_demo_site)
 
 // onboarding
 const { user } = sessionStore()
-const { users, isManager, isProjectManager } = usersStore()
+const { users, isManager, isProjectManager, isSalesMasterManager } = usersStore()
 const { isOnboardingStepsCompleted, setUp } = useOnboarding('frappecrm')
 
 
@@ -217,6 +218,13 @@ const links = [
     label: 'Dashboard',
     icon: LucideLayoutDashboard,
     to: 'Dashboard',
+  },
+  // PErfomance Review
+  {
+    label: 'Performance Review',
+    icon:   ChartLineIcon,
+    to: 'PerformanceReview',
+    condition: () => isSalesMasterManager(),
   },
   {
     label: 'Leads',
