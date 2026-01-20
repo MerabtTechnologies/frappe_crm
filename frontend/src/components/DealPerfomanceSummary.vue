@@ -632,7 +632,8 @@ const getTotalLeadsForStatus = (status) => {
 // Helper functions
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '₹0'
-  return `₹${Math.round(value).toLocaleString()}`
+  // Use plain number string without thousand separators (no commas)
+  return '₹' + Math.round(value).toString()
 }
 
 const formatOwnerName = (owner) => {
