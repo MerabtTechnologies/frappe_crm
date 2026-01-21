@@ -403,7 +403,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { createResource } from 'frappe-ui'
-<script setup lang="ts">
 import { usersStore } from '../stores/users'
 
 
@@ -641,7 +640,7 @@ const formatCurrency = (value) => {
   return '₹' + Math.round(value).toString()
 }
 
-const formatOwnerName = (owner: string) => {
+const formatOwnerName = (owner) => {
   const crmUsers = users.data?.crmUsers || []
 
   if (!owner) return 'Unassigned'
@@ -649,7 +648,7 @@ const formatOwnerName = (owner: string) => {
   if (owner === 'Unassigned') return 'Unassigned'
 
   if (Array.isArray(crmUsers)) {
-    const match = crmUsers.find((u: any) =>
+    const match = crmUsers.find((u) =>
       u.name === owner || u.email === owner || u.user === owner || u.full_name === owner
     )
     if (match) return match.full_name || match.name || owner
