@@ -403,8 +403,13 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { createResource } from 'frappe-ui'
+<script setup lang="ts">
+import { usersStore } from '../stores/users'
+
 
 const API_ENDPOINT = 'merabt_crm.merabt_crm.override.custom_chart.get_deal_performance_cards'
+
+const { users, getUser, isManager, isAdmin } = usersStore()
 
 // Reactive variables
 const loading = ref(false)
@@ -636,14 +641,25 @@ const formatCurrency = (value) => {
   return '₹' + Math.round(value).toString()
 }
 
-const formatOwnerName = (owner) => {
+const formatOwnerName = (owner: string) => {
+  const crmUsers = users.data?.crmUsers || []
+
   if (!owner) return 'Unassigned'
   if (owner === 'Administrator') return 'Admin'
   if (owner === 'Unassigned') return 'Unassigned'
-  if (owner.includes('@')) {
-    const name = owner.split('@')[0]
-    return name.charAt(0).toUpperCase() + name.slice(1)
+
+  if (Array.isArray(crmUsers)) {
+    const match = crmUsers.find((u: any) =>
+      u.name === owner || u.email === owner || u.user === owner || u.full_name === owner
+    )
+    if (match) return match.full_name || match.name || owner
   }
+
+  if (owner.includes('@')) {
+    const local = owner.split('@')[0].replace(/[._-]+/g, ' ')
+    return local.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
+  }
+
   return owner
 }
 
