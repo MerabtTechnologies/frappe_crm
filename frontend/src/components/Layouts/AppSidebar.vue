@@ -209,7 +209,7 @@ const isDemoSite = ref(window.is_demo_site)
 
 // onboarding
 const { user } = sessionStore()
-const { users, isManager, isProjectManager, isSalesMasterManager } = usersStore()
+const { users, isManager, isProjectManager } = usersStore()
 const { isOnboardingStepsCompleted, setUp } = useOnboarding('frappecrm')
 
 
@@ -224,7 +224,7 @@ const links = [
     label: 'Performance Review',
     icon:   ChartLineIcon,
     to: 'PerformanceReview',
-    condition: () => isSalesMasterManager(),
+    condition: () => isManager(),
   },
   {
     label: 'Leads',

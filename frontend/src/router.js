@@ -247,7 +247,7 @@ let router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   const { isLoggedIn } = sessionStore()
-  const { users, isWebsiteUser, isProjectManager } = usersStore()
+  const { users, isWebsiteUser, isProjectManager, isManager } = usersStore()
 
   if (isLoggedIn && !users.fetched) {
     try {
@@ -304,7 +304,7 @@ router.beforeEach(async (to, from, next) => {
               (to.name === 'Employee Project Assignments' && !isProjectManager()) ||
               (to.name === 'Employee Project Assignment' && !isProjectManager()) ||
               (to.name === 'Project Dashboard' && !isProjectManager()) ||
-              (to.name === 'Performance Review' && !isSalesMasterManager())
+              (to.name === 'Performance Review' && !isManager())
             ) {
                 next({ name: 'Not Permitted Project' })
   } else {

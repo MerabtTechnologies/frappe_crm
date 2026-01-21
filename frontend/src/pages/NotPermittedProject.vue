@@ -10,7 +10,7 @@
       <p class="text-ink-gray-4 text-p-base">
         {{
           __(
-            'You do not have enough permissions to access Project Section. Please contact your administrator if you believe this is an error.',
+            'You do not have enough permissions to access This Section. Please contact your administrator if you believe this is an error.',
           )
         }}
       </p>
