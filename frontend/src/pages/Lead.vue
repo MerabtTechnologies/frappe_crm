@@ -454,10 +454,10 @@ function makeBonvoiceCall(data) {
  call('merabt_crm.portal_api.voice_call.make_call', {
     mobile_no: data,
   }).then((res) => {
-    console.log('Calling: ', res);
+    console.log('Calling: ', res?.message);
     
   }).catch((err) => {
-    console.error('Error making call: ', err);
+    console.log('Error making call: ', err);
   })
 }
 
