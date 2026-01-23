@@ -6,9 +6,43 @@ from frappe.model.document import Document
 
 from crm.integrations.api import get_contact_by_phone_number
 from crm.utils import seconds_to_duration
+from frappe.utils import format_duration
 
 
 class CRMCallLog(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.core.doctype.dynamic_link.dynamic_link import DynamicLink
+		from frappe.types import DF
+
+		agent_status: DF.Literal["", "ANSWERED", "ANSWER", "NOANSWER", "NOANSWERED", "BUSY", "CANCEL", "CANCELED", "CANCELLED", "UNAVAILABLE", "CONGESTION", "BLACKLIST"]
+		call_back_params: DF.JSON | None
+		call_back_parent_id: DF.Data | None
+		call_id: DF.Data | None
+		caller: DF.Link | None
+		customer_status: DF.Literal["", "ANSWERED", "ANSWER", "NOANSWER", "NOANSWERED", "BUSY", "CANCEL", "CANCELED", "CANCELLED", "UNAVAILABLE", "CONGESTION", "BLACKLIST"]
+		direction: DF.Data | None
+		duration: DF.Duration | None
+		end_time: DF.Datetime | None
+		id: DF.Data | None
+		leg: DF.Data | None
+		links: DF.Table[DynamicLink]
+		medium: DF.Data | None
+		note: DF.Link | None
+		receiver: DF.Link | None
+		recording_url: DF.Data | None
+		reference_docname: DF.DynamicLink | None
+		reference_doctype: DF.Link | None
+		start_time: DF.Datetime | None
+		status: DF.Literal["Initiated", "Ringing", "In Progress", "Completed", "Failed", "Busy", "No Answer", "Queued", "Canceled", "Unavailable", "Congestion", "Blacklist"]
+		telephony_medium: DF.Literal["", "Manual", "Twilio", "Exotel", "Merabt"]
+		to: DF.Data
+		type: DF.Literal["Incoming", "Outgoing"]
+	# end: auto-generated types
 	@staticmethod
 	def default_list_data():
 		columns = [
@@ -94,6 +128,9 @@ class CRMCallLog(Document):
 
 		self.append("links", {"link_doctype": reference_doctype, "link_name": reference_name})
 
+	def before_save(self):
+		if self.start_time and self.end_time:
+			self.duration = frappe.utils.data.time_diff_in_seconds(self.end_time, self.start_time)
 
 def parse_call_log(call):
 	call["show_recording"] = False
