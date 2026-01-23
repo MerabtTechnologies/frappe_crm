@@ -100,7 +100,8 @@
   {
    "fieldname": "recording_url",
    "fieldtype": "Data",
-   "label": "Recording URL"
+   "label": "Recording URL",
+   "length": 300
   },
   {
    "fieldname": "end_time",
@@ -206,12 +207,12 @@
    "fieldname": "customer_status",
    "fieldtype": "Select",
    "label": "Customer Status",
-   "options": "\nANSWERED\nANSWER\nNOANSWER\nNOANSWERED\nBUSY\nCANCEL\nCANCELED\nCANCELLED\nUNAVAILABLE\nCONGESTION\nBLACKLIST"
+   "options": "\nANSWERED\nANSWER\nNOANSWER\nNOANSWERED\nBUSY\nCANCEL\nCANCELED\nCANCELLED\nUNAVAILABLE\nCONGESTION\nBLACKLIST\nNone"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-23 13:55:37.294696",
+ "modified": "2026-01-23 17:39:25.146649",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "CRM Call Log",

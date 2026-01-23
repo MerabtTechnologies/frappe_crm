@@ -24,7 +24,7 @@ class CRMCallLog(Document):
 		call_back_parent_id: DF.Data | None
 		call_id: DF.Data | None
 		caller: DF.Link | None
-		customer_status: DF.Literal["", "ANSWERED", "ANSWER", "NOANSWER", "NOANSWERED", "BUSY", "CANCEL", "CANCELED", "CANCELLED", "UNAVAILABLE", "CONGESTION", "BLACKLIST"]
+		customer_status: DF.Literal["", "ANSWERED", "ANSWER", "NOANSWER", "NOANSWERED", "BUSY", "CANCEL", "CANCELED", "CANCELLED", "UNAVAILABLE", "CONGESTION", "BLACKLIST", "None"]
 		direction: DF.Data | None
 		duration: DF.Duration | None
 		end_time: DF.Datetime | None
