@@ -112,7 +112,7 @@ def create_facebook_ads_in_db(ads: dict) -> None:
 					"ad_name": ad["ad_name"],
 					"campaign": ad["campaign_id"],
 					"ad_account": ad["ad_account_id"],
-					"table_forms": [{"lead_form_id": form_id} for form_id in ad["form_ids"]],
+					# "table_forms": [{"lead_form_id": form_id} for form_id in ad["form_ids"]],
 				}
 			).insert(ignore_permissions=True)
 
