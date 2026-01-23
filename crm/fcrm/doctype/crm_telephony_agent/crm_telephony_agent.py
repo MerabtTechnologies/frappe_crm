@@ -7,6 +7,29 @@ from frappe.model.document import Document
 
 
 class CRMTelephonyAgent(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from crm.fcrm.doctype.crm_telephony_phone.crm_telephony_phone import CRMTelephonyPhone
+		from frappe.types import DF
+
+		bonvoice: DF.Check
+		bonvoice_agent_number: DF.Data | None
+		bonvoice_caller_id: DF.Data | None
+		call_receiving_device: DF.Literal["Computer", "Phone"]
+		default_medium: DF.Literal["", "Twilio", "Exotel", "Bonvoice"]
+		exotel: DF.Check
+		exotel_number: DF.Data | None
+		mobile_no: DF.Data | None
+		phone_nos: DF.Table[CRMTelephonyPhone]
+		twilio: DF.Check
+		twilio_number: DF.Data | None
+		user: DF.Link
+		user_name: DF.Data | None
+	# end: auto-generated types
 	def validate(self):
 		self.set_primary()
 

@@ -133,6 +133,14 @@
                         : toast.error(__('No phone number set'))
                   "
                 />
+                <Button
+                  v-if="merabtCallEnabled"
+                  :tooltip="__('Make a call')"
+                  :icon="PhoneIcon"
+                  @click="
+                    () => makeBonvoiceCall(doc.mobile_no)
+                  "
+                />
 
                 <Button
                   :tooltip="__('Send an email')"
@@ -257,7 +265,7 @@ import { globalStore } from '@/stores/global'
 import { statusesStore } from '@/stores/statuses'
 import { getMeta } from '@/stores/meta'
 import { useDocument } from '@/data/document'
-import { whatsappEnabled, callEnabled } from '@/composables/settings'
+import { whatsappEnabled, callEnabled, merabtCallEnabled } from '@/composables/settings'
 import {
   createResource,
   FileUploader,
@@ -441,6 +449,17 @@ const sections = createResource({
   params: { doctype: 'CRM Lead' },
   auto: true,
 })
+
+function makeBonvoiceCall(data) {
+ call('merabt_crm.portal_api.voice_call.make_call', {
+    mobile_no: data,
+  }).then((res) => {
+    console.log('Calling: ', res);
+    
+  }).catch((err) => {
+    console.error('Error making call: ', err);
+  })
+}
 
 async function triggerStatusChange(value) {
   await triggerOnChange('status', value)
