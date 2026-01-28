@@ -107,7 +107,7 @@
                 })
             "
           >
-            {{ label }}
+            {{ (column.field === 'name' || column.key === 'name') ? label : toTitleCase(label) }}
           </div>
         </template>
       </ListRowItem>
@@ -158,6 +158,7 @@ import {
 import { sessionStore } from '@/stores/session'
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { toTitleCase } from '@/utils'
 
 const props = defineProps({
   rows: {

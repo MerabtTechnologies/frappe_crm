@@ -36,6 +36,19 @@ createResource({
   },
 })
 
+export const merabtCallEnabled = ref(false)
+export const merabtCallSettings = ref({})
+
+createResource({
+  url: 'merabt_crm.portal_api.voice_call.get_voice_call_settings',
+  cache: 'Merabt Call Integration Enabled',
+  auto: true,
+  onSuccess: (data) => {
+    merabtCallEnabled.value = Boolean(data.settings.enable_call == 1)
+    merabtCallSettings.value = data.settings || {}
+  },
+})
+
 export const mobileSidebarOpened = ref(false)
 
 export const isMobileView = computed(() => window.innerWidth < 768)

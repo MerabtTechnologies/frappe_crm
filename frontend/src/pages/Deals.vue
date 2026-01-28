@@ -287,7 +287,8 @@ import { callEnabled } from '@/composables/settings'
 import { formatDate, timeAgo, website, formatTime } from '@/utils'
 import { Tooltip, Avatar, Dropdown } from 'frappe-ui'
 import { useRoute } from 'vue-router'
-import { ref, reactive, computed, h } from 'vue'
+import { ref, reactive, computed, h, onMounted, watch  } from 'vue'
+
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta('CRM Deal')
@@ -309,7 +310,15 @@ const loadMore = ref(1)
 const triggerResize = ref(1)
 const updatedPageCount = ref(20)
 const viewControls = ref(null)
-
+// ADD THIS AFTER line 45 (after viewControls ref declaration):
+// Temporary debug to see ViewControls methods
+watch(() => viewControls.value, (newVal) => {
+  if (newVal) {
+    // console.log('ViewControls loaded, available methods:', Object.keys(newVal))
+    // console.log('Has updateFilter?', typeof newVal.updateFilter)
+    // console.log('Has applyFilter?', typeof newVal.applyFilter)
+  }
+})
 function getRow(name, field) {
   function getValue(value) {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -548,4 +557,103 @@ function showTask(name) {
   docname.value = name
   showTaskModal.value = true
 }
+
+
+
+// ============ ADD FILTER FUNCTION FROM URL ============
+const applyFiltersFromURL = () => {
+  const filtersParam = route.query.filters
+  
+  if (!filtersParam) {
+    return
+  }
+  
+  try {
+    let filters = []
+    
+    if (Array.isArray(filtersParam)) {
+      filters = filtersParam
+    } else if (typeof filtersParam === 'string') {
+      filters = JSON.parse(filtersParam)
+    }
+    
+    
+    if (Array.isArray(filters)) {
+      // Wait for ViewControls to be initialized
+      const checkAndApply = () => {
+        if (!viewControls.value) {
+          setTimeout(checkAndApply, 100)
+          return
+        }
+        
+        // Build filters object
+        const filterObj = {}
+        filters.forEach(filter => {
+          if (filter.fieldname && filter.value !== undefined) {
+            filterObj[filter.fieldname] = filter.value
+          }
+        })
+        
+        
+        // Method 1: Try updateFilter if available
+        if (viewControls.value.updateFilter) {
+          viewControls.value.updateFilter(filterObj)
+          return
+        }
+        
+        // Method 2: Directly update list params
+        if (viewControls.value.list && viewControls.value.list.params) {
+          viewControls.value.list.params.filters = {
+            ...viewControls.value.list.params.filters,
+            ...filterObj
+          }
+          viewControls.value.list.reload()
+          return
+        }
+        
+        // Method 3: Use applyFilter with proper parameters
+        if (viewControls.value.applyFilter && deals.value.data && deals.value.data.columns) {
+          
+          filters.forEach((filter, index) => {
+            const column = deals.value.data.columns.find(
+              col => col.fieldname === filter.fieldname || col.key === filter.fieldname
+            )
+            
+            if (column) {
+              viewControls.value.applyFilter({
+                event: { stopPropagation: () => {}, preventDefault: () => {} },
+                idx: index + 1,
+                column: column,
+                item: filter.value,
+                firstColumn: deals.value.data.columns[0]
+              })
+            }
+          })
+        }
+      }
+      
+      // Start checking
+      setTimeout(checkAndApply, 300)
+    }
+  } catch (error) {
+    console.error('Error in applyFiltersFromURL:', error)
+  }
+}
+
+// Apply filters when component mounts
+onMounted(() => {
+  // Wait a bit for ViewControls to initialize
+  setTimeout(() => {
+    applyFiltersFromURL()
+  }, 500)
+})
+
+// Watch for route changes to apply filters when URL changes
+watch(() => route.query.filters, () => {
+  // When filters in URL change, re-apply them
+  setTimeout(() => {
+    applyFiltersFromURL()
+  }, 100)
+})
+
 </script>
