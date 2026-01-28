@@ -16,11 +16,13 @@
         </div>
       </ListGroupHeader>
       <ListGroupRows :group="group">
+        <!-- Added BG color to New status rows -->
         <ListRow
           v-for="row in group.rows"
           :key="row.name"
           v-slot="{ idx, column, item }"
           :row="row"
+          :class="rowIsNew(row) ? 'bg-green-200' : ''"
         >
           <slot v-bind="{ idx, column, item, row }" />
         </ListRow>
@@ -33,11 +35,13 @@
     class="mx-3 sm:mx-5"
     @scroll="handleScroll"
   >
+  <!-- Added BG color to New status rows -->
     <ListRow
       v-for="row in reactivieRows"
       :key="row.name"
       v-slot="{ idx, column, item }"
       :row="row"
+      :class="rowIsNew(row) ? 'bg-green-200' : ''"
     >
       <slot v-bind="{ idx, column, item, row }" />
     </ListRow>
@@ -80,6 +84,13 @@ const handleScroll = () => {
   if (scrollContainer.value) {
     scrollPosition.value = scrollContainer.value.$el.scrollTop
   }
+}
+
+// Function to check if a row has 'New' status
+function rowIsNew(row) {
+  const status = row?.status?.label ?? row?.status?.value ?? row?.status
+  if (status == null) return false
+  return String(status).toLowerCase() === 'new'
 }
 
 onBeforeUnmount(() => {
