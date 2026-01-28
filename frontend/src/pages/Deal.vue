@@ -87,6 +87,15 @@
               :icon="PhoneIcon"
               @click="triggerCall"
             />
+            <Button
+                  :disabled="call_enabled"
+                  v-if="merabtCallEnabled && doc.mobile_no"
+                  :tooltip="__('Make a call')"
+                  :icon="PhoneIcon"
+                  @click="
+                    () => makeBonvoiceCall(doc.mobile_no)
+                  "
+                />
 
             <Button
               :tooltip="__('Send an email')"
@@ -401,7 +410,7 @@ import { globalStore } from '@/stores/global'
 import { statusesStore } from '@/stores/statuses'
 import { getMeta } from '@/stores/meta'
 import { useDocument } from '@/data/document'
-import { whatsappEnabled, callEnabled } from '@/composables/settings'
+import { whatsappEnabled, callEnabled, merabtCallEnabled } from '@/composables/settings'
 import {
   createResource,
   Dropdown,
@@ -454,6 +463,8 @@ const { triggerOnChange, assignees, permissions, document, scripts, error } =
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
 const doc = computed(() => document.doc || {})
+
+const call_enabled = ref(false)
 
 watch(error, (err) => {
   if (err) {
@@ -742,6 +753,27 @@ function triggerCall() {
   }
 
   makeCall(mobile_no)
+}
+
+function makeBonvoiceCall(data) {
+  call_enabled.value = true
+ call('merabt_crm.portal_api.voice_call.make_call', {
+    mobile_no: data,
+  }).then((res) => {
+    // console.log('Calling: ', res?.message);
+    // console.log('Please wait for the call to be connected.', res);
+    if (res?.success_code !== 1) {
+      toast.error(__('Error: {0}', [res?.message || 'Unknown error']));
+
+    } else { 
+      toast.success(__(res?.message || 'Call initiated, please wait for the call to be connected.'));
+    }    
+  }).catch((err) => {
+    // console.log('Error making call: ', err);
+    toast.error(__('Error initiating call: {0}', [err?.message || 'Unknown error']));
+  }).finally(() => {
+    call_enabled.value = false
+  })
 }
 
 async function triggerStatusChange(value) {

@@ -1,20 +1,25 @@
 <template>
   <FrappeUIProvider>
-    <NotPermitted v-if="$route.name === 'Not Permitted'" />
-    <Layout class="isolate" v-else-if="session().isLoggedIn">
-      <router-view :key="$route.fullPath" />
-    </Layout>
-    <Dialogs />
+    <SplashScreen v-if="showSplash" />
+    <template v-else>
+      <NotPermitted v-if="$route.name === 'Not Permitted'" />
+      <Layout class="isolate" v-else-if="session().isLoggedIn">
+        <router-view :key="$route.fullPath" />
+      </Layout>
+      <Dialogs />
+    </template>
   </FrappeUIProvider>
 </template>
 
 <script setup>
 import NotPermitted from '@/pages/NotPermitted.vue'
+import SplashScreen from '@/components/SplashScreen.vue'
 import { Dialogs } from '@/utils/dialogs'
 import { sessionStore as session } from '@/stores/session'
 import { setTheme } from '@/stores/theme'
 import { FrappeUIProvider, setConfig } from 'frappe-ui'
-import { computed, defineAsyncComponent, onErrorCaptured, onMounted } from 'vue'
+import { computed, defineAsyncComponent, onErrorCaptured, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
@@ -143,7 +148,21 @@ const Layout = computed(() => {
   }
 })
 
-onMounted(() => setTheme())
+const showSplash = ref(true)
+const router = useRouter()
+
+onMounted(async () => {
+  setTheme()
+  try {
+    await router.isReady()
+  } catch (e) {
+    // ignore
+  }
+  // small delay so the transition looks smooth
+  setTimeout(() => {
+    showSplash.value = false
+  }, 1000)
+})
 
 setConfig('systemTimezone', window.timezone?.system || null)
 setConfig('localTimezone', window.timezone?.user || null)
