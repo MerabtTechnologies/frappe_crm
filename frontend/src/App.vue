@@ -23,7 +23,7 @@ import { useRouter } from 'vue-router'
 
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { toast, createResource} from 'frappe-ui'
+import { toast, createResource } from 'frappe-ui'
 import { usersStore } from '@/stores/users'
 
 // Firebase configuration
@@ -47,7 +47,7 @@ const { users, getUser } = usersStore()
 // Get registration token. Initially this makes a network call, once retrieved
 // subsequent calls to getToken will return from cache.
 const messaging = getMessaging();
-getToken(messaging, 
+getToken(messaging,
   { vapidKey: 'BCVG3-dOFvV09zxecE0uHqK1fXzIxXw0aGKzFNb9Ukzz3_jhySXEvnGMEFvsOtUgrnXAe2eOQn1aflh5LQ80ZGo' })
   .then((currentToken) => {
     if (currentToken) {
@@ -59,9 +59,9 @@ getToken(messaging,
         token: currentToken,
         user: getUser().name,
       }
-      
+
       // console.log('doc: ', fcmToken);
-    
+
       try {
 
         createResource({
@@ -72,11 +72,11 @@ getToken(messaging,
             // console.log('Error saving FCM Token2: ', err);
 
           },
-          
+
         })
       } catch (error) {
         // console.log('Error saving FCM Token: ', error);
-        
+
       }
 
     } else {
@@ -84,54 +84,54 @@ getToken(messaging,
 
       // console.log('No registration token available. Request permission to generate one.');
       toast.info(
-          __(
-            'No registration token available. Request permission to generate one.'
-          ),
-        )
+        __(
+          'No registration token available. Request permission to generate one.'
+        ),
+      )
     }
-}).catch((err) => {
-  // ignore known permission / suspended consumer errors from FCM unsubscribe
-  const msg = (err && err.message) ? String(err.message) : ''
-  const code = err && err.code ? String(err.code) : ''
-  if (
-    code === 'messaging/token-unsubscribe-failed' ||
-    msg.includes('Permission denied') ||
-    msg.includes('has been suspended') ||
-    msg.includes('token-unsubscribe-failed')
-  ) {
-    console.warn('FCM token issue (ignored):', code || msg)
-    return
-  }
+  }).catch((err) => {
+    // ignore known permission / suspended consumer errors from FCM unsubscribe
+    const msg = (err && err.message) ? String(err.message) : ''
+    const code = err && err.code ? String(err.code) : ''
+    if (
+      code === 'messaging/token-unsubscribe-failed' ||
+      msg.includes('Permission denied') ||
+      msg.includes('has been suspended') ||
+      msg.includes('token-unsubscribe-failed')
+    ) {
+      console.warn('FCM token issue (ignored):', code || msg)
+      return
+    }
 
-  if (code === 'messaging/permission-blocked' ){
-    toast.error(
+    if (code === 'messaging/permission-blocked') {
+      toast.error(
         __(
           'Notification Permission Issue: {0}. Please enable notifications permission in your browser settings.',
           [msg],
         ),
       )
-    return
-  }
+      return
+    }
 
-  // console.log('An error occurred while retrieving token. ', err);
-  toast.error(
-        __(
-          'Error: {0} - {1}',
-          [code || err, msg],
-        ),
-      )
-});
+    // console.log('An error occurred while retrieving token. ', err);
+    toast.error(
+      __(
+        'Error: {0} - {1}',
+        [code || err, msg],
+      ),
+    )
+  });
 
 onMessage(messaging, (payload) => {
   // console.log('Message received. ', payload);
-  
+
   toast.info(
-        __(
-          'New Notification: {0} - {1}',
-          [payload.notification.title, payload.notification.body],
-        ),
-      )
-      
+    __(
+      'New Notification: {0} - {1}',
+      [payload.notification.title, payload.notification.body],
+    ),
+  )
+
 });
 
 const MobileLayout = defineAsyncComponent(

@@ -310,8 +310,7 @@ const loadMore = ref(1)
 const triggerResize = ref(1)
 const updatedPageCount = ref(20)
 const viewControls = ref(null)
-// ADD THIS AFTER line 45 (after viewControls ref declaration):
-// Temporary debug to see ViewControls methods
+
 watch(() => viewControls.value, (newVal) => {
   if (newVal) {
     // console.log('ViewControls loaded, available methods:', Object.keys(newVal))
@@ -558,9 +557,8 @@ function showTask(name) {
   showTaskModal.value = true
 }
 
-
-
 // ============ ADD FILTER FUNCTION FROM URL ============
+// In Deals view component
 const applyFiltersFromURL = () => {
   const filtersParam = route.query.filters
   
@@ -571,64 +569,49 @@ const applyFiltersFromURL = () => {
   try {
     let filters = []
     
-    if (Array.isArray(filtersParam)) {
-      filters = filtersParam
-    } else if (typeof filtersParam === 'string') {
+    if (typeof filtersParam === 'string') {
+      // Parse the JSON string
       filters = JSON.parse(filtersParam)
+    } else if (Array.isArray(filtersParam)) {
+      filters = filtersParam
     }
     
-    
-    if (Array.isArray(filters)) {
+    if (Array.isArray(filters) && filters.length > 0) {
       // Wait for ViewControls to be initialized
       const checkAndApply = () => {
-        if (!viewControls.value) {
+        if (!viewControls.value || !deals.value.params) {
           setTimeout(checkAndApply, 100)
           return
         }
         
-        // Build filters object
-        const filterObj = {}
-        filters.forEach(filter => {
-          if (filter.fieldname && filter.value !== undefined) {
-            filterObj[filter.fieldname] = filter.value
-          }
-        })
         
-        
-        // Method 1: Try updateFilter if available
-        if (viewControls.value.updateFilter) {
-          viewControls.value.updateFilter(filterObj)
-          return
-        }
-        
-        // Method 2: Directly update list params
-        if (viewControls.value.list && viewControls.value.list.params) {
-          viewControls.value.list.params.filters = {
-            ...viewControls.value.list.params.filters,
-            ...filterObj
-          }
-          viewControls.value.list.reload()
-          return
-        }
-        
-        // Method 3: Use applyFilter with proper parameters
-        if (viewControls.value.applyFilter && deals.value.data && deals.value.data.columns) {
-          
-          filters.forEach((filter, index) => {
-            const column = deals.value.data.columns.find(
-              col => col.fieldname === filter.fieldname || col.key === filter.fieldname
-            )
-            
-            if (column) {
-              viewControls.value.applyFilter({
-                event: { stopPropagation: () => {}, preventDefault: () => {} },
-                idx: index + 1,
-                column: column,
-                item: filter.value,
-                firstColumn: deals.value.data.columns[0]
-              })
+        // Method 1: Directly update the list params
+        if (deals.value.params) {
+          // Create a new filters object
+          const filterObj = {}
+          filters.forEach(filter => {
+            if (filter.fieldname && filter.value !== undefined) {
+              // Handle different conditions
+              if (filter.condition === 'equals') {
+                filterObj[filter.fieldname] = filter.value
+              } else {
+                // For other conditions, you might need different format
+                filterObj[filter.fieldname] = filter.value
+              }
             }
           })
+          
+          
+          // Update the list params
+          deals.value.params.filters = filterObj
+          
+          // Reload the list
+          if (deals.value.reload) {
+            deals.value.reload()
+          } else {
+            // Force reload by incrementing loadMore
+            loadMore.value++
+          }
         }
       }
       
@@ -637,10 +620,10 @@ const applyFiltersFromURL = () => {
     }
   } catch (error) {
     console.error('Error in applyFiltersFromURL:', error)
+    console.error('Filters param was:', filtersParam)
   }
 }
 
-// Apply filters when component mounts
 onMounted(() => {
   // Wait a bit for ViewControls to initialize
   setTimeout(() => {
@@ -648,7 +631,6 @@ onMounted(() => {
   }, 500)
 })
 
-// Watch for route changes to apply filters when URL changes
 watch(() => route.query.filters, () => {
   // When filters in URL change, re-apply them
   setTimeout(() => {
