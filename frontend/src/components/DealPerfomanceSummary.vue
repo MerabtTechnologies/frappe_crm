@@ -355,71 +355,71 @@
                 </th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="owner in uniqueOwners" :key="`lead-${owner}`">
-                <!-- Owner Name - Clickable -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="flex items-center">
-                    <div class="h-9 w-9 rounded-full bg-green-100 flex items-center justify-center mr-3 border border-green-200">
-                      <span class="text-green-800 text-sm font-medium">
-                        {{ getInitials(owner) }}
-                      </span>
-                    </div>
-                    <div>
-                      <a
-                        @click.prevent="redirectToLeadsWithOwnerFilter(owner)"
-                        class="text-sm font-medium text-gray-900 hover:text-green-600 cursor-pointer hover:underline"
-                        :title="`View all leads for ${formatOwnerName(owner)}`"
-                      >
-                        {{ formatOwnerName(owner) }}
-                      </a>
-                      <div class="text-xs text-gray-500">
-                        {{ owner }}
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="owner in uniqueOwners" :key="`lead-${owner}`">
+                  <!-- Owner Name - NOT Clickable -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <div class="h-9 w-9 rounded-full bg-green-100 flex items-center justify-center mr-3 border border-green-200">
+                        <span class="text-green-800 text-sm font-medium">
+                          {{ getInitials(owner) }}
+                        </span>
+                      </div>
+                      <div>
+                        <!-- Changed from <a> to <span> -->
+                        <span
+                          class="text-sm font-medium text-gray-900"
+                          :title="`Lead owner: ${formatOwnerName(owner)}`"
+                        >
+                          {{ formatOwnerName(owner) }}
+                        </span>
+                        <div class="text-xs text-gray-500">
+                          {{ owner }}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
-                <!-- Status Counts - Clickable -->
-                <td 
-                  v-for="status in leadStatusesWithData" 
-                  :key="`lead-${owner}-${status}`"
-                  class="px-6 py-4 whitespace-nowrap text-center"
-                >
-                  <a
-                    v-if="getLeadCount(owner, status) > 0"
-                    @click.prevent="redirectToLeadsWithFilter(status, owner)"
-                    class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold cursor-pointer hover:shadow transition-all hover:scale-105"
-                    :class="getLeadCount(owner, status) > 0 ? 'bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800' : 'bg-gray-50 text-gray-400'"
-                    :title="`View ${status} leads for ${formatOwnerName(owner)}`"
+                  </td>
+                  <!-- Status Counts - Clickable -->
+                  <td 
+                    v-for="status in leadStatusesWithData" 
+                    :key="`lead-${owner}-${status}`"
+                    class="px-6 py-4 whitespace-nowrap text-center"
                   >
-                    {{ getLeadCount(owner, status) }}
-                  </a>
-                  <span
-                    v-else
-                    class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold bg-gray-50 text-gray-400"
-                  >
-                    {{ getLeadCount(owner, status) }}
-                  </span>
-                </td>
-                <!-- Total Leads for Owner - Clickable -->
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <a
-                    v-if="getTotalLeadsForOwner(owner) > 0"
-                    @click.prevent="redirectToLeadsWithOwnerFilter(owner)"
-                    class="inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold cursor-pointer hover:shadow transition-all hover:scale-105 bg-green-100 text-green-800 hover:bg-green-200"
-                    :title="`View all leads for ${formatOwnerName(owner)}`"
-                  >
-                    {{ getTotalLeadsForOwner(owner) }}
-                  </a>
-                  <span
-                    v-else
-                    class="inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold bg-green-100 text-green-800"
-                  >
-                    {{ getTotalLeadsForOwner(owner) }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
+                    <a
+                      v-if="getLeadCount(owner, status) > 0"
+                      @click.prevent="redirectToLeadsWithFilter(status, owner)"
+                      class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold cursor-pointer hover:shadow transition-all hover:scale-105"
+                      :class="getLeadCount(owner, status) > 0 ? 'bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800' : 'bg-gray-50 text-gray-400'"
+                      :title="`View ${status} leads for ${formatOwnerName(owner)}`"
+                    >
+                      {{ getLeadCount(owner, status) }}
+                    </a>
+                    <span
+                      v-else
+                      class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold bg-gray-50 text-gray-400"
+                    >
+                      {{ getLeadCount(owner, status) }}
+                    </span>
+                  </td>
+                  <!-- Total Leads for Owner - Clickable -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <a
+                      v-if="getTotalLeadsForOwner(owner) > 0"
+                      @click.prevent="redirectToLeadsWithOwnerFilter(owner)"
+                      class="inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold cursor-pointer hover:shadow transition-all hover:scale-105 bg-green-100 text-green-800 hover:bg-green-200"
+                      :title="`View all leads for ${formatOwnerName(owner)}`"
+                    >
+                      {{ getTotalLeadsForOwner(owner) }}
+                    </a>
+                    <span
+                      v-else
+                      class="inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold bg-green-100 text-green-800"
+                    >
+                      {{ getTotalLeadsForOwner(owner) }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
             <tfoot class="bg-gray-50">
               <tr>
                 <td class="px-6 py-4 font-bold text-gray-900 text-sm uppercase">TOTALS</td>
@@ -696,7 +696,7 @@ const dealStatusesWithData = computed(() => {
 // Get only lead statuses that have data (count > 0)
 const leadStatusesWithData = computed(() => {
   // Use lead_statuses from API which should be in position order
-  return leadSummary.value.all_statuses || []
+  return leadSummary.value.lead_statuses || []
 })
 
 // Helper methods for deal data - using filtered data
