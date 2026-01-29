@@ -74,6 +74,7 @@ const chartTypes = [
 const numberChart = ref('')
 const numberCharts = [
   { label: __('Total leads'), value: 'total_leads' },
+  {label: __('Total leads (Only Ours)'), value: 'our_total_leads' },
   { label: __('Ongoing deals'), value: 'ongoing_deals' },
   { label: __('Avg ongoing deal value'), value: 'average_ongoing_deal_value' },
   { label: __('Won deals'), value: 'won_deals' },
@@ -93,6 +94,12 @@ const numberCharts = [
   { label: __('Total won deal balance value'), value: 'total_won_deal_balance_value' },
   { label: __('Deal Target Amount'), value: 'target_amount_number_chart' },
   { label: __('Deal Achieved Amount'), value: 'achieved_amount_number_chart' },
+  {label: __('Total Call Logs'), value: 'total_call_logs_count'},
+  { label: __('Total Incoming Call Logs'), value: 'total_incoming_call_logs_count' },
+  { label: __('Total Outgoing Call Logs'), value: 'total_outgoing_call_logs_count' },
+  { label: __('Average Call Duration'), value: 'average_call_duration' },
+  { label: __('Total Call Duration'), value: 'total_call_duration' },
+
   
 ]
 

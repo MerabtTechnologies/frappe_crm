@@ -49,6 +49,18 @@ createResource({
   },
 })
 
+export const merabtNewLeadColour = ref(false)
+export const merabtSettings = ref({})
+
+createResource({
+  url: 'merabt_crm.portal_api.api.get_merabt_settings',
+  cache: 'Merabt Settings',
+  auto: true,
+  onSuccess: (data) => {
+    merabtNewLeadColour.value = Boolean(data.settings.enable_new_lead_colour == 1)
+    merabtSettings.value = data.settings || {}
+  },
+})
 export const mobileSidebarOpened = ref(false)
 
 export const isMobileView = computed(() => window.innerWidth < 768)
