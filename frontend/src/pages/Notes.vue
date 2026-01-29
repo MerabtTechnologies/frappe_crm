@@ -35,7 +35,7 @@
       >
         <div class="flex items-center justify-between">
           <div class="truncate text-lg font-medium text-ink-gray-9">
-            {{ note.title }}
+            {{ toTitleCase(note.title) }}
           </div>
           <Dropdown
             :options="[
@@ -114,6 +114,8 @@ import { usersStore } from '@/stores/users'
 import { timeAgo, formatDate } from '@/utils'
 import { TextEditor, call, Dropdown, Tooltip, ListFooter } from 'frappe-ui'
 import { ref, watch } from 'vue'
+import { toTitleCase } from '@/utils'
+
 
 const { getUser } = usersStore()
 

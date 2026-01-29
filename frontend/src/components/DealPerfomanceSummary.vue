@@ -15,7 +15,17 @@
         </div>
       </div>
     </div>
-
+  <div v-if="false" class="bg-gray-100 p-4 rounded mb-4">
+    <h3 class="font-bold mb-2">Debug Info</h3>
+    <div class="text-sm">
+      <p>Owners: {{ uniqueOwners.length }}</p>
+      <p>Deal Statuses: {{ dealStatusesWithData.length }}</p>
+      <p>Lead Statuses: {{ leadStatusesWithData.length }}</p>
+      <p>Total Deals: {{ dealSummary.total_deals }}</p>
+      <p>Total Leads: {{ leadSummary.total_leads }}</p>
+    </div>
+  </div>
+  
     <!-- Date Filters -->
     <div class="bg-white rounded-lg border p-4 mb-6">
       <!-- Quick Date Range Buttons -->
@@ -78,13 +88,6 @@
         </div>
         
         <div class="flex gap-2">
-          <!-- <button
-            @click="applyFilters"
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="!fromDate || !toDate"
-          >
-            Apply Filters
-          </button> -->
           <button
             @click="resetFilters"
             class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
@@ -208,7 +211,7 @@
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OWNER</th>
                 <th 
-                  v-for="status in dealStatuses" 
+                  v-for="status in dealStatusesWithData" 
                   :key="status"
                   class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
@@ -219,51 +222,80 @@
                 </th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="owner in uniqueOwners" :key="owner">
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="flex items-center">
-                    <div class="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center mr-3 border border-blue-200">
-                      <span class="text-blue-800 text-sm font-medium">
-                        {{ getInitials(owner) }}
-                      </span>
-                    </div>
-                    <div>
-                      <div class="text-sm font-medium text-gray-900">
-                        {{ formatOwnerName(owner) }}
-                      </div>
-                      <div class="text-xs text-gray-500">
-                        {{ owner }}
-                      </div>
+        <tbody class="bg-white divide-y divide-gray-200">
+            <tr v-for="owner in uniqueOwners" :key="owner">
+              <!-- Owner Name - NOT Clickable (hyperlink removed) -->
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div class="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center mr-3 border border-blue-200">
+                    <span class="text-blue-800 text-sm font-medium">
+                      {{ getInitials(owner) }}
+                    </span>
+                  </div>
+                  <div>
+                    <!-- Changed from <a> tag to <span> tag -->
+                    <span
+                      class="text-sm font-medium text-gray-900"
+                      :title="`Deal owner: ${formatOwnerName(owner)}`"
+                    >
+                      {{ formatOwnerName(owner) }}
+                    </span>
+                    <div class="text-xs text-gray-500">
+                      {{ owner }}
                     </div>
                   </div>
-                </td>
-                <td 
-                  v-for="status in dealStatuses" 
-                  :key="`deal-${owner}-${status}`"
-                  class="px-6 py-4 whitespace-nowrap text-center"
+                </div>
+              </td>
+              <!-- Status Counts - Clickable (keeping these clickable) -->
+              <td 
+                v-for="status in dealStatusesWithData" 
+                :key="`deal-${owner}-${status}`"
+                class="px-6 py-4 whitespace-nowrap text-center"
+              >
+                <a
+                  v-if="getDealCount(owner, status) > 0"
+                  @click.prevent="redirectToDealsWithFilter(status, owner)"
+                  class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold cursor-pointer hover:shadow transition-all hover:scale-105"
+                  :class="getDealCount(owner, status) > 0 ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800' : 'bg-gray-50 text-gray-400'"
+                  :title="`View ${status} deals for ${formatOwnerName(owner)}`"
                 >
-                  <span class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold" 
-                    :class="getDealCount(owner, status) > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-400'">
-                    {{ getDealCount(owner, status) }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span class="text-base font-bold" :class="getDealValue(owner) > 0 ? 'text-green-600' : 'text-gray-400'">
-                    {{ formatCurrency(getDealValue(owner)) }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
+                  {{ getDealCount(owner, status) }}
+                </a>
+                <span
+                  v-else
+                  class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold bg-gray-50 text-gray-400"
+                >
+                  {{ getDealCount(owner, status) }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="text-base font-bold" :class="getDealValue(owner) > 0 ? 'text-green-600' : 'text-gray-400'">
+                  {{ formatCurrency(getDealValue(owner)) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
             <tfoot class="bg-gray-50">
               <tr>
                 <td class="px-6 py-4 font-bold text-gray-900 text-sm uppercase">TOTALS</td>
+                <!-- Total Status Counts - Clickable -->
                 <td 
-                  v-for="status in dealStatuses" 
+                  v-for="status in dealStatusesWithData" 
                   :key="`deal-total-${status}`"
                   class="px-6 py-4 font-bold text-gray-900 text-center"
                 >
-                  <span class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm bg-blue-100 text-blue-800">
+                  <a
+                    v-if="getTotalDealsForStatus(status) > 0"
+                    @click.prevent="redirectToDealsWithFilter(status)"
+                    class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm cursor-pointer hover:shadow transition-all hover:scale-105 bg-blue-100 text-blue-800 hover:bg-blue-200"
+                    :title="`View all ${status} deals`"
+                  >
+                    {{ getTotalDealsForStatus(status) }}
+                  </a>
+                  <span
+                    v-else
+                    class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm bg-blue-100 text-blue-800"
+                  >
                     {{ getTotalDealsForStatus(status) }}
                   </span>
                 </td>
@@ -312,7 +344,7 @@
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LEAD OWNER</th>
                 <th 
-                  v-for="status in leadStatuses" 
+                  v-for="status in leadStatusesWithData" 
                   :key="status"
                   class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
@@ -323,56 +355,109 @@
                 </th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="owner in uniqueOwners" :key="`lead-${owner}`">
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="flex items-center">
-                    <div class="h-9 w-9 rounded-full bg-green-100 flex items-center justify-center mr-3 border border-green-200">
-                      <span class="text-green-800 text-sm font-medium">
-                        {{ getInitials(owner) }}
-                      </span>
-                    </div>
-                    <div>
-                      <div class="text-sm font-medium text-gray-900">
-                        {{ formatOwnerName(owner) }}
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="owner in uniqueOwners" :key="`lead-${owner}`">
+                  <!-- Owner Name - NOT Clickable -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <div class="h-9 w-9 rounded-full bg-green-100 flex items-center justify-center mr-3 border border-green-200">
+                        <span class="text-green-800 text-sm font-medium">
+                          {{ getInitials(owner) }}
+                        </span>
                       </div>
-                      <div class="text-xs text-gray-500">
-                        {{ owner }}
+                      <div>
+                        <!-- Changed from <a> to <span> -->
+                        <span
+                          class="text-sm font-medium text-gray-900"
+                          :title="`Lead owner: ${formatOwnerName(owner)}`"
+                        >
+                          {{ formatOwnerName(owner) }}
+                        </span>
+                        <div class="text-xs text-gray-500">
+                          {{ owner }}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
-                <td 
-                  v-for="status in leadStatuses" 
-                  :key="`lead-${owner}-${status}`"
-                  class="px-6 py-4 whitespace-nowrap text-center"
-                >
-                  <span class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold" 
-                    :class="getLeadCount(owner, status) > 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400'">
-                    {{ getLeadCount(owner, status) }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span class="inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold bg-green-100 text-green-800">
-                    {{ getTotalLeadsForOwner(owner) }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
+                  </td>
+                  <!-- Status Counts - Clickable -->
+                  <td 
+                    v-for="status in leadStatusesWithData" 
+                    :key="`lead-${owner}-${status}`"
+                    class="px-6 py-4 whitespace-nowrap text-center"
+                  >
+                    <a
+                      v-if="getLeadCount(owner, status) > 0"
+                      @click.prevent="redirectToLeadsWithFilter(status, owner)"
+                      class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold cursor-pointer hover:shadow transition-all hover:scale-105"
+                      :class="getLeadCount(owner, status) > 0 ? 'bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800' : 'bg-gray-50 text-gray-400'"
+                      :title="`View ${status} leads for ${formatOwnerName(owner)}`"
+                    >
+                      {{ getLeadCount(owner, status) }}
+                    </a>
+                    <span
+                      v-else
+                      class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm font-bold bg-gray-50 text-gray-400"
+                    >
+                      {{ getLeadCount(owner, status) }}
+                    </span>
+                  </td>
+                  <!-- Total Leads for Owner - Clickable -->
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <a
+                      v-if="getTotalLeadsForOwner(owner) > 0"
+                      @click.prevent="redirectToLeadsWithOwnerFilter(owner)"
+                      class="inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold cursor-pointer hover:shadow transition-all hover:scale-105 bg-green-100 text-green-800 hover:bg-green-200"
+                      :title="`View all leads for ${formatOwnerName(owner)}`"
+                    >
+                      {{ getTotalLeadsForOwner(owner) }}
+                    </a>
+                    <span
+                      v-else
+                      class="inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold bg-green-100 text-green-800"
+                    >
+                      {{ getTotalLeadsForOwner(owner) }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
             <tfoot class="bg-gray-50">
               <tr>
                 <td class="px-6 py-4 font-bold text-gray-900 text-sm uppercase">TOTALS</td>
+                <!-- Total Status Counts - Clickable -->
                 <td 
-                  v-for="status in leadStatuses" 
+                  v-for="status in leadStatusesWithData" 
                   :key="`lead-total-${status}`"
                   class="px-6 py-4 font-bold text-gray-900 text-center"
                 >
-                  <span class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm bg-green-100 text-green-800">
+                  <a
+                    v-if="getTotalLeadsForStatus(status) > 0"
+                    @click.prevent="redirectToLeadsWithFilter(status)"
+                    class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm cursor-pointer hover:shadow transition-all hover:scale-105 bg-green-100 text-green-800 hover:bg-green-200"
+                    :title="`View all ${status} leads`"
+                  >
+                    {{ getTotalLeadsForStatus(status) }}
+                  </a>
+                  <span
+                    v-else
+                    class="inline-flex items-center justify-center h-7 w-7 rounded-full text-sm bg-green-100 text-green-800"
+                  >
                     {{ getTotalLeadsForStatus(status) }}
                   </span>
                 </td>
+                <!-- Total Leads Count - Clickable -->
                 <td class="px-6 py-4 font-bold text-green-600">
-                  <span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-800">
+                  <a
+                    v-if="leadSummary.total_leads > 0"
+                    @click.prevent="redirectToLeadsAll()"
+                    class="inline-flex items-center justify-center h-8 w-8 rounded-full cursor-pointer hover:shadow transition-all hover:scale-105 bg-green-100 text-green-800 hover:bg-green-200"
+                    title="View all leads"
+                  >
+                    {{ leadSummary.total_leads || 0 }}
+                  </a>
+                  <span
+                    v-else
+                    class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-800"
+                  >
                     {{ leadSummary.total_leads || 0 }}
                   </span>
                 </td>
@@ -404,11 +489,12 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import { usersStore } from '../stores/users'
-
+import { useRouter } from 'vue-router'
 
 const API_ENDPOINT = 'merabt_crm.merabt_crm.override.custom_chart.get_deal_performance_cards'
 
 const { users, getUser, isManager, isAdmin } = usersStore()
+const router = useRouter()
 
 // Reactive variables
 const loading = ref(false)
@@ -575,6 +661,18 @@ const leadData = computed(() => {
   return apiData.value?.lead_data || []
 })
 
+// Filter deal data to only include items with count > 0
+const filteredDealData = computed(() => {
+  if (!dealData.value || !Array.isArray(dealData.value)) return []
+  return dealData.value.filter(item => parseInt(item.count) > 0)
+})
+
+// Filter lead data to only include items with count > 0
+const filteredLeadData = computed(() => {
+  if (!leadData.value || !Array.isArray(leadData.value)) return []
+  return leadData.value.filter(item => parseInt(item.count) > 0)
+})
+
 // Use deal_summary.deal_statuses or all_statuses
 const dealStatuses = computed(() => {
   return dealSummary.value.deal_statuses || 
@@ -584,53 +682,198 @@ const dealStatuses = computed(() => {
 
 // Use lead_summary.lead_statuses
 const leadStatuses = computed(() => {
+  return leadSummary.value.lead_statuses || 
+         leadSummary.value.all_statuses || 
+         []
+})
+
+// Get only deal statuses that have data (count > 0)
+const dealStatusesWithData = computed(() => {
+  // Use deal_statuses from API which should be in position order
+  return dealSummary.value.deal_statuses || []
+})
+
+// Get only lead statuses that have data (count > 0)
+const leadStatusesWithData = computed(() => {
+  // Use lead_statuses from API which should be in position order
   return leadSummary.value.lead_statuses || []
 })
 
-// Helper methods for deal data
+// Helper methods for deal data - using filtered data
 const getDealCount = (owner, status) => {
-  if (!dealData.value || !Array.isArray(dealData.value)) return 0
-  const found = dealData.value.find((item) => 
-    item.owner === owner && item.status === status
+  if (!filteredDealData.value || !Array.isArray(filteredDealData.value)) return 0
+  
+  // Find exact match (case-sensitive)
+  const found = filteredDealData.value.find((item) => 
+    String(item.owner) === String(owner) && 
+    String(item.status) === String(status)
   )
+  
   return found ? parseInt(found.count) || 0 : 0
 }
 
 const getDealValue = (owner) => {
-  if (!dealData.value || !Array.isArray(dealData.value)) return 0
-  return dealData.value
-    .filter((item) => item.owner === owner)
+  if (!filteredDealData.value || !Array.isArray(filteredDealData.value)) return 0
+  
+  // Sum values only for this specific owner
+  const total = filteredDealData.value
+    .filter((item) => String(item.owner) === String(owner))
     .reduce((sum, item) => sum + (parseFloat(item.value) || 0), 0)
+  
+  return total
 }
 
 const getTotalDealsForStatus = (status) => {
-  if (!dealData.value || !Array.isArray(dealData.value)) return 0
-  return dealData.value
+  if (!filteredDealData.value || !Array.isArray(filteredDealData.value)) return 0
+  return filteredDealData.value
     .filter((item) => item.status === status)
     .reduce((sum, item) => sum + (parseInt(item.count) || 0), 0)
 }
 
-// Helper methods for lead data
+// Helper methods for lead data - using filtered data
 const getLeadCount = (owner, status) => {
-  if (!leadData.value || !Array.isArray(leadData.value)) return 0
-  const found = leadData.value.find((item) => 
-    item.owner === owner && item.status === status
+  if (!filteredLeadData.value || !Array.isArray(filteredLeadData.value)) return 0
+  
+  // Find exact match (case-sensitive)
+  const found = filteredLeadData.value.find((item) => 
+    String(item.owner) === String(owner) && 
+    String(item.status) === String(status)
   )
+  
   return found ? parseInt(found.count) || 0 : 0
 }
 
 const getTotalLeadsForOwner = (owner) => {
-  if (!leadData.value || !Array.isArray(leadData.value)) return 0
-  return leadData.value
-    .filter((item) => item.owner === owner)
+  if (!filteredLeadData.value || !Array.isArray(filteredLeadData.value)) return 0
+  
+  // Sum counts only for this specific owner
+  const total = filteredLeadData.value
+    .filter((item) => String(item.owner) === String(owner))
     .reduce((sum, item) => sum + (parseInt(item.count) || 0), 0)
+  
+  return total
 }
 
 const getTotalLeadsForStatus = (status) => {
-  if (!leadData.value || !Array.isArray(leadData.value)) return 0
-  return leadData.value
+  if (!filteredLeadData.value || !Array.isArray(filteredLeadData.value)) return 0
+  return filteredLeadData.value
     .filter((item) => item.status === status)
     .reduce((sum, item) => sum + (parseInt(item.count) || 0), 0)
+}
+
+// ============ REDIRECT METHODS ============
+
+const redirectToDealsWithFilter = (status, owner = null) => {
+  // Create filters array
+  const filters = []
+  
+  // Add status filter
+  filters.push({
+    fieldname: 'status',
+    condition: 'equals',
+    value: status
+  })
+  
+  // Add owner filter if provided (and not "Total")
+  if (owner && owner !== 'Total') {
+    filters.push({
+      fieldname: 'deal_owner',
+      condition: 'equals',
+      value: owner
+    })
+  }
+  
+  // REMOVE encodeURIComponent - Vue Router handles encoding
+  const filtersString = JSON.stringify(filters)
+  
+  // Redirect to Deals page
+  router.push({
+    name: 'Deals',
+    query: {
+      filters: filtersString  // Let Vue Router handle encoding
+    }
+  })
+}
+
+// Redirect to Deals with Owner filter only
+const redirectToDealsWithOwnerFilter = (owner) => {
+  const filters = [
+    {
+      fieldname: 'deal_owner',
+      condition: 'equals',
+      value: owner
+    }
+  ]
+  
+  const encodedFilters = encodeURIComponent(JSON.stringify(filters))
+  
+  router.push({
+    name: 'Deals',
+    query: {
+      filters: encodedFilters
+    }
+  })
+}
+
+// Redirect to Leads with Status filter
+const redirectToLeadsWithFilter = (status, owner = null) => {
+  
+  // Create filters array
+  const filters = []
+  
+  // Add status filter
+  filters.push({
+    fieldname: 'status',
+    condition: 'equals',
+    value: status
+  })
+  
+  // Add owner filter if provided (and not "Total")
+  if (owner && owner !== 'Total') {
+    filters.push({
+      fieldname: 'lead_owner',
+      condition: 'equals',
+      value: owner
+    })
+  }
+  
+  // DON'T encode with encodeURIComponent - Vue Router will handle encoding
+  const filtersJSON = JSON.stringify(filters)
+  
+  // Redirect to Leads page
+  router.push({
+    name: 'Leads',
+    query: {
+      filters: filtersJSON  // Vue Router will encode this properly
+    }
+  })
+}
+
+// Redirect to Leads with Owner filter only
+const redirectToLeadsWithOwnerFilter = (owner) => {
+  const filters = [
+    {
+      fieldname: 'lead_owner',
+      condition: 'equals',
+      value: owner
+    }
+  ]
+  
+  const encodedFilters = encodeURIComponent(JSON.stringify(filters))
+  
+  router.push({
+    name: 'Leads', // Change this if your leads route has different name
+    query: {
+      filters: encodedFilters
+    }
+  })
+}
+
+// Redirect to all leads (no filter)
+const redirectToLeadsAll = () => {
+  router.push({
+    name: 'Leads' // Just go to leads page without filters
+  })
 }
 
 // Helper functions
@@ -669,6 +912,22 @@ const getInitials = (owner) => {
   if (name.length >= 2) return name.substring(0, 2).toUpperCase()
   return name.charAt(0).toUpperCase()
 }
+
+
+
+
+// Debug watch
+watch(() => apiData.value, (newData) => {
+  if (newData) {
+    // console.log('=== FILTERED DATA ANALYSIS ===')
+    // console.log('Original deal data items:', newData.deal_data?.length || 0)
+    // console.log('Filtered deal data items (count > 0):', filteredDealData.value.length)
+    // console.log('Original lead data items:', newData.lead_data?.length || 0)
+    // console.log('Filtered lead data items (count > 0):', filteredLeadData.value.length)
+    // console.log('Deal statuses with data:', dealStatusesWithData.value)
+    // console.log('Lead statuses with data:', leadStatusesWithData.value)
+  }
+}, { deep: true })
 
 // Initialize on mount
 onMounted(() => {
@@ -732,5 +991,15 @@ watch(() => performanceData.error, (newVal) => {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Clickable count styling */
+a {
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 </style>

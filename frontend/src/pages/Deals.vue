@@ -287,7 +287,8 @@ import { callEnabled } from '@/composables/settings'
 import { formatDate, timeAgo, website, formatTime } from '@/utils'
 import { Tooltip, Avatar, Dropdown } from 'frappe-ui'
 import { useRoute } from 'vue-router'
-import { ref, reactive, computed, h } from 'vue'
+import { ref, reactive, computed, h, onMounted, watch  } from 'vue'
+
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta('CRM Deal')
@@ -310,6 +311,13 @@ const triggerResize = ref(1)
 const updatedPageCount = ref(20)
 const viewControls = ref(null)
 
+watch(() => viewControls.value, (newVal) => {
+  if (newVal) {
+    // console.log('ViewControls loaded, available methods:', Object.keys(newVal))
+    // console.log('Has updateFilter?', typeof newVal.updateFilter)
+    // console.log('Has applyFilter?', typeof newVal.applyFilter)
+  }
+})
 function getRow(name, field) {
   function getValue(value) {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -548,4 +556,86 @@ function showTask(name) {
   docname.value = name
   showTaskModal.value = true
 }
+
+// ============ ADD FILTER FUNCTION FROM URL ============
+// In Deals view component
+const applyFiltersFromURL = () => {
+  const filtersParam = route.query.filters
+  
+  if (!filtersParam) {
+    return
+  }
+  
+  try {
+    let filters = []
+    
+    if (typeof filtersParam === 'string') {
+      // Parse the JSON string
+      filters = JSON.parse(filtersParam)
+    } else if (Array.isArray(filtersParam)) {
+      filters = filtersParam
+    }
+    
+    if (Array.isArray(filters) && filters.length > 0) {
+      // Wait for ViewControls to be initialized
+      const checkAndApply = () => {
+        if (!viewControls.value || !deals.value.params) {
+          setTimeout(checkAndApply, 100)
+          return
+        }
+        
+        
+        // Method 1: Directly update the list params
+        if (deals.value.params) {
+          // Create a new filters object
+          const filterObj = {}
+          filters.forEach(filter => {
+            if (filter.fieldname && filter.value !== undefined) {
+              // Handle different conditions
+              if (filter.condition === 'equals') {
+                filterObj[filter.fieldname] = filter.value
+              } else {
+                // For other conditions, you might need different format
+                filterObj[filter.fieldname] = filter.value
+              }
+            }
+          })
+          
+          
+          // Update the list params
+          deals.value.params.filters = filterObj
+          
+          // Reload the list
+          if (deals.value.reload) {
+            deals.value.reload()
+          } else {
+            // Force reload by incrementing loadMore
+            loadMore.value++
+          }
+        }
+      }
+      
+      // Start checking
+      setTimeout(checkAndApply, 300)
+    }
+  } catch (error) {
+    console.error('Error in applyFiltersFromURL:', error)
+    console.error('Filters param was:', filtersParam)
+  }
+}
+
+onMounted(() => {
+  // Wait a bit for ViewControls to initialize
+  setTimeout(() => {
+    applyFiltersFromURL()
+  }, 500)
+})
+
+watch(() => route.query.filters, () => {
+  // When filters in URL change, re-apply them
+  setTimeout(() => {
+    applyFiltersFromURL()
+  }, 100)
+})
+
 </script>
