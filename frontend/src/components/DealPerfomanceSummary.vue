@@ -689,26 +689,14 @@ const leadStatuses = computed(() => {
 
 // Get only deal statuses that have data (count > 0)
 const dealStatusesWithData = computed(() => {
-  if (!filteredDealData.value || !Array.isArray(filteredDealData.value)) return []
-  
-  // Get unique statuses where there's at least one deal with count > 0
-  const statusesWithData = [...new Set(
-    filteredDealData.value.map(item => item.status)
-  )]
-  
-  return statusesWithData.sort()
+  // Use deal_statuses from API which should be in position order
+  return dealSummary.value.deal_statuses || []
 })
 
 // Get only lead statuses that have data (count > 0)
 const leadStatusesWithData = computed(() => {
-  if (!filteredLeadData.value || !Array.isArray(filteredLeadData.value)) return []
-  
-  // Get unique statuses where there's at least one lead with count > 0
-  const statusesWithData = [...new Set(
-    filteredLeadData.value.map(item => item.status)
-  )]
-  
-  return statusesWithData.sort()
+  // Use lead_statuses from API which should be in position order
+  return leadSummary.value.all_statuses || []
 })
 
 // Helper methods for deal data - using filtered data
