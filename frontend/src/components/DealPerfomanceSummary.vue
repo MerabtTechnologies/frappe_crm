@@ -15,7 +15,17 @@
         </div>
       </div>
     </div>
-
+  <div v-if="false" class="bg-gray-100 p-4 rounded mb-4">
+    <h3 class="font-bold mb-2">Debug Info</h3>
+    <div class="text-sm">
+      <p>Owners: {{ uniqueOwners.length }}</p>
+      <p>Deal Statuses: {{ dealStatusesWithData.length }}</p>
+      <p>Lead Statuses: {{ leadStatusesWithData.length }}</p>
+      <p>Total Deals: {{ dealSummary.total_deals }}</p>
+      <p>Total Leads: {{ leadSummary.total_leads }}</p>
+    </div>
+  </div>
+  
     <!-- Date Filters -->
     <div class="bg-white rounded-lg border p-4 mb-6">
       <!-- Quick Date Range Buttons -->
@@ -201,7 +211,7 @@
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OWNER</th>
                 <th 
-                  v-for="status in dealStatuses" 
+                  v-for="status in dealStatusesWithData" 
                   :key="status"
                   class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
@@ -238,7 +248,7 @@
               </td>
               <!-- Status Counts - Clickable (keeping these clickable) -->
               <td 
-                v-for="status in dealStatuses" 
+                v-for="status in dealStatusesWithData" 
                 :key="`deal-${owner}-${status}`"
                 class="px-6 py-4 whitespace-nowrap text-center"
               >
@@ -270,7 +280,7 @@
                 <td class="px-6 py-4 font-bold text-gray-900 text-sm uppercase">TOTALS</td>
                 <!-- Total Status Counts - Clickable -->
                 <td 
-                  v-for="status in dealStatuses" 
+                  v-for="status in dealStatusesWithData" 
                   :key="`deal-total-${status}`"
                   class="px-6 py-4 font-bold text-gray-900 text-center"
                 >
@@ -334,7 +344,7 @@
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LEAD OWNER</th>
                 <th 
-                  v-for="status in leadStatuses" 
+                  v-for="status in leadStatusesWithData" 
                   :key="status"
                   class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
@@ -371,7 +381,7 @@
                 </td>
                 <!-- Status Counts - Clickable -->
                 <td 
-                  v-for="status in leadStatuses" 
+                  v-for="status in leadStatusesWithData" 
                   :key="`lead-${owner}-${status}`"
                   class="px-6 py-4 whitespace-nowrap text-center"
                 >
@@ -415,7 +425,7 @@
                 <td class="px-6 py-4 font-bold text-gray-900 text-sm uppercase">TOTALS</td>
                 <!-- Total Status Counts - Clickable -->
                 <td 
-                  v-for="status in leadStatuses" 
+                  v-for="status in leadStatusesWithData" 
                   :key="`lead-total-${status}`"
                   class="px-6 py-4 font-bold text-gray-900 text-center"
                 >
@@ -651,6 +661,18 @@ const leadData = computed(() => {
   return apiData.value?.lead_data || []
 })
 
+// Filter deal data to only include items with count > 0
+const filteredDealData = computed(() => {
+  if (!dealData.value || !Array.isArray(dealData.value)) return []
+  return dealData.value.filter(item => parseInt(item.count) > 0)
+})
+
+// Filter lead data to only include items with count > 0
+const filteredLeadData = computed(() => {
+  if (!leadData.value || !Array.isArray(leadData.value)) return []
+  return leadData.value.filter(item => parseInt(item.count) > 0)
+})
+
 // Use deal_summary.deal_statuses or all_statuses
 const dealStatuses = computed(() => {
   return dealSummary.value.deal_statuses || 
@@ -660,60 +682,99 @@ const dealStatuses = computed(() => {
 
 // Use lead_summary.lead_statuses
 const leadStatuses = computed(() => {
-  return leadSummary.value.lead_statuses || []
+  return leadSummary.value.lead_statuses || 
+         leadSummary.value.all_statuses || 
+         []
 })
 
-// Helper methods for deal data
+// Get only deal statuses that have data (count > 0)
+const dealStatusesWithData = computed(() => {
+  if (!filteredDealData.value || !Array.isArray(filteredDealData.value)) return []
+  
+  // Get unique statuses where there's at least one deal with count > 0
+  const statusesWithData = [...new Set(
+    filteredDealData.value.map(item => item.status)
+  )]
+  
+  return statusesWithData.sort()
+})
+
+// Get only lead statuses that have data (count > 0)
+const leadStatusesWithData = computed(() => {
+  if (!filteredLeadData.value || !Array.isArray(filteredLeadData.value)) return []
+  
+  // Get unique statuses where there's at least one lead with count > 0
+  const statusesWithData = [...new Set(
+    filteredLeadData.value.map(item => item.status)
+  )]
+  
+  return statusesWithData.sort()
+})
+
+// Helper methods for deal data - using filtered data
 const getDealCount = (owner, status) => {
-  if (!dealData.value || !Array.isArray(dealData.value)) return 0
-  const found = dealData.value.find((item) => 
-    item.owner === owner && item.status === status
+  if (!filteredDealData.value || !Array.isArray(filteredDealData.value)) return 0
+  
+  // Find exact match (case-sensitive)
+  const found = filteredDealData.value.find((item) => 
+    String(item.owner) === String(owner) && 
+    String(item.status) === String(status)
   )
+  
   return found ? parseInt(found.count) || 0 : 0
 }
 
 const getDealValue = (owner) => {
-  if (!dealData.value || !Array.isArray(dealData.value)) return 0
-  return dealData.value
-    .filter((item) => item.owner === owner)
+  if (!filteredDealData.value || !Array.isArray(filteredDealData.value)) return 0
+  
+  // Sum values only for this specific owner
+  const total = filteredDealData.value
+    .filter((item) => String(item.owner) === String(owner))
     .reduce((sum, item) => sum + (parseFloat(item.value) || 0), 0)
+  
+  return total
 }
 
 const getTotalDealsForStatus = (status) => {
-  if (!dealData.value || !Array.isArray(dealData.value)) return 0
-  return dealData.value
+  if (!filteredDealData.value || !Array.isArray(filteredDealData.value)) return 0
+  return filteredDealData.value
     .filter((item) => item.status === status)
     .reduce((sum, item) => sum + (parseInt(item.count) || 0), 0)
 }
 
-// Helper methods for lead data
+// Helper methods for lead data - using filtered data
 const getLeadCount = (owner, status) => {
-  if (!leadData.value || !Array.isArray(leadData.value)) return 0
-  const found = leadData.value.find((item) => 
-    item.owner === owner && item.status === status
+  if (!filteredLeadData.value || !Array.isArray(filteredLeadData.value)) return 0
+  
+  // Find exact match (case-sensitive)
+  const found = filteredLeadData.value.find((item) => 
+    String(item.owner) === String(owner) && 
+    String(item.status) === String(status)
   )
+  
   return found ? parseInt(found.count) || 0 : 0
 }
 
 const getTotalLeadsForOwner = (owner) => {
-  if (!leadData.value || !Array.isArray(leadData.value)) return 0
-  return leadData.value
-    .filter((item) => item.owner === owner)
+  if (!filteredLeadData.value || !Array.isArray(filteredLeadData.value)) return 0
+  
+  // Sum counts only for this specific owner
+  const total = filteredLeadData.value
+    .filter((item) => String(item.owner) === String(owner))
     .reduce((sum, item) => sum + (parseInt(item.count) || 0), 0)
+  
+  return total
 }
 
 const getTotalLeadsForStatus = (status) => {
-  if (!leadData.value || !Array.isArray(leadData.value)) return 0
-  return leadData.value
+  if (!filteredLeadData.value || !Array.isArray(filteredLeadData.value)) return 0
+  return filteredLeadData.value
     .filter((item) => item.status === status)
     .reduce((sum, item) => sum + (parseInt(item.count) || 0), 0)
 }
 
-
 // ============ REDIRECT METHODS ============
 
-// Redirect to Deals with Status filter
-// In PerformanceSummary.vue - FIXED VERSION
 const redirectToDealsWithFilter = (status, owner = null) => {
   // Create filters array
   const filters = []
@@ -734,14 +795,14 @@ const redirectToDealsWithFilter = (status, owner = null) => {
     })
   }
   
-  // DON'T encode with encodeURIComponent - Vue Router will handle encoding
-  const filtersJSON = JSON.stringify(filters)
+  // REMOVE encodeURIComponent - Vue Router handles encoding
+  const filtersString = JSON.stringify(filters)
   
   // Redirect to Deals page
   router.push({
     name: 'Deals',
     query: {
-      filters: filtersJSON  // Vue Router will encode this properly
+      filters: filtersString  // Let Vue Router handle encoding
     }
   })
 }
@@ -768,6 +829,8 @@ const redirectToDealsWithOwnerFilter = (owner) => {
 
 // Redirect to Leads with Status filter
 const redirectToLeadsWithFilter = (status, owner = null) => {
+  
+  // Create filters array
   const filters = []
   
   // Add status filter
@@ -786,13 +849,14 @@ const redirectToLeadsWithFilter = (status, owner = null) => {
     })
   }
   
-  const encodedFilters = encodeURIComponent(JSON.stringify(filters))
+  // DON'T encode with encodeURIComponent - Vue Router will handle encoding
+  const filtersJSON = JSON.stringify(filters)
   
-  // Assuming you have a Leads route
+  // Redirect to Leads page
   router.push({
-    name: 'Leads', // Change this if your leads route has different name
+    name: 'Leads',
     query: {
-      filters: encodedFilters
+      filters: filtersJSON  // Vue Router will encode this properly
     }
   })
 }
@@ -860,6 +924,22 @@ const getInitials = (owner) => {
   if (name.length >= 2) return name.substring(0, 2).toUpperCase()
   return name.charAt(0).toUpperCase()
 }
+
+
+
+
+// Debug watch
+watch(() => apiData.value, (newData) => {
+  if (newData) {
+    // console.log('=== FILTERED DATA ANALYSIS ===')
+    // console.log('Original deal data items:', newData.deal_data?.length || 0)
+    // console.log('Filtered deal data items (count > 0):', filteredDealData.value.length)
+    // console.log('Original lead data items:', newData.lead_data?.length || 0)
+    // console.log('Filtered lead data items (count > 0):', filteredLeadData.value.length)
+    // console.log('Deal statuses with data:', dealStatusesWithData.value)
+    // console.log('Lead statuses with data:', leadStatusesWithData.value)
+  }
+}, { deep: true })
 
 // Initialize on mount
 onMounted(() => {
