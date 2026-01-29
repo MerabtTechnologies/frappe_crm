@@ -22,7 +22,7 @@
           :key="row.name"
           v-slot="{ idx, column, item }"
           :row="row"
-          :class="rowIsNew(row) ? 'bg-green-200' : ''"
+          :class="rowIsNew(row) && merabtNewLeadColour ? 'bg-green-200' : ''"
         >
           <slot v-bind="{ idx, column, item, row }" />
         </ListRow>
@@ -41,7 +41,7 @@
       :key="row.name"
       v-slot="{ idx, column, item }"
       :row="row"
-      :class="rowIsNew(row) ? 'bg-green-200' : ''"
+      :class="rowIsNew(row) && merabtNewLeadColour ? 'bg-green-200' : ''"
     >
       <slot v-bind="{ idx, column, item, row }" />
     </ListRow>
@@ -52,6 +52,7 @@
 import { useStorage } from '@vueuse/core'
 import { ListRows, ListRow, ListGroupHeader, ListGroupRows } from 'frappe-ui'
 import { ref, computed, watch, onBeforeUnmount, onMounted } from 'vue'
+import { merabtNewLeadColour, merabtSettings } from '@/composables/settings'
 
 const props = defineProps({
   rows: {
