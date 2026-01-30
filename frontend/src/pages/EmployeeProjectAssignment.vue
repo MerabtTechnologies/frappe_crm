@@ -104,12 +104,6 @@
                 </div>
               </Tooltip>
               <div class="flex gap-1.5">
-                <Button
-                  v-if="callEnabled"
-                  :tooltip="__('Make a call')"
-                  :icon="PhoneIcon"
-                  @click="() => (doc.mobile_no ? makeCall(doc.mobile_no) : toast.error(__('No phone number set')))"
-                />
 
                 <Button
                   v-if="doc.email"

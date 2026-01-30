@@ -105,12 +105,6 @@
                 </div>
               </Tooltip>
               <div class="flex gap-1.5">
-                <Button
-                  v-if="callEnabled"
-                  :tooltip="__('Make a call')"
-                  :icon="PhoneIcon"
-                  @click="() => (doc.mobile_no ? makeCall(doc.mobile_no) : toast.error(__('No phone number set')))"
-                />
 
                 <Button
                   v-if="doc.email"
@@ -445,12 +439,6 @@ const tabs = computed(() => {
       name: 'Attachments',
       label: __('Attachments'),
       icon: AttachmentIcon,
-    },
-    {
-      name: 'WhatsApp',
-      label: __('WhatsApp'),
-      icon: WhatsAppIcon,
-      condition: () => whatsappEnabled.value,
     },
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))

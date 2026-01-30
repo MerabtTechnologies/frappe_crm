@@ -286,17 +286,6 @@ const tabs = computed(() => {
       icon: DetailsIcon,
     },
     {
-      name: 'Calls',
-      label: __('Calls'),
-      icon: PhoneIcon,
-      condition: () => callEnabled.value,
-    },
-    {
-      name: 'Tasks',
-      label: __('Tasks'),
-      icon: TaskIcon,
-    },
-    {
       name: 'Notes',
       label: __('Notes'),
       icon: NoteIcon,
@@ -305,12 +294,6 @@ const tabs = computed(() => {
       name: 'Attachments',
       label: __('Attachments'),
       icon: AttachmentIcon,
-    },
-    {
-      name: 'WhatsApp',
-      label: __('WhatsApp'),
-      icon: WhatsAppIcon,
-      condition: () => whatsappEnabled.value,
     },
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
