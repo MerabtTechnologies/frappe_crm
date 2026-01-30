@@ -576,6 +576,93 @@ function showTask(name) {
   showTaskModal.value = true
 }
 
+// const applyFiltersFromURL = () => {
+//   const filtersParam = route.query.filters
+  
+//   if (!filtersParam) {
+//     return
+//   }
+  
+//   try {
+//     let filters = []
+    
+//     // Parse the filters from URL
+//     if (typeof filtersParam === 'string') {
+//       filters = JSON.parse(filtersParam)
+//     } else if (Array.isArray(filtersParam)) {
+//       filters = filtersParam
+//     }
+    
+    
+//     if (Array.isArray(filters) && filters.length > 0) {
+//       // Wait for ViewControls to be initialized
+//       const checkAndApply = () => {
+//         if (!viewControls.value) {
+         
+//           setTimeout(checkAndApply, 100)
+//           return
+//         }
+        
+//         if (!leads.value || !leads.value.params) {
+        
+//           setTimeout(checkAndApply, 100)
+//           return
+//         }
+        
+//         // IMPORTANT: Create new filters object that INCLUDES the converted=0 filter
+//         const newFilters = {
+//           converted: 0  // Always include this for leads
+//         }
+        
+//         // Add filters from URL
+//         filters.forEach(filter => {
+//           if (filter.fieldname && filter.value !== undefined) {
+//             newFilters[filter.fieldname] = filter.value
+//           }
+//         })
+        
+//         // Check if filters are already applied
+//         const currentFilters = leads.value.params.filters || {}
+//         const filtersChanged = JSON.stringify(currentFilters) !== JSON.stringify(newFilters)
+        
+//         if (filtersChanged) {
+          
+//           // Update the list params with the combined filters
+//           leads.value.params.filters = newFilters
+          
+//           // Force a reload
+//           if (leads.value.reload) {
+//             leads.value.reload()
+//           } else {
+//             loadMore.value++
+//           }
+//         } else {
+//           // console.log('Leads: Filters already applied, no change needed')
+//         }
+//       }
+      
+//       // Start checking with a delay to ensure everything is loaded
+//       setTimeout(checkAndApply, 800)
+//     }
+//   } catch (error) {
+//     console.error('Leads: Error in applyFiltersFromURL:', error)
+//     console.error('Leads: Filters param was:', filtersParam)
+    
+//     // Try to decode if it's encoded
+//     if (typeof filtersParam === 'string') {
+//       try {
+//         const decoded = decodeURIComponent(filtersParam)
+//         const parsed = JSON.parse(decoded)
+//       } catch (e) {
+//         console.error('Leads: Could not decode/parse:', e)
+//       }
+//     }
+//   }
+// }
+
+// Apply filters when component mounts
+// In leads.vue applyFiltersFromURL function, update the filter processing:
+
 const applyFiltersFromURL = () => {
   const filtersParam = route.query.filters
   
@@ -593,18 +680,15 @@ const applyFiltersFromURL = () => {
       filters = filtersParam
     }
     
-    
     if (Array.isArray(filters) && filters.length > 0) {
       // Wait for ViewControls to be initialized
       const checkAndApply = () => {
         if (!viewControls.value) {
-         
           setTimeout(checkAndApply, 100)
           return
         }
         
         if (!leads.value || !leads.value.params) {
-        
           setTimeout(checkAndApply, 100)
           return
         }
@@ -614,10 +698,30 @@ const applyFiltersFromURL = () => {
           converted: 0  // Always include this for leads
         }
         
-        // Add filters from URL
+        // Add filters from URL with proper Frappe format
         filters.forEach(filter => {
           if (filter.fieldname && filter.value !== undefined) {
-            newFilters[filter.fieldname] = filter.value
+            // Handle different conditions
+            if (filter.condition === 'between') {
+              // For "between" condition, Frappe expects ['between', [from, to]]
+              if (Array.isArray(filter.value)) {
+                newFilters[filter.fieldname] = ['between', filter.value]
+              } else {
+                newFilters[filter.fieldname] = filter.value
+              }
+            } else if (filter.condition === 'equals') {
+              // For "equals", just use the value
+              newFilters[filter.fieldname] = filter.value
+            } else if (filter.condition === '>=') {
+              newFilters[filter.fieldname] = ['>=', filter.value]
+            } else if (filter.condition === '<=') {
+              newFilters[filter.fieldname] = ['<=', filter.value]
+            } else if (filter.condition === '=') {
+              newFilters[filter.fieldname] = ['=', filter.value]
+            } else {
+              // Default: just use the value
+              newFilters[filter.fieldname] = filter.value
+            }
           }
         })
         
@@ -626,6 +730,7 @@ const applyFiltersFromURL = () => {
         const filtersChanged = JSON.stringify(currentFilters) !== JSON.stringify(newFilters)
         
         if (filtersChanged) {
+          console.log('Leads: Applying new filters:', newFilters) // Debug log
           
           // Update the list params with the combined filters
           leads.value.params.filters = newFilters
@@ -637,7 +742,7 @@ const applyFiltersFromURL = () => {
             loadMore.value++
           }
         } else {
-          // console.log('Leads: Filters already applied, no change needed')
+          console.log('Leads: Filters already applied, no change needed')
         }
       }
       
@@ -647,20 +752,8 @@ const applyFiltersFromURL = () => {
   } catch (error) {
     console.error('Leads: Error in applyFiltersFromURL:', error)
     console.error('Leads: Filters param was:', filtersParam)
-    
-    // Try to decode if it's encoded
-    if (typeof filtersParam === 'string') {
-      try {
-        const decoded = decodeURIComponent(filtersParam)
-        const parsed = JSON.parse(decoded)
-      } catch (e) {
-        console.error('Leads: Could not decode/parse:', e)
-      }
-    }
   }
 }
-
-// Apply filters when component mounts
 onMounted(() => {
   
   // Debug: Log the leads object when it changes
