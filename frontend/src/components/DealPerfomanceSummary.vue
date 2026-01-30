@@ -783,6 +783,15 @@ const redirectToDealsWithFilter = (status, owner = null) => {
     })
   }
   
+  if (owner === "" && owner !== 'Total') {
+    
+    filters.push({
+      fieldname: 'deal_owner',
+      condition: 'equals',
+      value: null
+    })
+  }
+  
   // REMOVE encodeURIComponent - Vue Router handles encoding
   const filtersString = JSON.stringify(filters)
   
@@ -796,24 +805,24 @@ const redirectToDealsWithFilter = (status, owner = null) => {
 }
 
 // Redirect to Deals with Owner filter only
-const redirectToDealsWithOwnerFilter = (owner) => {
-  const filters = [
-    {
-      fieldname: 'deal_owner',
-      condition: 'equals',
-      value: owner
-    }
-  ]
+// const redirectToDealsWithOwnerFilter = (owner) => {
+//   const filters = [
+//     {
+//       fieldname: 'deal_owner',
+//       condition: 'equals',
+//       value: owner
+//     }
+//   ]
   
-  const encodedFilters = encodeURIComponent(JSON.stringify(filters))
+//   const encodedFilters = encodeURIComponent(JSON.stringify(filters))
   
-  router.push({
-    name: 'Deals',
-    query: {
-      filters: encodedFilters
-    }
-  })
-}
+//   router.push({
+//     name: 'Deals',
+//     query: {
+//       filters: encodedFilters
+//     }
+//   })
+// }
 
 // Redirect to Leads with Status filter
 const redirectToLeadsWithFilter = (status, owner = null) => {
@@ -834,6 +843,13 @@ const redirectToLeadsWithFilter = (status, owner = null) => {
       fieldname: 'lead_owner',
       condition: 'equals',
       value: owner
+    })
+  }
+  if (owner === "" && owner !== 'Total') {
+    filters.push({
+      fieldname: 'lead_owner',
+      condition: 'equals',
+      value: null
     })
   }
   
