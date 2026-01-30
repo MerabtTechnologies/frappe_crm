@@ -775,7 +775,7 @@ const redirectToDealsWithFilter = (status, owner = null) => {
   })
   
   // Add owner filter if provided (and not "Total")
-  if (owner && owner !== 'Total') {
+  if (owner && owner !== 'Total' &&  owner !== 'Unassigned') {
     filters.push({
       fieldname: 'deal_owner',
       condition: 'equals',
@@ -783,7 +783,7 @@ const redirectToDealsWithFilter = (status, owner = null) => {
     })
   }
   
-  if (owner === "" && owner !== 'Total') {
+  if (owner === "" && owner !== 'Total' ||  owner === 'Unassigned') {
     
     filters.push({
       fieldname: 'deal_owner',
@@ -838,14 +838,14 @@ const redirectToLeadsWithFilter = (status, owner = null) => {
   })
   
   // Add owner filter if provided (and not "Total")
-  if (owner && owner !== 'Total') {
+  if (owner && owner !== 'Total' &&  owner !== 'Unassigned') {
     filters.push({
       fieldname: 'lead_owner',
       condition: 'equals',
       value: owner
     })
   }
-  if (owner === "" && owner !== 'Total') {
+  if (owner === "" && owner !== 'Total' || owner === 'Unassigned') {
     filters.push({
       fieldname: 'lead_owner',
       condition: 'equals',
@@ -866,24 +866,24 @@ const redirectToLeadsWithFilter = (status, owner = null) => {
 }
 
 // Redirect to Leads with Owner filter only
-const redirectToLeadsWithOwnerFilter = (owner) => {
-  const filters = [
-    {
-      fieldname: 'lead_owner',
-      condition: 'equals',
-      value: owner
-    }
-  ]
+// const redirectToLeadsWithOwnerFilter = (owner) => {
+//   const filters = [
+//     {
+//       fieldname: 'lead_owner',
+//       condition: 'equals',
+//       value: owner
+//     }
+//   ]
   
-  const encodedFilters = encodeURIComponent(JSON.stringify(filters))
+//   const encodedFilters = encodeURIComponent(JSON.stringify(filters))
   
-  router.push({
-    name: 'Leads', // Change this if your leads route has different name
-    query: {
-      filters: encodedFilters
-    }
-  })
-}
+//   router.push({
+//     name: 'Leads', // Change this if your leads route has different name
+//     query: {
+//       filters: encodedFilters
+//     }
+//   })
+// }
 
 // Redirect to all leads (no filter)
 const redirectToLeadsAll = () => {

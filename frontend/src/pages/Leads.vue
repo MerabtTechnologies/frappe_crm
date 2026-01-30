@@ -637,7 +637,7 @@ const applyFiltersFromURL = () => {
             loadMore.value++
           }
         } else {
-          console.log('Leads: Filters already applied, no change needed')
+          // console.log('Leads: Filters already applied, no change needed')
         }
       }
       
@@ -666,7 +666,7 @@ onMounted(() => {
   // Debug: Log the leads object when it changes
   watch(() => leads.value, (newVal) => {
     if (newVal && newVal.params) {
-      console.log('Leads params updated:', newVal.params)
+     
     }
   }, { immediate: true, deep: true })
   
