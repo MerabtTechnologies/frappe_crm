@@ -278,12 +278,6 @@ const tabs = computed(() => {
       label: __('Attachments'),
       icon: AttachmentIcon,
     },
-    {
-      name: 'WhatsApp',
-      label: __('WhatsApp'),
-      icon: WhatsAppIcon,
-      condition: () => whatsappEnabled.value,
-    },
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
 })
