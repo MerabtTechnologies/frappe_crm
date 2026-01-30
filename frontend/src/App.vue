@@ -65,18 +65,24 @@ getToken(messaging,
       try {
 
         createResource({
-          url: 'merabt_crm.portal_api.api.create_new_doc',
-          params: { args: fcmToken, doctype: 'Merabt FCM Token' },
+          url: 'merabt_crm.portal_api.api.save_fcm_token',
+          params: { fcm_token: currentToken },
           auto: true,
-          onError(err) {
-            // console.log('Error saving FCM Token2: ', err);
-
+          onError(error) {
+            // console.log('Error saving FCM Token2: ', error);
+            toast.error(
+              __('Error saving FCM Token: {0}', [String(error)]),
+            )
           },
 
         })
+
       } catch (error) {
         // console.log('Error saving FCM Token: ', error);
 
+        toast.error(
+              __('Error saving FCM Token: {0}', [String(error)]),
+          )
       }
 
     } else {
