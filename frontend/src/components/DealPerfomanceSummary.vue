@@ -493,7 +493,7 @@ import { useRouter } from 'vue-router'
 
 const API_ENDPOINT = 'merabt_crm.merabt_crm.override.custom_chart.get_deal_performance_cards'
 
-const { users, getUser, isManager, isAdmin } = usersStore()
+const { users, getUser, isManager, isSalesMasterManager } = usersStore()
 const router = useRouter()
 
 // Reactive variables
@@ -602,6 +602,12 @@ const applyFilters = () => {
   
   if (toDate.value && toDate.value !== '') {
     requestBody.to_date = toDate.value
+  }
+
+  if (isManager() || isSalesMasterManager() ) {
+    requestBody.user = null
+  } else {
+    requestBody.user = getUser().email
   }
   
   // Submit the request
@@ -773,13 +779,45 @@ const redirectToDealsWithFilter = (status, owner = null) => {
     condition: 'equals',
     value: status
   })
-  
+    // Add date filter - use "between" with both dates
+  if (fromDate.value && toDate.value) {
+    // Use "between" condition with array of two dates
+    filters.push({
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } else if (fromDate.value) {
+    // Only from date (>=)
+    filters.push({
+      fieldname: 'creation',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate.value) {
+    // Only to date (<=)
+    filters.push({
+      fieldname: 'creation',
+      condition: '<=',
+      value: toDate.value
+    })
+  }
+
   // Add owner filter if provided (and not "Total")
-  if (owner && owner !== 'Total') {
+  if (owner && owner !== 'Total' &&  owner !== 'Unassigned') {
     filters.push({
       fieldname: 'deal_owner',
       condition: 'equals',
       value: owner
+    })
+  }
+  
+  if (owner === "" && owner !== 'Total' ||  owner === 'Unassigned') {
+    
+    filters.push({
+      fieldname: 'deal_owner',
+      condition: 'equals',
+      value: null
     })
   }
   
@@ -795,25 +833,6 @@ const redirectToDealsWithFilter = (status, owner = null) => {
   })
 }
 
-// Redirect to Deals with Owner filter only
-const redirectToDealsWithOwnerFilter = (owner) => {
-  const filters = [
-    {
-      fieldname: 'deal_owner',
-      condition: 'equals',
-      value: owner
-    }
-  ]
-  
-  const encodedFilters = encodeURIComponent(JSON.stringify(filters))
-  
-  router.push({
-    name: 'Deals',
-    query: {
-      filters: encodedFilters
-    }
-  })
-}
 
 // Redirect to Leads with Status filter
 const redirectToLeadsWithFilter = (status, owner = null) => {
@@ -827,13 +846,42 @@ const redirectToLeadsWithFilter = (status, owner = null) => {
     condition: 'equals',
     value: status
   })
+  if (fromDate.value && toDate.value) {
+    // Use "between" condition with array of two dates
+    filters.push({
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } else if (fromDate.value) {
+    // Only from date (>=)
+    filters.push({
+      fieldname: 'creation',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate.value) {
+    // Only to date (<=)
+    filters.push({
+      fieldname: 'creation',
+      condition: '<=',
+      value: toDate.value
+    })
+  }
   
   // Add owner filter if provided (and not "Total")
-  if (owner && owner !== 'Total') {
+  if (owner && owner !== 'Total' &&  owner !== 'Unassigned') {
     filters.push({
       fieldname: 'lead_owner',
       condition: 'equals',
       value: owner
+    })
+  }
+  if (owner === "" && owner !== 'Total' || owner === 'Unassigned') {
+    filters.push({
+      fieldname: 'lead_owner',
+      condition: 'equals',
+      value: null
     })
   }
   
@@ -845,26 +893,6 @@ const redirectToLeadsWithFilter = (status, owner = null) => {
     name: 'Leads',
     query: {
       filters: filtersJSON  // Vue Router will encode this properly
-    }
-  })
-}
-
-// Redirect to Leads with Owner filter only
-const redirectToLeadsWithOwnerFilter = (owner) => {
-  const filters = [
-    {
-      fieldname: 'lead_owner',
-      condition: 'equals',
-      value: owner
-    }
-  ]
-  
-  const encodedFilters = encodeURIComponent(JSON.stringify(filters))
-  
-  router.push({
-    name: 'Leads', // Change this if your leads route has different name
-    query: {
-      filters: encodedFilters
     }
   })
 }
@@ -919,13 +947,7 @@ const getInitials = (owner) => {
 // Debug watch
 watch(() => apiData.value, (newData) => {
   if (newData) {
-    // console.log('=== FILTERED DATA ANALYSIS ===')
-    // console.log('Original deal data items:', newData.deal_data?.length || 0)
-    // console.log('Filtered deal data items (count > 0):', filteredDealData.value.length)
-    // console.log('Original lead data items:', newData.lead_data?.length || 0)
-    // console.log('Filtered lead data items (count > 0):', filteredLeadData.value.length)
-    // console.log('Deal statuses with data:', dealStatusesWithData.value)
-    // console.log('Lead statuses with data:', leadStatusesWithData.value)
+   
   }
 }, { deep: true })
 

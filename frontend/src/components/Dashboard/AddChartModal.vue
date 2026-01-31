@@ -106,8 +106,10 @@ const numberCharts = [
 const axisChart = ref('sales_trend')
 const axisCharts = [
   { label: __('Sales trend'), value: 'sales_trend' },
+  { label: __('Sales trend (Only Ours)'), value: 'our_sales_trend' },
   { label: __('Forecasted revenue'), value: 'forecasted_revenue' },
   { label: __('Funnel conversion'), value: 'funnel_conversion' },
+  { label: __('Funnel conversion (Only Ours)'), value: 'our_funnel_conversion' },
   { label: __('Deals by ongoing & won stage'), value: 'deals_by_stage_axis' },
   { label: __('Lost deal reasons'), value: 'lost_deal_reasons' },
   { label: __('Deals by territory'), value: 'deals_by_territory' },

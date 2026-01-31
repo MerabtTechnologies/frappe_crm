@@ -303,8 +303,7 @@ router.beforeEach(async (to, from, next) => {
               (to.name === 'Employee Date Request' && !isProjectManager()) ||
               (to.name === 'Employee Project Assignments' && !isProjectManager()) ||
               (to.name === 'Employee Project Assignment' && !isProjectManager()) ||
-              (to.name === 'Project Dashboard' && !isProjectManager()) ||
-              (to.name === 'Performance Review' && !isManager())
+              (to.name === 'Project Dashboard' && !isProjectManager()) 
             ) {
                 next({ name: 'Not Permitted Project' })
   } else {

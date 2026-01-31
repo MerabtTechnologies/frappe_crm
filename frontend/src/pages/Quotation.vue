@@ -592,16 +592,6 @@ const tabs = computed(() => {
       label: __('Data'),
       icon: DetailsIcon,
     },
-    // {
-    //   name: 'Calls',
-    //   label: __('Calls'),
-    //   icon: PhoneIcon,
-    // },
-    // {
-    //   name: 'Tasks',
-    //   label: __('Tasks'),
-    //   icon: TaskIcon,
-    // },
     {
       name: 'Notes',
       label: __('Notes'),
@@ -611,12 +601,6 @@ const tabs = computed(() => {
       name: 'Attachments',
       label: __('Attachments'),
       icon: AttachmentIcon,
-    },
-    {
-      name: 'WhatsApp',
-      label: __('WhatsApp'),
-      icon: WhatsAppIcon,
-      condition: () => whatsappEnabled.value,
     },
     {
       name:'Gamma',
