@@ -493,7 +493,7 @@ import { useRouter } from 'vue-router'
 
 const API_ENDPOINT = 'merabt_crm.merabt_crm.override.custom_chart.get_deal_performance_cards'
 
-const { users, getUser, isManager, isAdmin } = usersStore()
+const { users, getUser, isManager, isSalesMasterManager } = usersStore()
 const router = useRouter()
 
 // Reactive variables
@@ -602,6 +602,12 @@ const applyFilters = () => {
   
   if (toDate.value && toDate.value !== '') {
     requestBody.to_date = toDate.value
+  }
+
+  if (isManager() || isSalesMasterManager() ) {
+    requestBody.user = null
+  } else {
+    requestBody.user = getUser().email
   }
   
   // Submit the request
