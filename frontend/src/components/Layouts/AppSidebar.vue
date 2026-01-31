@@ -224,7 +224,7 @@ const links = [
     label: 'Performance Review',
     icon:   ChartLineIcon,
     to: 'PerformanceReview',
-    condition: () => isManager(),
+    // condition: () => isManager(),
   },
   {
     label: 'Leads',
