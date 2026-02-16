@@ -20,27 +20,24 @@
           <template v-if="tab.label === 'Meta Info'">
             <MetaInfo />
           </template>
-          <template v-else-if="tab.label === 'Additional Data'">
+          <template v-else-if="tab.id === 'additional_data'">
             <div class="sections overflow-hidden my-4 sm:my-5">
               <div class="p-4">
-                <div
-                  v-if="formattedCustomFields.length"
-                  class="flex flex-col gap-2"
-                >
+                <div v-if="formattedCustomFields.length" class="flex flex-col gap-2">
                   <div
                     v-for="item in formattedCustomFields"
                     :key="item.k + item.v"
                     class="flex justify-between items-start gap-4 py-2 border-b border-outline-gray-1"
                   >
-                    <div class="text-sm text-ink-gray-6 break-words max-w-[50%]">
+                    <div class="w-2/5 text-sm font-medium text-ink-gray-6 break-words">
                       {{ item.k }}
                     </div>
-                    <div class="text-sm break-words max-w-[50%]">
+                    <div class="w-3/5 text-sm break-words text-ink-gray-8">
                       {{ item.v }}
                     </div>
                   </div>
                 </div>
-                <div v-else class="text-sm text-ink-gray-5">No custom fields</div>
+                <div v-else class="text-sm text-ink-gray-5">{{ __('No custom fields') }}</div>
               </div>
             </div>
           </template>
@@ -60,6 +57,9 @@ import Section from '@/components/FieldLayout/Section.vue'
 import MetaInfo from '@/components/FieldLayout/MetaInfo.vue'
 import { Tabs } from 'frappe-ui'
 import { ref, computed, provide } from 'vue'
+
+// translation helper (safe fallback)
+const __ = typeof window !== 'undefined' && window.__ ? window.__ : (s) => s
 
 const props = defineProps({
   tabs: {
@@ -108,7 +108,7 @@ const tabsUsed = computed(() => {
   const base = Array.isArray(props.tabs) ? [...props.tabs] : []
   const raw = props.data?.custom_custom_form_questions
   if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
-    base.push({ label: 'Additional Data', sections: [] })
+    base.push({ id: 'additional_data', label: __( 'Additional Data' ), sections: [] })
   }
   return base
 })
