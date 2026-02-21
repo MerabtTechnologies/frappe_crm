@@ -59,6 +59,7 @@ class FacebookSyncSource:
 		crm_lead_data["custom_meta_ad_name"] = lead.get("ad_id") or ""
 		crm_lead_data["custom_meta_campaign"] = lead.get("campaign_id") or ""
 		crm_lead_data["custom_meta_form_fields_data"] = str(lead_data)
+		crm_lead_data["custom_custom_form_questions"] = str(lead_data)
 		crm_lead_data["facebook_campaign_name"] = lead.get("campaign_name") or ""
 		crm_lead_data["facebook_ad_name"] = lead.get("ad_name") or ""
 
