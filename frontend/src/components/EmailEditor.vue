@@ -140,7 +140,7 @@
             >
               <template #default="{ openFileSelector }">
                 <Button
-                  :tooltip="__('Attach a file')"
+                  :tooltip="__('Attach a File')"
                   :icon="AttachmentIcon"
                   variant="ghost"
                   @click="openFileSelector()"
@@ -182,7 +182,7 @@ import AttachmentItem from '@/components/AttachmentItem.vue'
 import MultiSelectEmailInput from '@/components/Controls/MultiSelectEmailInput.vue'
 import EmailTemplateSelectorModal from '@/components/Modals/EmailTemplateSelectorModal.vue'
 import { TextEditorBubbleMenu, TextEditor, FileUploader, call } from 'frappe-ui'
-import { capture } from '@/telemetry'
+import { useTelemetry } from 'frappe-ui/frappe'
 import { validateEmail } from '@/utils'
 import Paragraph from '@tiptap/extension-paragraph'
 import { EditorContent } from '@tiptap/vue-3'
@@ -203,7 +203,7 @@ const props = defineProps({
   },
   subject: {
     type: String,
-    default: __('Email from Lead'),
+    default: __('Email From Lead'),
   },
   editorProps: {
     type: Object,
@@ -240,6 +240,8 @@ const CustomParagraph = Paragraph.extend({
 const modelValue = defineModel()
 const attachments = defineModel('attachments')
 const content = defineModel('content')
+
+const { capture } = useTelemetry()
 
 const textEditor = ref(null)
 const cc = ref(false)

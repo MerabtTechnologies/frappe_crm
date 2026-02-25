@@ -310,7 +310,10 @@
             class="flex flex-col gap-0.5"
           >
             <div
-              v-for="activity in [activity, ...activity.other_versions]"
+              v-for="activity in sortByCreation([
+                activity,
+                ...activity.other_versions,
+              ])"
               class="flex items-start justify-stretch gap-2 py-1.5 text-base"
             >
               <div class="inline-flex flex-wrap gap-1 text-ink-gray-5">
@@ -380,52 +383,13 @@
         @afterSave="(data) => emit('afterSave', data)"
       />
     </div>
-    <div
+    <EmptyState
       v-else
-      class="flex flex-1 flex-col items-center justify-center gap-3 text-xl font-medium text-ink-gray-4"
-    >
-      <component :is="emptyTextIcon" class="h-10 w-10" />
-      <span>{{ __(emptyText) }}</span>
-      <MultiActionButton v-if="title == 'Calls'" :options="callActions" />
-      <Button
-        v-else-if="title == 'Notes'"
-        :label="__('Create Note')"
-        @click="modalRef.showNote()"
-      />
-      <Button
-        v-else-if="title == 'Emails'"
-        :label="__('New Email')"
-        @click="emailBox.show = true"
-      />
-      <Button
-        v-else-if="title == 'Comments'"
-        :label="__('New Comment')"
-        @click="emailBox.showComment = true"
-      />
-      <Button
-        v-else-if="title == 'Tasks'"
-        :label="__('Create Task')"
-        @click="modalRef.showTask()"
-      />
-      <Button
-        v-else-if="title == 'Project Tasks'"
-        :label="__('Create Project Task')"
-        @click="modalRef.showProjectTask()"
-      />
-      <Button
-        v-else-if="title == 'Gamma'"
-        :label="__('Create Gamma Proposal')"
-        @click="modalRef.showGammaProposal()"
-      />
-      <Button
-        v-else-if="title == 'Attachments'"
-        :label="__('Upload Attachment')"
-        @click="showFilesUploader = true"
-      />
-    </div>
-    
-
-
+      :title="emptyText"
+      :description="emptyTextDescription"
+      :icon="emptyTextIcon"
+      :top="top"
+    />
   </FadedScrollableDiv>
     <!-- <div>
        <GammaTemplates
@@ -490,7 +454,7 @@ import AttachmentArea from '@/components/Activities/AttachmentArea.vue'
 import DataFields from '@/components/Activities/DataFields.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import ActivityIcon from '@/components/Icons/ActivityIcon.vue'
-import Email2Icon from '@/components/Icons/Email2Icon.vue'
+import EmailIcon from '@/components/Icons/EmailIcon.vue'
 import DetailsIcon from '@/components/Icons/DetailsIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
@@ -500,7 +464,7 @@ import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
 import WhatsAppArea from '@/components/Activities/WhatsAppArea.vue'
 import WhatsAppBox from '@/components/Activities/WhatsAppBox.vue'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
-import MultiActionButton from '@/components/MultiActionButton.vue'
+import EmptyState from '@/components/ListViews/EmptyState.vue'
 import LeadsIcon from '@/components/Icons/LeadsIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import DotIcon from '@/components/Icons/DotIcon.vue'
@@ -523,10 +487,10 @@ import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import { timeAgo, formatDate, startCase } from '@/utils'
 import { globalStore } from '@/stores/global'
 import { usersStore } from '@/stores/users'
-import { whatsappEnabled, callEnabled } from '@/composables/settings'
+import { whatsappEnabled } from '@/composables/settings'
 import { useDocument } from '@/data/document'
-import { capture } from '@/telemetry'
-import { Button, Tooltip, createResource } from 'frappe-ui'
+import { useTelemetry } from 'frappe-ui/frappe'
+import { Button, Tooltip, createResource, toast } from 'frappe-ui'
 import { useElementVisibility } from '@vueuse/core'
 import {
   ref,
@@ -540,8 +504,9 @@ import {
 } from 'vue'
 import { useRoute } from 'vue-router'
 
-const { makeCall, $socket } = globalStore()
+const { $socket } = globalStore()
 const { getUser } = usersStore()
+const { capture } = useTelemetry()
 
 const props = defineProps({
   doctype: {
@@ -658,6 +623,10 @@ function sendTemplate(template) {
       template,
     },
     auto: true,
+    onError: (error) => {
+      toast.error(error.messages?.[0] || __('Failed to send WhatsApp template'))
+    },
+    onSuccess: () => whatsappMessages.reload(),
   })
 }
 
@@ -754,36 +723,69 @@ function update_activities_details(activity) {
   }
 }
 
+const top = computed(() => {
+  if (['Activity', 'Emails', 'Comments'].includes(title.value)) {
+    return '32.3%'
+  }
+  return '30%'
+})
+
 const emptyText = computed(() => {
-  let text = 'No Activities'
+  let text = 'No Activities Found'
   if (title.value == 'Emails') {
-    text = 'No Email Communications'
+    text = 'No Emails Found'
   } else if (title.value == 'Comments') {
-    text = 'No Comments'
+    text = 'No Comments Found'
   } else if (title.value == 'Data') {
-    text = 'No Data'
+    text = 'No Data Fields Added Yet'
   } else if (title.value == 'Calls') {
-    text = 'No Call Logs'
+    text = 'No Call History'
   } else if (title.value == 'Notes') {
-    text = 'No Notes'
+    text = 'No Notes Found'
   } else if (title.value == 'Tasks') {
-    text = 'No Tasks'
+    text = 'No Tasks Found'
   } else if (title.value == 'Attachments') {
-    text = 'No Attachments'
+    text = 'No Attachments Found'
   } else if (title.value == 'WhatsApp') {
-    text = 'No WhatsApp Messages'
+    text = 'No WhatsApp Messages Found'
   } else if (title.value == 'Project Tasks') {
-    text = 'No Project Tasks'
+    text = 'No Project Tasks Found'
   } else if (title.value == 'Gamma') {
-    text = 'No Gamma Proposals'
+    text = 'No Gamma Proposals Found'
   }
   return text
+})
+
+const emptyTextDescription = computed(() => {
+  let description =
+    'There are no activities to display here. Go ahead and make some changes.'
+  if (title.value == 'Emails') {
+    description =
+      'No emails found in your inbox. New messages will appear here soon.'
+  } else if (title.value == 'Comments') {
+    description = 'No comments yet. Be the first to add one.'
+  } else if (title.value == 'Data') {
+    description = 'No data fields have been added yet.'
+  } else if (title.value == 'Calls') {
+    description = 'No recent calls to display. Log a call or call someone now!'
+  } else if (title.value == 'Notes') {
+    description = 'Nothing here for now. Add a note to keep track of things.'
+  } else if (title.value == 'Tasks') {
+    description =
+      'Nothing to do at the moment. Start organizing by adding one here.'
+  } else if (title.value == 'Attachments') {
+    description =
+      'No files have been attached yet. Upload files to see them here.'
+  } else if (title.value == 'WhatsApp') {
+    description = 'No WhatsApp messages yet. Start a conversation now!'
+  }
+  return description
 })
 
 const emptyTextIcon = computed(() => {
   let icon = ActivityIcon
   if (title.value == 'Emails') {
-    icon = Email2Icon
+    icon = EmailIcon
   } else if (title.value == 'Comments') {
     icon = CommentIcon
   } else if (title.value == 'Data') {
@@ -860,24 +862,6 @@ function scroll(hash) {
     }
   }, 500)
 }
-
-const callActions = computed(() => {
-  let actions = [
-    {
-      label: __('Log a Call'),
-      onClick: () => modalRef.value.createCallLog(),
-    },
-    {
-      label: __('Make a Call'),
-      onClick: () => makeCall(doc.value.mobile_no),
-      condition: () => callEnabled.value,
-    },
-  ]
-
-  return actions.filter((action) =>
-    action.condition ? action.condition() : true,
-  )
-})
 
 defineExpose({ emailBox, all_activities, changeTabTo })
 </script>
