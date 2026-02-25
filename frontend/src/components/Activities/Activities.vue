@@ -778,6 +778,10 @@ const emptyTextDescription = computed(() => {
       'No files have been attached yet. Upload files to see them here.'
   } else if (title.value == 'WhatsApp') {
     description = 'No WhatsApp messages yet. Start a conversation now!'
+  } else if (title.value == 'Project Tasks') {
+    description = 'No Project Tasks yet. Start adding project tasks now!'
+  } else if (title.value == 'Gamma') {
+    description = 'No Gamma Proposals yet. Start creating AI-generated proposals now!'
   }
   return description
 })
