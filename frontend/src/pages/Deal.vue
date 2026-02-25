@@ -87,6 +87,15 @@
               :icon="PhoneIcon"
               @click="triggerCall"
             />
+            <Button
+                  :disabled="call_enabled"
+                  v-if="merabtCallEnabled && doc.mobile_no"
+                  :tooltip="__('Make a call')"
+                  :icon="PhoneIcon"
+                  @click="
+                    () => makeBonvoiceCall(doc.mobile_no)
+                  "
+                />
 
             <Button
               :tooltip="__('Send an Email')"
@@ -333,6 +342,38 @@
     doctype="CRM Deal"
     :document="document"
   />
+  <WonAmountModal
+    v-if="showWonAmountModal"
+    v-model="showWonAmountModal"
+    :deal="document"
+  />
+  <!-- <Dialog
+  :options="{
+    title: 'Add Payments',
+    message: 'Please enter the payment details for this won deal. In product tab in Data Tab of this deal.',
+    size: 'lg',
+    icon: {
+      name: 'alert-triangle',
+      appearance: 'warning',
+    },
+    actions: [
+      {
+        label: 'OK',
+        variant: 'solid',
+        autoFocus: true,
+        onClick: () => {
+          showWonAmountModal = false;
+          router.push({
+            name: 'Deal',
+            params: { dealId: props.dealId },
+            hash: '#data'
+          });
+        },
+      },
+    ],
+  }"
+  v-model="showWonAmountModal"
+/> -->
 </template>
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
@@ -358,6 +399,7 @@ import LayoutHeader from '@/components/LayoutHeader.vue'
 import Activities from '@/components/Activities/Activities.vue'
 import OrganizationModal from '@/components/Modals/OrganizationModal.vue'
 import LostReasonModal from '@/components/Modals/LostReasonModal.vue'
+import WonAmountModal from '@/components/Modals/WonAmountModal.vue'
 import AssignTo from '@/components/AssignTo.vue'
 import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
 import ContactModal from '@/components/Modals/ContactModal.vue'
@@ -373,7 +415,7 @@ import { globalStore } from '@/stores/global'
 import { statusesStore } from '@/stores/statuses'
 import { getMeta } from '@/stores/meta'
 import { useDocument } from '@/data/document'
-import { whatsappEnabled, callEnabled } from '@/composables/settings'
+import { whatsappEnabled, callEnabled, merabtCallEnabled } from '@/composables/settings'
 import {
   createResource,
   Dropdown,
@@ -426,6 +468,8 @@ const { triggerOnChange, assignees, permissions, document, scripts, error } =
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
 const doc = computed(() => document.doc || {})
+
+const call_enabled = ref(false)
 
 watch(error, (err) => {
   if (err) {
@@ -715,9 +759,45 @@ function triggerCall() {
   makeCall(mobile_no)
 }
 
+function makeBonvoiceCall(data) {
+  call_enabled.value = true
+ call('merabt_crm.portal_api.voice_call.make_call', {
+    mobile_no: data,
+  }).then((res) => {
+    // console.log('Calling: ', res?.message);
+    // console.log('Please wait for the call to be connected.', res);
+    if (res?.success_code !== 1) {
+      toast.error(__('Error: {0}', [res?.message || 'Unknown error']));
+
+    } else { 
+      toast.success(__(res?.message || 'Call initiated, please wait for the call to be connected.'));
+    }    
+  }).catch((err) => {
+    // console.log('Error making call: ', err);
+    toast.error(__('Error initiating call: {0}', [err?.message || 'Unknown error']));
+  }).finally(() => {
+    call_enabled.value = false
+  })
+}
+
 async function triggerStatusChange(value) {
   await triggerOnChange('status', value)
-  setLostReason()
+  if (getDealStatus(value).type === 'Lost') {
+    setLostReason()
+  } else if (getDealStatus(value).type === 'Won') {
+    //TODO: show won amount modal 
+    // Removed to everything except setWonAmount() modal
+
+    setWonAmount()
+    // document.save.submit(null, {
+    //   onSuccess: () => reloadAssignees({ status: value }),
+    // })
+
+  } else {
+    document.save.submit(null, {
+      onSuccess: () => reloadAssignees({ status: value }),
+    })
+  }
 }
 
 function updateField(name, value) {
@@ -776,13 +856,46 @@ function setLostReason() {
   showLostReasonModal.value = true
 }
 
+const showWonAmountModal = ref(false)
+
+function setWonAmount() {
+  console.log('Won Selected');
+  
+  if (
+      getDealStatus(document.doc.status).type !== 'Won' 
+      || (document.doc.custom_paid_amount !== null && document.doc.custom_paid_amount > 0)
+    ) {
+      document.save.submit()
+      return
+  }
+  
+// reload the document to get the latest data
+  document.reload()
+  showWonAmountModal.value = true
+}
+
+
 function beforeStatusChange(data) {
+  // console.log('Before Status Change: ', data);
+  
   if (
     data?.hasOwnProperty('status') &&
     getDealStatus(data.status).type == 'Lost'
   ) {
     setLostReason()
-  } else {
+  } else if (
+    data?.hasOwnProperty('status') &&
+    getDealStatus(data.status).type == 'Won'
+  ) {
+    //TODO: show won amount modal 
+    // Removed to everything except setWonAmount() modal
+    setWonAmount()
+    // document.save.submit(null, {
+    //   onSuccess: () => reloadAssignees(data),
+    // })
+
+  }
+  else {
     document.save.submit(null, {
       onSuccess: () => reloadAssignees(data),
     })

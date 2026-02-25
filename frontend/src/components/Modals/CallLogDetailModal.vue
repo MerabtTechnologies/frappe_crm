@@ -85,20 +85,25 @@
                 </div>
               </div>
               <Tooltip v-else-if="field.tooltip" :text="field.tooltip">
+                <span v-if="field.label" class="mr-2 text-ink-gray-5">{{ __(field.label) }}:</span>
                 {{ field.value }}
               </Tooltip>
               <div class="w-full" v-else-if="field.name == 'recording_url'">
-                <audio
-                  class="audio-control w-full"
-                  controls
-                  :src="field.value"
-                ></audio>
+                <div class="flex items-center gap-2">
+                  <span v-if="field.label" class="text-ink-gray-5">{{ __(field.label) }}:</span>
+                  <audio
+                    class="audio-control w-full"
+                    controls
+                    :src="field.value"
+                  ></audio>
+                </div>
               </div>
               <div
                 class="w-full cursor-pointer rounded border px-2 pt-1.5 text-base text-ink-gray-7"
                 v-else-if="field.name == 'note'"
                 @click="() => (showNoteModal = true)"
               >
+                <div v-if="field.label" class="mb-1 text-ink-gray-5">{{ __(field.label) }}:</div>
                 <FadedScrollableDiv class="max-h-24 min-h-16 overflow-y-auto">
                   <div
                     v-if="field.value?.title"
@@ -116,6 +121,7 @@
                 v-else-if="field.name == 'task'"
                 @click="() => (showTaskModal = true)"
               >
+                <div v-if="field.label" class="mb-1 text-ink-gray-5">{{ __(field.label) }}:</div>
                 <FadedScrollableDiv class="max-h-24 min-h-16 overflow-y-auto">
                   <div
                     v-if="field.value?.title"
@@ -265,6 +271,28 @@ const detailFields = computed(() => {
       name: 'status',
       value: data.status.label,
       color: data.status.color,
+    },
+    {
+      icon: CheckCircleIcon,
+      name: 'agent_status',
+      label: 'Agent',
+      value: data.agent_status?.label ?? data.agent_status,
+      tooltip: data.agent_status?.label ?? data.agent_status,
+      color: data.agent_status?.color,
+    },
+    {
+      icon: CheckCircleIcon,
+      name: 'customer_status',
+      label: 'Customer',
+      value: data.customer_status?.label ?? data.customer_status,
+      tooltip: data.customer_status?.label ?? data.customer_status,
+      color: data.customer_status?.color,
+    },
+    {
+      icon: NoteIcon,
+      name: 'custom_remarks',
+      value: data.custom_remarks,
+      tooltip: data.custom_remarks,
     },
     {
       icon: h(FeatherIcon, {

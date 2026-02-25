@@ -9,9 +9,12 @@
           v-if="_note?.reference_docname"
           size="sm"
           :label="
-            _note.reference_doctype == 'CRM Deal'
+              _note.reference_doctype == 'CRM Deal'
               ? __('Open Deal')
-              : __('Open Lead')
+              : _note.reference_doctype == 'Project'
+              ? __('Open Project') : _note.reference_doctype == 'Task'
+              ? __('Open Project Task') : _note.reference_doctype == 'Project Planning'
+              ? __('Open Project Planning') : __('Open Lead')
           "
           :iconRight="ArrowUpRightIcon"
           @click="redirect()"
@@ -138,11 +141,41 @@ async function updateNote() {
 
 function redirect() {
   if (!props.note?.reference_docname) return
-  let name = props.note.reference_doctype == 'CRM Deal' ? 'Deal' : 'Lead'
+  let name = ''
+  // console.log('Reference Doctype: ',props.note?.reference_doctype);
+  // console.log('Reference Doctype: ',props.note?.reference_docname)
+
+    // convert doctype to route name
+  if (props.note?.reference_doctype == 'CRM Lead') {
+    name = 'Lead'
+  } else if (props.note?.reference_doctype == 'CRM Deal') {
+    name = 'Deal'
+  } else if (props.note?.reference_doctype == 'Project') {
+    name = 'Project'
+  } else if (props.note?.reference_doctype == 'Task') {
+    name = 'Project Task'
+  } else if (props.note?.reference_doctype == 'Project Planning') {
+    name = 'Project Planning'
+  }
+
+  
+  // props.note.reference_doctype == 'CRM Deal' ? 'Deal' : 'Lead'
   let params = { leadId: props.note.reference_docname }
   if (name == 'Deal') {
     params = { dealId: props.note.reference_docname }
   }
+  if (name == 'Project') {
+    params = { projectId: props.note.reference_docname }
+  }
+  if (name == 'Project Task') {
+    params = { taskId: props.note.reference_docname }
+  }
+  if (name == 'Project Planning') {
+    params = { planningId: props.note.reference_docname }
+  }
+
+  // console.log('Route name',name);
+  
   router.push({ name: name, params: params })
 }
 

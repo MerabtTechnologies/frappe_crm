@@ -146,18 +146,27 @@ import EmailIcon from '@/components/Icons/EmailIcon.vue'
 import StepsIcon from '@/components/Icons/StepsIcon.vue'
 import Section from '@/components/Section.vue'
 import PinIcon from '@/components/Icons/PinIcon.vue'
+import DateRequestIcon from '@/components/Icons/DateRequestIcon.vue'
+import ProjectAssignIcon from '@/components/Icons/ProjectAssignIcon.vue'
+import TimesheetIcon from '@/components/Icons/TimesheetIcon.vue'
+import ProjectIcon from '@/components/Icons/ProjectIcon.vue'
 import UserDropdown from '@/components/UserDropdown.vue'
 import SquareAsterisk from '@/components/Icons/SquareAsterisk.vue'
 import LeadsIcon from '@/components/Icons/LeadsIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
+import QuotationIcon from '../Icons/QuotationIcon.vue'  
+import GammaProposalIcon from '../Icons/GammaProposalIcon.vue'  
+import EventIcon from '../Icons/EventIcon.vue'
 import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
 import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
+import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CollapseSidebar from '@/components/Icons/CollapseSidebar.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import HelpIcon from '@/components/Icons/HelpIcon.vue'
+import ChartLineIcon from '@/components/Icons/ChartLineIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
 import Notifications from '@/components/Notifications.vue'
 import Settings from '@/components/Settings/Settings.vue'
@@ -184,7 +193,8 @@ import {
 } from 'frappe-ui/frappe'
 import router from '@/router'
 import { useStorage } from '@vueuse/core'
-import { ref, reactive, computed, markRaw, onMounted } from 'vue'
+import { ref, reactive, computed, h, markRaw, onMounted } from 'vue'
+import DotIcon from '../Icons/DotIcon.vue'
 
 const { getPinnedViews, getPublicViews } = viewsStore()
 const { toggle: toggleNotificationPanel } = notificationsStore()
@@ -195,11 +205,24 @@ const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
 const isFCSite = ref(window.is_fc_site)
 const isDemoSite = ref(window.is_demo_site)
 
+// onboarding
+const { user } = sessionStore()
+const { users, isManager, isProjectManager } = usersStore()
+const { isOnboardingStepsCompleted, setUp } = useOnboarding('frappecrm')
+
+
 const links = [
   {
     label: 'Dashboard',
     icon: LucideLayoutDashboard,
     to: 'Dashboard',
+  },
+  // PErfomance Review
+  {
+    label: 'Performance Review',
+    icon:   ChartLineIcon,
+    to: 'PerformanceReview',
+    // condition: () => isManager(),
   },
   {
     label: 'Leads',
@@ -236,6 +259,64 @@ const links = [
     icon: PhoneIcon,
     to: 'Call Logs',
   },
+  {
+    label: 'Quotation',
+    icon: QuotationIcon,
+    to: 'Quotations',
+  },
+  {
+    label: 'Gamma',
+    icon: GammaProposalIcon,
+    to: 'Gammas',
+  },
+  {
+    label:'Event',
+    icon: EventIcon,
+    to:'Events',  
+  },
+   // Project Dashboard
+  {
+    label: 'Project Dashboard',
+    icon: LucideLayoutDashboard,
+    to: 'Project Dashboard',
+    condition: () => isProjectManager(),
+  },
+// add Project Tasks link to sidebar
+  {
+    label: 'Project Tasks',
+    icon: ProjectTaskIcon,
+    to: 'Project Tasks',
+    condition: () => isProjectManager(),
+  },
+// add Projects link to sidebar
+  {
+    label: 'Projects',
+    icon: ProjectIcon,
+    to: 'Projects',
+    condition: () => isProjectManager(),
+  },
+  // add Employee Date Request link to sidebar
+  {
+    label: 'Employee Date Request',
+    icon: DateRequestIcon,
+    to: 'Employee Date Requests',
+    condition: () => isProjectManager(),
+  },
+   // add Employee Project Assignment link to sidebar
+  {
+    label: 'Employee Project Assignment',
+    icon: ProjectAssignIcon,
+    to: 'Employee Project Assignments',
+    condition: () => isProjectManager(),
+  },
+   // add Timesheets link to sidebar
+  {
+    label: 'Timesheets',
+    icon: TimesheetIcon,
+    to: 'Smart Timesheets',
+    condition: () => isProjectManager(),
+  }
+  
 ]
 
 const allViews = computed(() => {
@@ -290,7 +371,7 @@ function getIcon(routeName, icon) {
   switch (routeName) {
     case 'Leads':
       return LeadsIcon
-    case 'Deals':
+    case 'Quotation':
       return DealsIcon
     case 'Contacts':
       return ContactsIcon
@@ -300,15 +381,21 @@ function getIcon(routeName, icon) {
       return NoteIcon
     case 'Call Logs':
       return PhoneIcon
+    case 'Projects':
+      return ProjectIcon
+    case 'Project Tasks':
+      return ProjectTaskIcon
+    case 'Employee Date Requests':
+      return DateRequestIcon
+    case 'Employee Project Assignments':
+      return ProjectAssignIcon
+    case 'Smart Timesheets':
+      return TimesheetIcon
     default:
       return PinIcon
   }
 }
 
-// onboarding
-const { user } = sessionStore()
-const { users, isManager } = usersStore()
-const { isOnboardingStepsCompleted, setUp } = useOnboarding('frappecrm')
 
 async function getFirstLead() {
   let firstLead = localStorage.getItem('firstLead' + user)

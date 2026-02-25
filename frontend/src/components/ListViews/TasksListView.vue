@@ -124,7 +124,7 @@
                 })
             "
           >
-            {{ label }}
+            {{ (column.field === 'name' || column.key === 'name') ? label : toTitleCase(label) }}
           </div>
         </template>
       </ListRowItem>
@@ -165,6 +165,7 @@ import CalendarIcon from '@/components/Icons/CalendarIcon.vue'
 import ListBulkActions from '@/components/ListBulkActions.vue'
 import ListRows from '@/components/ListViews/ListRows.vue'
 import { formatDate } from '@/utils'
+import { toTitleCase } from '@/utils'
 import {
   Avatar,
   ListView,

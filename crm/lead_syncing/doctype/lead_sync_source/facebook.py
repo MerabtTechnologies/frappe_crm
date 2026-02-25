@@ -1,6 +1,14 @@
 import frappe
 from frappe.exceptions import ValidationError
 from frappe.integrations.utils import make_get_request
+from crm.lead_syncing.doctype.lead_sync_source.facebook_sync_campaigns import (
+	parse_meta_ads_response,
+	create_facebook_ads_in_db,
+	create_facebook_campaigns_in_db,
+	create_facebook_ad_accounts_in_db,
+	pretty_date,
+)
+
 
 FB_GRAPH_API_BASE = "https://graph.facebook.com"
 FB_GRAPH_API_VERSION = "v23.0"
@@ -47,6 +55,14 @@ class FacebookSyncSource:
 		crm_lead_data["source"] = "Facebook"
 		crm_lead_data["facebook_lead_id"] = lead["id"]
 		crm_lead_data["facebook_form_id"] = self.form_id
+		crm_lead_data["custom_lead_creation_date"] = pretty_date(lead["created_time"])
+		crm_lead_data["custom_meta_ad_name"] = lead.get("ad_id") or ""
+		crm_lead_data["custom_meta_campaign"] = lead.get("campaign_id") or ""
+		crm_lead_data["custom_meta_form_fields_data"] = str(lead_data)
+		crm_lead_data["custom_custom_form_questions"] = str(lead_data)
+		crm_lead_data["facebook_campaign_name"] = lead.get("campaign_name") or ""
+		crm_lead_data["facebook_ad_name"] = lead.get("ad_name") or ""
+
 
 		try:
 			self.validate_duplicate_lead(crm_lead_data, question_to_field_map)
@@ -69,7 +85,7 @@ class FacebookSyncSource:
 		url = self.get_api_url(f"/{self.form_id}/leads")
 		params = {
 			"access_token": self.access_token,
-			"fields": "id,created_time,field_data",
+			"fields": "id,created_time,field_data,ad_id,ad_name,campaign_id,campaign_name",
 			"limit": 100000,  # TODO: pagination
 		}
 
@@ -158,7 +174,29 @@ def fetch_and_store_pages_from_facebook(access_token: str) -> list[dict]:
 		forms = fetch_and_store_leadgen_forms_from_facebook(page_id, page["access_token"])
 		page["forms"] = forms
 
+	sync_meta_ad_account_ads(access_token)
+
 	return pages
+
+def sync_meta_ad_account_ads(access_token: str):
+	ad_account_url = get_fb_graph_api_url("me/adaccounts")
+	ad_account = make_get_request(
+		ad_account_url,
+		params={
+			"access_token": access_token,
+			"fields": "name,campaigns{name,id,account_id,ads{name,leads{form_id,ad_name},account_id,campaign_id}}",
+			"limit": 100000,  # TODO: pagination
+		},
+	)
+	parsed_data = parse_meta_ads_response(ad_account)
+
+	ad_accounts = parsed_data["ad_accounts"]
+	campaigns = parsed_data["campaigns"]
+	ads = parsed_data["ads"]
+
+	create_facebook_ad_accounts_in_db(ad_accounts)
+	create_facebook_campaigns_in_db(campaigns)
+	create_facebook_ads_in_db(ads)
 
 
 def get_fb_account_details(access_token: str) -> dict:

@@ -27,6 +27,15 @@
   "recording_url",
   "end_time",
   "note",
+  "section_break_lknu",
+  "call_id",
+  "direction",
+  "call_back_params",
+  "column_break_jgko",
+  "leg",
+  "call_back_parent_id",
+  "agent_status",
+  "customer_status",
   "section_break_kebz",
   "links"
  ],
@@ -48,7 +57,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Initiated\nRinging\nIn Progress\nCompleted\nFailed\nBusy\nNo Answer\nQueued\nCanceled",
+   "options": "Initiated\nRinging\nIn Progress\nCompleted\nFailed\nBusy\nNo Answer\nQueued\nCanceled\nUnavailable\nCongestion\nBlacklist",
    "reqd": 1
   },
   {
@@ -91,7 +100,8 @@
   {
    "fieldname": "recording_url",
    "fieldtype": "Data",
-   "label": "Recording URL"
+   "label": "Recording URL",
+   "length": 300
   },
   {
    "fieldname": "end_time",
@@ -147,12 +157,57 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Telephony Medium",
-   "options": "\nManual\nTwilio\nExotel",
+   "options": "\nManual\nTwilio\nExotel\nMerabt",
    "read_only": 1
   },
   {
    "fieldname": "section_break_gyqe",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_lknu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "call_id",
+   "fieldtype": "Data",
+   "label": "Call ID"
+  },
+  {
+   "fieldname": "direction",
+   "fieldtype": "Data",
+   "label": "Direction"
+  },
+  {
+   "fieldname": "call_back_params",
+   "fieldtype": "JSON",
+   "label": "Call Back Params"
+  },
+  {
+   "fieldname": "column_break_jgko",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "leg",
+   "fieldtype": "Data",
+   "label": "Leg"
+  },
+  {
+   "fieldname": "call_back_parent_id",
+   "fieldtype": "Data",
+   "label": "Call Back Parent ID"
+  },
+  {
+   "fieldname": "agent_status",
+   "fieldtype": "Select",
+   "label": "Agent Status",
+   "options": "\nANSWERED\nANSWER\nNOANSWER\nNOANSWERED\nBUSY\nCANCEL\nCANCELED\nCANCELLED\nUNAVAILABLE\nCONGESTION\nBLACKLIST"
+  },
+  {
+   "fieldname": "customer_status",
+   "fieldtype": "Select",
+   "label": "Customer Status",
+   "options": "\nANSWERED\nANSWER\nNOANSWER\nNOANSWERED\nBUSY\nCANCEL\nCANCELED\nCANCELLED\nUNAVAILABLE\nCONGESTION\nBLACKLIST\nNone"
   }
  ],
  "index_web_pages_for_search": 1,

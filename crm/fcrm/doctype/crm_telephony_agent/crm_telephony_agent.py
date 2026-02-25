@@ -13,12 +13,14 @@ class CRMTelephonyAgent(Document):
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
+		from crm.fcrm.doctype.crm_telephony_phone.crm_telephony_phone import CRMTelephonyPhone
 		from frappe.types import DF
 
-		from crm.fcrm.doctype.crm_telephony_phone.crm_telephony_phone import CRMTelephonyPhone
-
+		bonvoice: DF.Check
+		bonvoice_agent_number: DF.Data | None
+		bonvoice_caller_id: DF.Data | None
 		call_receiving_device: DF.Literal["Computer", "Phone"]
-		default_medium: DF.Literal["", "Twilio", "Exotel"]
+		default_medium: DF.Literal["", "Twilio", "Exotel", "Bonvoice"]
 		exotel: DF.Check
 		exotel_number: DF.Data | None
 		mobile_no: DF.Data | None

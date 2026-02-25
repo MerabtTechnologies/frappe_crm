@@ -68,20 +68,22 @@ def notify_agent(doc):
             </div>
         """
 		assigned_users = get_assigned_users(doc.reference_doctype, doc.reference_name)
-		for user in assigned_users:
-			notify_user(
-				{
-					"owner": doc.owner,
-					"assigned_to": user,
-					"notification_type": "WhatsApp",
-					"message": doc.message,
-					"notification_text": notification_text,
-					"reference_doctype": "WhatsApp Message",
-					"reference_docname": doc.name,
-					"redirect_to_doctype": doc.reference_doctype,
-					"redirect_to_docname": doc.reference_name,
-				}
-			)
+		# checking assigned users for sending whatsapp notification
+		if not assigned_users:
+			for user in assigned_users:
+				notify_user(
+					{
+						"owner": doc.owner,
+						"assigned_to": user,
+						"notification_type": "WhatsApp",
+						"message": doc.message,
+						"notification_text": notification_text,
+						"reference_doctype": "WhatsApp Message",
+						"reference_docname": doc.name,
+						"redirect_to_doctype": doc.reference_doctype,
+						"redirect_to_docname": doc.reference_name,
+					}
+				)
 
 
 @frappe.whitelist()

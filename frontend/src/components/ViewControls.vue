@@ -866,17 +866,16 @@ function applyQuickFilter(filter, value) {
 
 function updateFilter(filters) {
   viewUpdated.value = true
-  if (!defaultParams.value) {
+  if (!defaultParams.value) {  // <-- THIS MIGHT BE NULL!
     defaultParams.value = getParams()
   }
   list.value.params = defaultParams.value
   list.value.params.filters = filters
   view.value.filters = filters
   list.value.reload()
-
-  if (!route.query.view) {
-    createOrUpdateStandardView()
-  }
+  // if (!route.query.view) {
+  //   createOrUpdateStandardView()
+  // }
 }
 
 function updateSort(order_by) {

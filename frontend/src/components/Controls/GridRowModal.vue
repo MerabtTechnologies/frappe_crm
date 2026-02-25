@@ -32,6 +32,7 @@
             :data="data"
             :doctype="doctype"
             :isGridRow="true"
+            :rowReadOnly="rowReadOnly"
           />
         </div>
       </div>
@@ -51,6 +52,10 @@ const props = defineProps({
   data: Object,
   doctype: String,
   parentDoctype: String,
+  rowReadOnly: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const { isManager } = usersStore()

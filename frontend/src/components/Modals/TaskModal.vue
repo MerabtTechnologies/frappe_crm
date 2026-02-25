@@ -11,7 +11,11 @@
           :label="
             task.reference_doctype == 'CRM Deal'
               ? __('Open Deal')
-              : __('Open Lead')
+              : task.reference_doctype == 'Project'
+              ? __('Open Project')
+              : task.reference_doctype == 'Project Task'
+              ? __('Open Project Task')
+              : __('Open Lead') 
           "
           :iconRight="ArrowUpRightIcon"
           @click="redirect()"
@@ -117,7 +121,7 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
-import { taskStatusOptions, taskPriorityOptions, getFormat } from '@/utils'
+import { taskStatusOptions, taskPriorityOptions, getFormat, toServerDatetime } from '@/utils'
 import { usersStore } from '@/stores/users'
 import { useTelemetry } from 'frappe-ui/frappe'
 import {
@@ -165,7 +169,7 @@ const _task = ref({
   title: '',
   description: '',
   assigned_to: '',
-  due_date: '',
+  due_date: null,
   status: 'Backlog',
   priority: 'Low',
   reference_doctype: props.doctype,
@@ -234,15 +238,37 @@ function updateTaskPriority(priority) {
 
 function redirect() {
   if (!props.task?.reference_docname) return
-  let name = props.task.reference_doctype == 'CRM Deal' ? 'Deal' : 'Lead'
+
+  let name = "Deal"
+  // convert doctype to route name
+  if (props.task.reference_doctype == 'CRM Lead') {
+    name = 'Lead'
+  } else if (props.task.reference_doctype == 'CRM Deal') {
+    name = 'Deal'
+  } else if (props.task.reference_doctype == 'Project') {
+    name = 'Project'
+  } else if (props.task.reference_doctype == 'Project Task') {
+    name = 'Project Task'
+  }
+
   let params = { leadId: props.task.reference_docname }
+
   if (name == 'Deal') {
     params = { dealId: props.task.reference_docname }
   }
+  if (name == 'Project') {
+    params = { projectId: props.task.reference_docname }
+  }
+  if (name == 'Project Task') {
+    params = { taskId: props.task.reference_docname }
+  }
+
   router.push({ name: name, params: params })
 }
 
 async function updateTask() {
+  // console.log('Task: ', _task.value);
+  
   if (!_task.value.assigned_to) {
     _task.value.assigned_to = getUser().name
   }

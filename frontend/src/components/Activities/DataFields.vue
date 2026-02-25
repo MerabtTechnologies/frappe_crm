@@ -10,6 +10,12 @@
         :label="__('Not Saved')"
         theme="orange"
       />
+      <Badge
+        v-if="document.doc.hasOwnProperty('amended_from')"
+        class="ml-3"
+        :label="document.doc.docstatus === 0 ? 'Draft' : (document.doc.docstatus === 1 ? 'Document Submitted' : 'Document Cancelled')"
+        :theme="document.doc.docstatus === 0 ? 'blue' : (document.doc.docstatus === 2 ? 'gray' : 'blue')"
+      />
     </div>
     <div class="flex gap-1">
       <Button
@@ -24,6 +30,18 @@
         variant="solid"
         :loading="document.save.loading"
         @click="saveChanges"
+      />
+      <Button
+        v-if="document.doc.hasOwnProperty('amended_from') && document.doc.docstatus !== 2"
+        :label="document.doc.docstatus === 1 ? __('Cancel') : __('Submit')"
+        variant="solid"
+        :loading="document.save.loading"
+        @click="() => {
+          // console.log('Submit clicked', document);
+          // console.log('Document is dirty:', document.isDirty);
+          // console.log('Submitable or not:', document.doc.hasOwnProperty('amended_from'));
+          showConfirm()
+        }"
       />
     </div>
   </div>
@@ -53,6 +71,24 @@
       }
     "
   />
+  <ConfirmDialogBox
+    v-if="showConfirmDialogBox"
+    v-model="showConfirmDialogBox"
+    :doctype="doctype"
+    :docname="docname"
+    :title="(document.doc.docstatus === 1 ? 'Cancel' : 'Submit') + ' ' + docname + '?'"
+    :message="'Are you sure you want to ' + (document.doc.docstatus === 1 ? 'cancel' : 'submit') + ' this ' + docname + '?'"
+    :confirmText="(document.doc.docstatus === 1 ? 'Cancel' : 'Submit')"
+    :confirmIcon="(document.doc.docstatus === 1 ? 'trash' : 'check')"
+    :confirmButtonColor="(document.doc.docstatus === 1 ? 'gray' : 'green')"
+    name="Employee Task Assignments"
+    @confirm="() => submitChanges()"
+    @cancel="()=> {
+      // console.log('Submission cancelled Data Fields.vue')
+      showConfirmDialogBox = false
+    }"
+  />
+
 </template>
 
 <script setup>
@@ -60,12 +96,13 @@ import EditIcon from '@/components/Icons/EditIcon.vue'
 import DataFieldsModal from '@/components/Modals/DataFieldsModal.vue'
 import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import { Badge, createResource } from 'frappe-ui'
+import { toast } from 'frappe-ui'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
 import { usersStore } from '@/stores/users'
 import { useDocument } from '@/data/document'
 import { isMobileView } from '@/composables/settings'
 import { ref, watch, getCurrentInstance } from 'vue'
-
+import ConfirmDialogBox from '@/components/ConfirmDialogBox.vue'
 const props = defineProps({
   doctype: {
     type: String,
@@ -87,6 +124,8 @@ const attrs = instance?.vnode?.props ?? {}
 const showDataFieldsModal = ref(false)
 
 const { document } = useDocument(props.doctype, props.docname)
+const showConfirmDialogBox = ref(false)
+
 
 const tabs = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_fields_layout',
@@ -117,6 +156,33 @@ function saveChanges() {
       onSuccess: () => emit('afterSave', changes),
     })
   }
+}
+
+function submitChanges() {
+  // if (!document.isDirty) return
+  if (document.doc.docstatus === 1) {
+    cancelSubmission()
+  } else {
+    confirmSubmission()
+  }
+}
+
+function cancelSubmission() {
+  showConfirmDialogBox.value = false
+  document.doc.docstatus = 2
+  document.save.submit()
+  // console.log("Document Cancelled");
+}
+
+function confirmSubmission() {
+  showConfirmDialogBox.value = false
+  document.doc.docstatus = 1
+  document.save.submit()
+  // console.log("Document Submitted");
+}
+
+function showConfirm() {
+  showConfirmDialogBox.value = true
 }
 
 watch(

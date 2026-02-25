@@ -7,6 +7,22 @@
     :doc="doc?.name"
     @after="redirect('tasks')"
   />
+  <ProjectTaskModal
+    v-model="showProjectTaskModal"
+    v-model:reloadTasks="activities"
+    :task="projectTask"
+    :doctype="doctype"
+    :doc="doc?.name"
+    @after="redirect('project-tasks')"
+  />
+  <GammaModal
+    v-model="showGammaProposalModal"
+    v-model:reloadProposals="activities"
+    :proposal="gammaProposal"
+    :doctype="doctype"
+    :doc="doc?.name"
+    @after="redirect('gamma-proposal')"
+  />
   <NoteModal
     v-model="showNoteModal"
     v-model:reloadNotes="activities"
@@ -30,6 +46,8 @@ import CallLogModal from '@/components/Modals/CallLogModal.vue'
 import { call } from 'frappe-ui'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ProjectTaskModal from '@/components/Modals/ProjectTaskModal.vue'
+import GammaModal from '../Modals/GammaModal.vue'
 
 const props = defineProps({
   doctype: String,
@@ -73,6 +91,77 @@ function updateTaskStatus(status, task) {
   })
 }
 
+// Project Tasks
+const showProjectTaskModal = ref(false)
+const projectTask = ref({})
+
+function showProjectTask(t) {
+  projectTask.value = t || {
+    subject: '',
+    description: '',
+    assigned_to: '',
+    due_date: '',
+    priority: 'Low',
+    status: 'Open',
+  }
+  showProjectTaskModal.value = true
+}
+
+// function gammaProposalModal() {
+//   import('@/components/Modals/GammaModal.vue')
+//     .then((module) => {
+//       return module.default
+//     })
+//     .then((GammaModal) => {
+//       defineComponent({
+//         components: { GammaModal },
+//         setup() {
+//           return {}
+//         },
+//       })        
+// }
+const showGammaProposalModal = ref(false)
+const gammaProposal = ref({})
+function showGammaProposal(t) {
+  gammaProposal.value = t || {
+    title: '',
+    description: '',
+    customer: '',
+    valid_till: '',
+    status: 'Draft',
+  }
+  showGammaProposalModal.value = true
+}
+
+async function deleteProjectTask(name) {
+  await call('frappe.client.delete', {
+    doctype: 'Task',
+    name,
+  })
+  activities.value.reload()
+}
+
+function updateProjectTaskStatus(status, task) {
+  call('frappe.client.set_value', {
+    doctype: 'Task',
+    name: task.name,
+    fieldname: 'status',
+    value: status,
+  }).then(() => {
+    activities.value.reload()
+  })
+}
+// function updateGammaProposalStatus(status, task) {
+//   call('frappe.client.set_value', {
+//     doctype: 'Gamma Proposal',
+//     name: task.name,
+//     fieldname: 'status',
+//     value: status,
+//   }).then(() => {
+//     activities.value.reload()
+//   })
+// }
+
 // Notes
 const showNoteModal = ref(false)
 const note = ref({})
@@ -106,7 +195,7 @@ const route = useRoute()
 const router = useRouter()
 
 function redirect(tabName) {
-  if (route.name == 'Lead' || route.name == 'Deal') {
+  if (route.name == 'Lead' || route.name == 'Deal' || route.name == 'Project') {
     let hash = '#' + tabName
     if (route.hash != hash) {
       router.push({ ...route, hash })
@@ -120,5 +209,10 @@ defineExpose({
   updateTaskStatus,
   showNote,
   createCallLog,
+  showProjectTask,
+  deleteProjectTask,
+  updateProjectTaskStatus,
+  showGammaProposal,
+  
 })
 </script>
