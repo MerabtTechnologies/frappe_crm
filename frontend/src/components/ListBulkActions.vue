@@ -35,7 +35,7 @@ import EditValueModal from '@/components/Modals/EditValueModal.vue'
 import AssignmentModal from '@/components/Modals/AssignmentModal.vue'
 import { setupListCustomizations } from '@/utils'
 import { globalStore } from '@/stores/global'
-import { capture } from '@/telemetry'
+import { useTelemetry } from 'frappe-ui/frappe'
 import { call, toast } from 'frappe-ui'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -60,6 +60,7 @@ const list = defineModel()
 const router = useRouter()
 
 const { $dialog, $socket } = globalStore()
+const { capture } = useTelemetry()
 
 const showEditModal = ref(false)
 const selectedValues = ref([])
@@ -78,7 +79,7 @@ function editValues(selections, unselectAll) {
 function convertToDeal(selections, unselectAll) {
   $dialog({
     title: __('Convert to Deal'),
-    message: __('Are you sure you want to convert {0} Lead(s) to Deal(s)?', [
+    message: __('Are you sure you want to convert {0} lead(s) to deal(s)?', [
       selections.size,
     ]),
     variant: 'solid',
@@ -93,7 +94,7 @@ function convertToDeal(selections, unselectAll) {
             call('crm.fcrm.doctype.crm_lead.crm_lead.convert_to_deal', {
               lead: name,
             }).then(() => {
-              toast.success(__('Converted successfully'))
+              toast.success(__('Converted Successfully'))
               list.value.reload()
               unselectAll()
               close()
@@ -131,7 +132,7 @@ function assignValues(selections, unselectAll) {
   unselectAllAction.value = unselectAll
 }
 
-function clearAssignemnts(selections, unselectAll) {
+function clearAssignments(selections, unselectAll) {
   $dialog({
     title: __('Clear Assignment'),
     message: __('Are you sure you want to clear assignment for {0} item(s)?', [
@@ -151,7 +152,7 @@ function clearAssignemnts(selections, unselectAll) {
             names: JSON.stringify(Array.from(selections)),
             ignore_permissions: true,
           }).then(() => {
-            toast.success(__('Assignment cleared successfully'))
+            toast.success(__('Assignment Cleared Successfully'))
             reload(unselectAll)
             close()
           })
@@ -188,7 +189,7 @@ function bulkActions(selections, unselectAll) {
     })
     actions.push({
       label: __('Clear Assignment'),
-      onClick: () => clearAssignemnts(selections, unselectAll),
+      onClick: () => clearAssignments(selections, unselectAll),
     })
   }
 

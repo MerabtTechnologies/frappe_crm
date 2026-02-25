@@ -47,16 +47,12 @@
     </div>
 
     <!-- Empty State -->
-    <div
+    <EmptyState
       v-if="!users.loading && users.data?.crmUsers?.length == 1"
-      class="flex justify-between w-full h-full"
-    >
-      <div
-        class="text-ink-gray-4 border border-dashed rounded w-full flex items-center justify-center"
-      >
-        {{ __('No users found') }}
-      </div>
-    </div>
+      name="Users"
+      :description="__('Add one to get started.')"
+      icon="user"
+    />
 
     <!-- Users List -->
     <div
@@ -70,7 +66,7 @@
         <TextInput
           ref="searchRef"
           v-model="search"
-          :placeholder="__('Search user')"
+          :placeholder="__('Search User')"
           class="w-1/3"
           :debounce="300"
         >
@@ -167,6 +163,7 @@
 
 <script setup>
 import AddExistingUserModal from '@/components/Modals/AddExistingUserModal.vue'
+import EmptyState from '@/components/ListViews/EmptyState.vue'
 import { activeSettingsPage } from '@/composables/settings'
 import { usersStore } from '@/stores/users'
 import { DropdownOption } from '@/utils'
@@ -213,7 +210,7 @@ const usersList = computed(() => {
 const confirmRemove = ref(false)
 
 function getMoreOptions(user) {
-  let options = [
+  return [
     {
       label: __('Remove'),
       icon: 'trash-2',
@@ -232,8 +229,6 @@ function getMoreOptions(user) {
       condition: () => confirmRemove.value,
     },
   ]
-
-  return options.filter((option) => option.condition?.() || true)
 }
 
 function getDropdownOptions(user) {
@@ -281,21 +276,32 @@ function updateRole(user, newRole) {
   call('crm.api.user.update_user_role', {
     user: user.name,
     new_role: newRole,
-  }).then(() => {
-    toast.success(
-      __('{0} has been granted {1} access', [user.full_name, roleMap[newRole]]),
-    )
-    users.reload()
   })
+    .then(() => {
+      toast.success(
+        __('{0} has been granted {1} access', [
+          user.full_name,
+          roleMap[newRole],
+        ]),
+      )
+      users.reload()
+    })
+    .catch((e) => {
+      toast.error(e?.messages?.[0] || __('Something went wrong'))
+    })
 }
 
 function removeUser(user) {
-  call('crm.api.user.remove_user', {
+  call('crm.api.user.remove_crm_roles_from_user', {
     user: user.name,
-  }).then(() => {
-    toast.success(__('User {0} has been removed', [user.full_name]))
-    users.reload()
   })
+    .then(() => {
+      toast.success(__('User {0} has been removed', [user.full_name]))
+      users.reload()
+    })
+    .catch((e) => {
+      toast.error(e?.messages?.[0] || __('Something went wrong'))
+    })
 }
 
 onMounted(() => {

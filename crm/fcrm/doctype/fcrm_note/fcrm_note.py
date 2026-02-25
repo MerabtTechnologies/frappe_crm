@@ -19,6 +19,7 @@ class FCRMNote(Document):
 		reference_doctype: DF.Link | None
 		title: DF.Data
 	# end: auto-generated types
+
 	@staticmethod
 	def default_list_data():
 		rows = [
@@ -30,4 +31,4 @@ class FCRMNote(Document):
 			"owner",
 			"modified",
 		]
-		return {'columns': [], 'rows': rows}
+		return {"columns": [], "rows": rows}

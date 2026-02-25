@@ -25,7 +25,7 @@
         />
         <Button
           v-if="editing && isAdmin()"
-          :label="__('Reset to default')"
+          :label="__('Reset to Default')"
           :iconLeft="LucideUndo2"
           @click="resetToDefault"
         />
@@ -90,7 +90,7 @@
         doctype="User"
         :filters="{ name: ['in', users.data.crmUsers?.map((u) => u.name)] }"
         @change="(v) => updateFilter('user', v)"
-        :placeholder="__('Sales user')"
+        :placeholder="__('Sales User')"
         :hideMe="true"
       >
         <template #prefix>
@@ -188,7 +188,7 @@ const options = computed(() => [
     hideLabel: true,
     items: [
       {
-        label: 'Last 7 Days',
+        label: __('Last 7 Days'),
         onClick: () => {
           preset.value = 'Last 7 Days'
           filters.period = getLastXDays(7)
@@ -196,7 +196,7 @@ const options = computed(() => [
         },
       },
       {
-        label: 'Last 30 Days',
+        label: __('Last 30 Days'),
         onClick: () => {
           preset.value = 'Last 30 Days'
           filters.period = getLastXDays(30)
@@ -204,7 +204,7 @@ const options = computed(() => [
         },
       },
       {
-        label: 'Last 60 Days',
+        label: __('Last 60 Days'),
         onClick: () => {
           preset.value = 'Last 60 Days'
           filters.period = getLastXDays(60)
@@ -212,7 +212,7 @@ const options = computed(() => [
         },
       },
       {
-        label: 'Last 90 Days',
+        label: __('Last 90 Days'),
         onClick: () => {
           preset.value = 'Last 90 Days'
           filters.period = getLastXDays(90)
@@ -222,7 +222,7 @@ const options = computed(() => [
     ],
   },
   {
-    label: 'Custom Range',
+    label: __('Custom Range'),
     onClick: () => {
       showDatePicker.value = true
       setTimeout(() => datePickerRef.value?.open(), 0)
