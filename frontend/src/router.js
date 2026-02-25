@@ -368,7 +368,10 @@ router.beforeEach(async (to, from, next) => {
           query: to.query,
         })
       }
-    } else if (
+    }  else {
+      next()
+    } 
+  } else if (
      
               (to.name === 'Smart Timesheet' && !isProjectManager()) || 
               (to.name === 'Smart Timesheets' && !isProjectManager()) ||
