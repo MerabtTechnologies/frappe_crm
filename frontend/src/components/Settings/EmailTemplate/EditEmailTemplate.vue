@@ -66,7 +66,7 @@
           size="md"
           v-model="template.subject"
           :label="__('Subject')"
-          :placeholder="__('Payment Reminder from Frappé - (#{{ name }})')"
+          :placeholder="__('Payment reminder from Frappé - (#{{ name }})')"
           :required="true"
         />
       </div>

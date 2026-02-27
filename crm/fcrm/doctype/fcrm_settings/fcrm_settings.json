@@ -52,7 +52,7 @@
   {
    "fieldname": "dropdown_items_tab",
    "fieldtype": "Tab Break",
-   "label": "Dropdown Items"
+   "label": "Dropdown items"
   },
   {
    "fieldname": "brand_name",
@@ -112,13 +112,13 @@
    "description": "Automatically update \"Expected Deal Value\" based on the total value of associated products in a deal",
    "fieldname": "auto_update_expected_deal_value",
    "fieldtype": "Check",
-   "label": "Auto Update Expected Deal Value"
+   "label": "Auto update Expected Deal Value"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-09-16 17:33:26.406549",
+ "modified": "2026-02-23 12:33:43.914603",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "FCRM Settings",
@@ -148,7 +148,7 @@
    "email": 1,
    "print": 1,
    "read": 1,
-   "role": "All",
+   "role": "Sales User",
    "share": 1
   }
  ],

@@ -68,15 +68,13 @@
           </div>
         </RouterLink>
       </div>
-      <div
+      <EmptyState
         v-else
-        class="flex flex-1 flex-col items-center justify-center gap-2"
-      >
-        <NotificationsIcon class="h-20 w-20 text-ink-gray-2" />
-        <div class="text-lg font-medium text-ink-gray-4">
-          {{ __('No new notifications') }}
-        </div>
-      </div>
+        title="No New Notifications"
+        description="You have no new notifications"
+        :icon="NotificationsIcon"
+        width="lg"
+      />
     </div>
   </div>
 </template>
@@ -84,6 +82,7 @@
 import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
 import MarkAsDoneIcon from '@/components/Icons/MarkAsDoneIcon.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
+import EmptyState from '@/components/ListViews/EmptyState.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import {
   visible,
@@ -93,11 +92,12 @@ import {
 import { globalStore } from '@/stores/global'
 import { timeAgo } from '@/utils'
 import { onClickOutside } from '@vueuse/core'
-import { capture } from '@/telemetry'
+import { useTelemetry } from 'frappe-ui/frappe'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const { $socket } = globalStore()
 const { mark_as_read, toggle, mark_doc_as_read } = notificationsStore()
+const { capture } = useTelemetry()
 
 const target = ref(null)
 onClickOutside(
