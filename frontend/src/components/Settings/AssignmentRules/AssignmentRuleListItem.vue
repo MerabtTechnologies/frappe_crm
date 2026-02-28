@@ -75,7 +75,6 @@ import {
   Dialog,
   Dropdown,
   FormControl,
-  Select,
   Switch,
   toast,
 } from 'frappe-ui'
@@ -116,7 +115,7 @@ const deleteAssignmentRule = () => {
     onSuccess: () => {
       assignmentRulesList.reload()
       isConfirmingDelete.value = false
-      toast.success(__('Assignment rule deleted'))
+      toast.success(__('Assignment Rule Deleted'))
     },
     auto: true,
   })
@@ -161,7 +160,7 @@ const duplicate = () => {
     },
     onSuccess: (data) => {
       assignmentRulesList.reload()
-      toast.success(__('Assignment rule duplicated'))
+      toast.success(__('Assignment Rule Duplicated'))
       duplicateDialog.value.show = false
       duplicateDialog.value.name = ''
       updateStep('view', data)
@@ -193,7 +192,7 @@ const setAssignmentRuleValue = (key, value, fieldName = undefined) => {
     },
     onSuccess: () => {
       assignmentRulesList.reload()
-      toast.success(__('Assignment rule {0} updated', [fieldName || key]))
+      toast.success(__('Assignment Rule {0} Updated', [fieldName || key]))
     },
     auto: true,
   })

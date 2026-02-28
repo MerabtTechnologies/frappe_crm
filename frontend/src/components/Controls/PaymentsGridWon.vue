@@ -21,8 +21,8 @@
         </div>
         <div class="col-span-4">
           <FormControl
-            type="currency"
-            :value="formatCurrency(row.paid_amount)"
+            type="text"
+            :value="row.paid_amount"
             @update:modelValue="(v) => updateRow(idx, 'paid_amount', v)"
             @change="(e) => updateRow(idx, 'paid_amount', e.target?.value ?? e)"
             placeholder="0"
@@ -86,7 +86,16 @@ watch(
   rows,
   (v) => {
     if (syncingFromProps.value) return
-    emit('update:modelValue', v)
+    // emit a copy converting paid_amount to numbers for the parent
+    const payload = v.map((r) => ({
+      ...r,
+      paid_amount:
+        r.paid_amount === '' || r.paid_amount === null
+          ? 0
+          : Number(String(r.paid_amount).replace(/[^0-9.-]/g, '')),
+    }))
+
+    emit('update:modelValue', payload)
   },
   { deep: true },
 )
@@ -109,9 +118,9 @@ function updateRow(idx, key, value) {
   const raw = typeof value === 'object' && value?.target ? value.target.value : value
 
   if (key === 'paid_amount') {
-    // strip non-numeric characters (currency symbol, commas, spaces)
+    // keep a cleaned string while typing (preserve trailing dot), strip currency symbols and commas
     const cleaned = String(raw).replace(/[^0-9.-]/g, '')
-    rows.value[idx][key] = cleaned === '' ? 0 : Number(cleaned)
+    rows.value[idx][key] = cleaned === '' ? '' : cleaned
   } else {
     rows.value[idx][key] = raw
   }

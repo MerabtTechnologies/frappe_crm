@@ -59,6 +59,7 @@ class FacebookSyncSource:
 		crm_lead_data["custom_meta_ad_name"] = lead.get("ad_id") or ""
 		crm_lead_data["custom_meta_campaign"] = lead.get("campaign_id") or ""
 		crm_lead_data["custom_meta_form_fields_data"] = str(lead_data)
+		crm_lead_data["custom_custom_form_questions"] = str(lead_data)
 		crm_lead_data["facebook_campaign_name"] = lead.get("campaign_name") or ""
 		crm_lead_data["facebook_ad_name"] = lead.get("ad_name") or ""
 
@@ -91,8 +92,8 @@ class FacebookSyncSource:
 		filtering = []
 		if self.last_synced_at:
 			timestamp = frappe.utils.data.get_timestamp(self.last_synced_at)
-			filtering.append({'field':'time_created','operator':'GREATER_THAN','value':timestamp})
-			params['filtering'] = frappe.as_json(filtering)
+			filtering.append({"field": "time_created", "operator": "GREATER_THAN", "value": timestamp})
+			params["filtering"] = frappe.as_json(filtering)
 
 		return make_get_request(
 			url,
@@ -108,7 +109,9 @@ class FacebookSyncSource:
 			filters={"parent": self.form_id},
 			fields=["key", "mapped_to_crm_field"],
 		)
-		self.form_questions_mapping = {q["key"]: q["mapped_to_crm_field"] for q in form_questions if q["mapped_to_crm_field"]}
+		self.form_questions_mapping = {
+			q["key"]: q["mapped_to_crm_field"] for q in form_questions if q["mapped_to_crm_field"]
+		}
 
 		return self.form_questions_mapping
 
