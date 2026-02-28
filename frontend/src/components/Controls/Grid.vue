@@ -25,7 +25,7 @@
         <div
           class="inline-flex items-center justify-center border-r border-outline-gray-2 py-2 px-1 w-12"
         >
-          {{ __('No') }}
+          {{ __('No.') }}
         </div>
         <div
           class="grid w-full truncate"
@@ -223,8 +223,8 @@
                     variant="outline"
                     v-model="row[field.fieldname]"
                     :options="field.options"
+                    @update:modelValue="(e) => fieldChange(e, field, row)"
                     :disabled="Boolean(field.read_only) || !isEditable"
-                    @change="(e) => fieldChange(e.target.value, field, row)"
                   />
                   <Password
                     v-else-if="field.fieldtype === 'Password'"
@@ -566,7 +566,12 @@ const onRowClick = (index) => {
 }
 
 function fieldChange(value, field, row) {
-  value = typeof value === 'object' && value !== null ? value.value : value
+  value = Array.isArray(value)
+    ? value
+    : typeof value === 'object' && value !== null && 'value' in value
+      ? value.value
+      : value
+
   triggerOnChange(field.fieldname, value, row)
 }
 
