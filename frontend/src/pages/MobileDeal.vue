@@ -206,7 +206,7 @@
                     v-else
                     class="flex h-20 items-center justify-center text-base text-ink-gray-5"
                   >
-                    {{ __('No contacts added') }}
+                    {{ __('No Contacts Added') }}
                   </div>
                 </div>
               </template>
@@ -259,7 +259,8 @@
   <LostReasonModal
     v-if="showLostReasonModal"
     v-model="showLostReasonModal"
-    :deal="document"
+    doctype="CRM Deal"
+    :document="document"
   />
 </template>
 <script setup>
@@ -346,8 +347,8 @@ watch(error, (err) => {
   if (err) {
     errorTitle.value = __(
       err.exc_type == 'DoesNotExistError'
-        ? 'Document not found'
-        : 'Error occurred',
+        ? __('Document not found')
+        : __('Error occurred'),
     )
     errorMessage.value = __(err.messages?.[0] || 'An error occurred')
   } else {
@@ -533,7 +534,7 @@ function contactOptions(contact) {
 
 async function addContact(contact) {
   if (dealContacts.data?.find((c) => c.name === contact)) {
-    toast.error(__('Contact already added'))
+    toast.error(__('Contact Already Added'))
     return
   }
 
@@ -543,7 +544,7 @@ async function addContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Contact added'))
+    toast.success(__('Contact Added'))
   }
 }
 
@@ -554,7 +555,7 @@ async function removeContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Contact removed'))
+    toast.success(__('Contact Removed'))
   }
 }
 
@@ -565,7 +566,7 @@ async function setPrimaryContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Primary contact set'))
+    toast.success(__('Primary Contact Set'))
   }
 }
 

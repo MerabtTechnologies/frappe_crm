@@ -55,7 +55,7 @@
           :tabs="tabs"
           v-model:reload="reload"
           v-model:tabIndex="tabIndex"
-          @beforeSave="saveChanges"
+          @beforeSave="beforeStatusChange"
           @afterSave="reloadAssignees"
         />
       </template>
@@ -89,13 +89,13 @@
                           {
                             icon: 'upload',
                             label: doc.image
-                              ? __('Change image')
-                              : __('Upload image'),
+                              ? __('Change Image')
+                              : __('Upload Image'),
                             onClick: openFileSelector,
                           },
                           {
                             icon: 'trash-2',
-                            label: __('Remove image'),
+                            label: __('Remove Image'),
                             onClick: () => updateField('image', ''),
                           },
                         ],
@@ -116,7 +116,7 @@
               </component>
             </div>
             <div class="flex flex-col gap-2.5 truncate">
-              <Tooltip :text="doc.lead_name || __('Set first name')">
+              <Tooltip :text="doc.lead_name || __('Set First Name')">
                 <div class="truncate text-2xl font-medium text-ink-gray-9">
                   {{ title }}
                 </div>
@@ -124,13 +124,15 @@
               <div class="flex gap-1.5">
                 <Button
                   v-if="callEnabled"
-                  :tooltip="__('Make a call')"
+                  :tooltip="__('Make a Call')"
                   :icon="PhoneIcon"
                   @click="
                     () =>
                       doc.mobile_no
                         ? makeCall(doc.mobile_no)
-                        : toast.error(__('No phone number set'))
+                        : toast.error(
+                            __('Please set a mobile number to make calls'),
+                          )
                   "
                 />
                 <Button
@@ -144,24 +146,28 @@
                 />
 
                 <Button
-                  :tooltip="__('Send an email')"
+                  :tooltip="__('Send an Email')"
                   :icon="Email2Icon"
                   @click="
-                    doc.email ? openEmailBox() : toast.error(__('No email set'))
+                    doc.email
+                      ? openEmailBox()
+                      : toast.error(
+                          __('Please set an email address to send emails'),
+                        )
                   "
                 />
                 <Button
-                  :tooltip="__('Go to website')"
+                  :tooltip="__('Go to Website')"
                   :icon="LinkIcon"
                   @click="
                     doc.website
                       ? openWebsite(doc.website)
-                      : toast.error(__('No website set'))
+                      : toast.error(__('Please set a website to visit'))
                   "
                 />
 
                 <Button
-                  :tooltip="__('Attach a file')"
+                  :tooltip="__('Attach a File')"
                   :icon="AttachmentIcon"
                   @click="showFilesUploader = true"
                 />
@@ -194,6 +200,7 @@
           doctype="CRM Lead"
           :docname="leadId"
           @reload="sections.reload"
+          @beforeFieldChange="beforeStatusChange"
           @afterFieldChange="reloadAssignees"
         />
       </div>
@@ -227,6 +234,12 @@
     :docname="leadId"
     name="Leads"
   />
+  <LostReasonModal
+    v-if="showLostReasonModal"
+    v-model="showLostReasonModal"
+    doctype="CRM Lead"
+    :document="document"
+  />
 </template>
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
@@ -246,6 +259,7 @@ import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import LinkIcon from '@/components/Icons/LinkIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
+import LostReasonModal from '@/components/Modals/LostReasonModal.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import Activities from '@/components/Activities/Activities.vue'
 import AssignTo from '@/components/AssignTo.vue'
@@ -476,7 +490,7 @@ function makeBonvoiceCall(data) {
 
 async function triggerStatusChange(value) {
   await triggerOnChange('status', value)
-  document.save.submit()
+  setLostReason()
 }
 
 function updateField(name, value) {
@@ -514,10 +528,32 @@ function openEmailBox() {
   nextTick(() => (activities.value.emailBox.show = true))
 }
 
-function saveChanges(data) {
-  document.save.submit(null, {
-    onSuccess: () => reloadAssignees(data),
-  })
+const showLostReasonModal = ref(false)
+
+function setLostReason() {
+  if (
+    getLeadStatus(document.doc.status).type !== 'Lost' ||
+    (document.doc.lost_reason && document.doc.lost_reason !== 'Other') ||
+    (document.doc.lost_reason === 'Other' && document.doc.lost_notes)
+  ) {
+    document.save.submit()
+    return
+  }
+
+  showLostReasonModal.value = true
+}
+
+function beforeStatusChange(data) {
+  if (
+    data?.hasOwnProperty('status') &&
+    getLeadStatus(data.status).type == 'Lost'
+  ) {
+    setLostReason()
+  } else {
+    document.save.submit(null, {
+      onSuccess: () => reloadAssignees(data),
+    })
+  }
 }
 
 function reloadAssignees(data) {

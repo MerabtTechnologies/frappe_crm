@@ -100,13 +100,13 @@ const addNewUser = createResource({
     role: role.value,
   }),
   onSuccess: () => {
-    toast.success(__('Users added successfully'))
+    toast.success(__('Users Added Successfully'))
     newUsers.value = []
     show.value = false
     users.reload()
   },
   onError: (error) => {
-    toast.error(error.messages[0] || __('Failed to add users'))
+    toast.error(error.messages[0] || __('Failed to Add Users'))
   },
 })
 </script>

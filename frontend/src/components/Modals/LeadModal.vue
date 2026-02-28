@@ -13,7 +13,7 @@
               v-if="isManager() && !isMobileView"
               variant="ghost"
               class="w-7"
-              :tooltip="__('Edit fields layout')"
+              :tooltip="__('Edit Fields Layout')"
               :icon="EditIcon"
               @click="openQuickEntryModal"
             />
@@ -52,9 +52,8 @@ import { statusesStore } from '@/stores/statuses'
 import { sessionStore } from '@/stores/session'
 import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
-import { capture } from '@/telemetry'
+import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { createResource } from 'frappe-ui'
-import { useOnboarding } from 'frappe-ui/frappe'
 import { useDocument } from '@/data/document'
 import { computed, onMounted, ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
@@ -74,6 +73,8 @@ const error = ref(null)
 const isLeadCreating = ref(false)
 
 const { document: lead, triggerOnBeforeCreate } = useDocument('CRM Lead')
+
+const { capture } = useTelemetry()
 
 const leadStatuses = computed(() => {
   let statuses = statusOptions('lead')
@@ -146,11 +147,11 @@ async function createNewLead() {
           lead.doc.mobile_no &&
           isNaN(lead.doc.mobile_no.replace(/[-+() ]/g, ''))
         ) {
-          error.value = __('Mobile No should be a number')
+          error.value = __('Mobile No. should be a number')
           return error.value
         }
         if (lead.doc.email && !lead.doc.email.includes('@')) {
-          error.value = __('Invalid Email')
+          error.value = __('Invalid email address')
           return error.value
         }
         if (!lead.doc.status) {
