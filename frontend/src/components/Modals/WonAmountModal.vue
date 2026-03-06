@@ -127,7 +127,7 @@ function save() {
   
   error.value = ''
   show.value = false
-  props.deal.save.submit()
+  props.deal.save()
 }
 </script>
 <!-- Fix: Not working in CRM Deal Child tables -->
