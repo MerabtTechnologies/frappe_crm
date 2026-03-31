@@ -205,11 +205,11 @@ async function callSetValue(values) {
 
 function succesHandler() {
   emit('update:step', 'email-list')
-  toast.success(__('Email account updated successfully'))
+  toast.success(__('Email Account updated successfully'))
 }
 
 function errorHandler() {
   loading.value = false
-  error.value = __('Failed to update email account, Invalid credentials')
+  error.value = __('Failed to update Email Account, Invalid credentials')
 }
 </script>

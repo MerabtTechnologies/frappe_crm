@@ -1,6 +1,6 @@
 <template>
   <Button
-    :label="__('Kanban Settings')"
+    :label="__('Kanban settings')"
     @click="showDialog = true"
     v-bind="$attrs"
     :iconLeft="KanbanIcon"

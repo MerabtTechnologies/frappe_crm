@@ -102,10 +102,10 @@ watch(
 
 function addRow() {
   rows.value.push({
-    name: getRandom(10),
     payment_date: dayjs().format('YYYY-MM-DD'),
     paid_amount: 0,
     remarks: '',
+    
   })
 }
 

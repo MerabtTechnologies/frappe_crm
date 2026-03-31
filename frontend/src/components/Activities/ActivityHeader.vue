@@ -120,13 +120,13 @@ const defaultActions = computed(() => {
   let actions = [
     {
       icon: h(Email2Icon, { class: 'h-4 w-4' }),
-      label: __('New Email'),
+      label: __('Email'),
       onClick: () => (props.emailBox.show = true),
     },
     
     {
       icon: h(CommentIcon, { class: 'h-4 w-4' }),
-      label: __('New Comment'),
+      label: __('Comment'),
       onClick: () => (props.emailBox.showComment = true),
     },
     {
@@ -143,12 +143,12 @@ const defaultActions = computed(() => {
     },
     {
       icon: h(NoteIcon, { class: 'h-4 w-4' }),
-      label: __('New Note'),
+      label: __('Note'),
       onClick: () => props.modalRef.showNote(),
     },
     {
       icon: h(TaskIcon, { class: 'h-4 w-4' }),
-      label: __('New Task'),
+      label: __('Task'),
       onClick: () => props.modalRef.showTask(),
       condition: () => props.doc?.doctype !== 'Quotation' && props.doc?.doctype !== 'Event' && props.doc?.doctype !== 'Gamma Proposal' && props.doc?.doctype !== 'Employee Project Assignment' && props.doc?.doctype !== 'Smart Project' && props.doc?.doctype !== 'Smart Task' && props.doc?.doctype !== 'Employee Date Request' && props.doc?.doctype !== 'Employee Project Assignments',
     },
@@ -171,7 +171,7 @@ const defaultActions = computed(() => {
     },
     {
       icon: h(WhatsAppIcon, { class: 'h-4 w-4' }),
-      label: __('New WhatsApp Message'),
+      label: __('WhatsApp Message'),
       onClick: () => (tabIndex.value = getTabIndex('WhatsApp')),
       condition: () => whatsappEnabled.value && props.doc?.doctype !== 'Project' && props.doc?.doctype !== 'Project Planning' && props.doc?.doctype !== 'Task',
     },

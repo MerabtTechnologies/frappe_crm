@@ -17,7 +17,7 @@
       <div class="flex flex-col gap-5.5">
         <div class="flex justify-between gap-2">
           <Button
-            :label="preview ? __('Hide preview') : __('Show preview')"
+            :label="preview ? __('Hide Preview') : __('Show Preview')"
             @click="preview = !preview"
           />
           <div class="flex flex-row-reverse gap-2">
@@ -48,7 +48,7 @@
                 v-if="section.name == 'contacts_section'"
                 class="flex h-16 items-center justify-center text-base text-ink-gray-5"
               >
-                {{ __('No contacts added') }}
+                {{ __('No Contacts Added') }}
               </div>
             </SidePanelLayout>
           </div>
@@ -56,7 +56,7 @@
             v-else
             class="flex flex-1 justify-center items-center text-ink-gray-5 bg-surface-gray-2 rounded"
           >
-            {{ __('Toggle on for preview') }}
+            {{ __('Toggle on for Preview') }}
           </div>
         </div>
       </div>
@@ -67,7 +67,7 @@
 import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SidePanelLayoutEditor from '@/components/SidePanelLayoutEditor.vue'
 import { useDebounceFn } from '@vueuse/core'
-import { capture } from '@/telemetry'
+import { useTelemetry } from 'frappe-ui/frappe'
 import { Dialog, Badge, call, createResource } from 'frappe-ui'
 import { ref, watch, onMounted, nextTick } from 'vue'
 
@@ -79,6 +79,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['reload'])
+
+const { capture } = useTelemetry()
 
 const show = defineModel()
 const _doctype = ref(props.doctype)

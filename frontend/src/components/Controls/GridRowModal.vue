@@ -11,7 +11,7 @@
           <div class="flex items-center gap-1">
             <Button
               v-if="isManager()"
-              :tooltip="__('Edit fields layout')"
+              :tooltip="__('Edit Fields Layout')"
               variant="ghost"
               class="w-7"
               :icon="EditIcon"

@@ -7,14 +7,14 @@
       <UserDropdown :isCollapsed="isSidebarCollapsed" />
     </div>
     <div class="flex-1 overflow-y-auto">
-      <div class="mb-3 flex flex-col">
+      <div class="flex flex-col">
         <SidebarLink
           id="notifications-btn"
           :label="__('Notifications')"
           :icon="NotificationsIcon"
           :isCollapsed="isSidebarCollapsed"
           @click="() => toggleNotificationPanel()"
-          class="relative mx-2 my-0.5"
+          class="relative mx-2 my-[1.5px]"
         >
           <template #right>
             <Badge
@@ -30,10 +30,7 @@
         </SidebarLink>
       </div>
       <div v-for="view in allViews" :key="view.label">
-        <div
-          v-if="!view.hideLabel && isSidebarCollapsed && view.views?.length"
-          class="mx-2 my-2 h-1 border-b"
-        />
+        <div class="mx-2 my-1.5" />
         <Section
           :label="view.name"
           :hideLabel="view.hideLabel"
@@ -42,11 +39,11 @@
           <template #header="{ opened, hide, toggle }">
             <div
               v-if="!hide"
-              class="flex cursor-pointer gap-1.5 px-1 text-base font-medium text-ink-gray-5 transition-all duration-300 ease-in-out"
+              class="flex items-center cursor-pointer gap-1.5 text-base text-ink-gray-5 transition-all duration-300 ease-in-out"
               :class="
                 isSidebarCollapsed
-                  ? 'ml-0 h-0 overflow-hidden opacity-0'
-                  : 'ml-2 mt-4 h-7 w-auto opacity-100'
+                  ? 'h-0 overflow-hidden opacity-0'
+                  : 'px-4 pt-[11px] pb-2.5 w-auto opacity-100'
               "
               @click="toggle()"
             >
@@ -65,7 +62,7 @@
               :label="__(link.label)"
               :to="link.to"
               :isCollapsed="isSidebarCollapsed"
-              class="mx-2 my-0.5"
+              class="mx-2 my-[1.5px]"
             />
           </nav>
         </Section>
@@ -192,8 +189,8 @@ import {
   showHelpModal,
   minimize,
   IntermediateStepModal,
+  useTelemetry,
 } from 'frappe-ui/frappe'
-import { capture } from '@/telemetry'
 import router from '@/router'
 import { useStorage } from '@vueuse/core'
 import { ref, reactive, computed, h, markRaw, onMounted } from 'vue'
@@ -201,6 +198,7 @@ import DotIcon from '../Icons/DotIcon.vue'
 
 const { getPinnedViews, getPublicViews } = viewsStore()
 const { toggle: toggleNotificationPanel } = notificationsStore()
+const { capture } = useTelemetry()
 
 const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
 
@@ -337,7 +335,7 @@ const allViews = computed(() => {
   ]
   if (getPublicViews().length) {
     _views.push({
-      name: 'Public views',
+      name: 'Public Views',
       opened: true,
       views: parseView(getPublicViews()),
     })
@@ -345,7 +343,7 @@ const allViews = computed(() => {
 
   if (getPinnedViews().length) {
     _views.push({
-      name: 'Pinned views',
+      name: 'Pinned Views',
       opened: true,
       views: parseView(getPinnedViews()),
     })
@@ -368,7 +366,7 @@ function parseView(views) {
 }
 
 function getIcon(routeName, icon) {
-  if (icon) return h('div', { class: 'size-auto' }, icon)
+  if (icon) return icon
 
   switch (routeName) {
     case 'Leads':
@@ -423,6 +421,7 @@ const steps = reactive([
     onClick: () => {
       minimize.value = true
       showChangePasswordModal.value = true
+      capture('onboarding_step_clicked_setup_password')
     },
   },
   {
@@ -433,6 +432,7 @@ const steps = reactive([
     onClick: () => {
       minimize.value = true
       router.push({ name: 'Leads' })
+      capture('onboarding_step_clicked_create_first_lead')
     },
   },
   {
@@ -444,6 +444,7 @@ const steps = reactive([
       minimize.value = true
       showSettings.value = true
       activeSettingsPage.value = 'Invite User'
+      capture('onboarding_step_clicked_invite_your_team')
     },
     condition: () => isManager(),
   },
@@ -455,7 +456,7 @@ const steps = reactive([
     dependsOn: 'create_first_lead',
     onClick: async () => {
       minimize.value = true
-
+      capture('onboarding_step_clicked_convert_lead_to_deal')
       currentStep.value = {
         title: __('Convert lead to deal'),
         buttonLabel: __('Convert'),
@@ -483,6 +484,7 @@ const steps = reactive([
     onClick: async () => {
       minimize.value = true
       let deal = await getFirstDeal()
+      capture('onboarding_step_clicked_create_first_task')
 
       if (deal) {
         router.push({
@@ -503,6 +505,7 @@ const steps = reactive([
     onClick: async () => {
       minimize.value = true
       let deal = await getFirstDeal()
+      capture('onboarding_step_clicked_create_first_note')
 
       if (deal) {
         router.push({
@@ -524,6 +527,7 @@ const steps = reactive([
     onClick: async () => {
       minimize.value = true
       let deal = await getFirstDeal()
+      capture('onboarding_step_clicked_add_first_comment')
 
       if (deal) {
         router.push({
@@ -545,6 +549,7 @@ const steps = reactive([
     onClick: async () => {
       minimize.value = true
       let deal = await getFirstDeal()
+      capture('onboarding_step_clicked_send_first_email')
 
       if (deal) {
         router.push({
@@ -565,6 +570,7 @@ const steps = reactive([
     dependsOn: 'convert_lead_to_deal',
     onClick: async () => {
       minimize.value = true
+      capture('onboarding_step_clicked_change_deal_status')
 
       currentStep.value = {
         title: __('Change deal status'),
@@ -611,7 +617,7 @@ const articles = ref([
     opened: false,
     subArticles: [
       { name: 'introduction', title: __('Introduction') },
-      { name: 'setting-up', title: __('Setting up') },
+      { name: 'setting-up', title: __('Setting Up') },
     ],
   },
   {
@@ -619,9 +625,9 @@ const articles = ref([
     opened: false,
     subArticles: [
       { name: 'profile', title: __('Profile') },
-      { name: 'custom-branding', title: __('Custom branding') },
-      { name: 'home-actions', title: __('Home actions') },
-      { name: 'invite-users', title: __('Invite users') },
+      { name: 'custom-branding', title: __('Custom Branding') },
+      { name: 'home-actions', title: __('Home Actions') },
+      { name: 'invite-users', title: __('Invite Users') },
     ],
   },
   {
@@ -634,33 +640,33 @@ const articles = ref([
       { name: 'organization', title: __('Organization') },
       { name: 'note', title: __('Note') },
       { name: 'task', title: __('Task') },
-      { name: 'call-log', title: __('Call log') },
-      { name: 'email-template', title: __('Email template') },
+      { name: 'call-log', title: __('Call Log') },
+      { name: 'email-template', title: __('Email Template') },
     ],
   },
   {
-    title: __('Capturing leads'),
+    title: __('Capturing Leads'),
     opened: false,
-    subArticles: [{ name: 'web-form', title: __('Web form') }],
+    subArticles: [{ name: 'web-form', title: __('Web Form') }],
   },
   {
     title: __('Views'),
     opened: false,
     subArticles: [
-      { name: 'view', title: __('Saved view') },
-      { name: 'public-view', title: __('Public view') },
-      { name: 'pinned-view', title: __('Pinned view') },
+      { name: 'view', title: __('Saved View') },
+      { name: 'public-view', title: __('Public View') },
+      { name: 'pinned-view', title: __('Pinned View') },
     ],
   },
   {
-    title: __('Other features'),
+    title: __('Other Features'),
     opened: false,
     subArticles: [
-      { name: 'email-communication', title: __('Email communication') },
+      { name: 'email-communication', title: __('Email Communication') },
       { name: 'comment', title: __('Comment') },
       { name: 'data', title: __('Data') },
-      { name: 'service-level-agreement', title: __('Service level agreement') },
-      { name: 'assignment-rule', title: __('Assignment rule') },
+      { name: 'service-level-agreement', title: __('Service Level Agreement') },
+      { name: 'assignment-rule', title: __('Assignment Rule') },
       { name: 'notification', title: __('Notification') },
     ],
   },
@@ -668,11 +674,11 @@ const articles = ref([
     title: __('Customization'),
     opened: false,
     subArticles: [
-      { name: 'custom-fields', title: __('Custom fields') },
-      { name: 'custom-actions', title: __('Custom actions') },
-      { name: 'custom-statuses', title: __('Custom statuses') },
-      { name: 'custom-list-actions', title: __('Custom list actions') },
-      { name: 'quick-entry-layout', title: __('Quick entry layout') },
+      { name: 'custom-fields', title: __('Custom Fields') },
+      { name: 'custom-actions', title: __('Custom Actions') },
+      { name: 'custom-statuses', title: __('Custom Statuses') },
+      { name: 'custom-list-actions', title: __('Custom List Actions') },
+      { name: 'quick-entry-layout', title: __('Quick Entry Layout') },
     ],
   },
   {
@@ -689,7 +695,7 @@ const articles = ref([
     title: __('Frappe CRM mobile'),
     opened: false,
     subArticles: [
-      { name: 'mobile-app-installation', title: __('Mobile app installation') },
+      { name: 'mobile-app-installation', title: __('Mobile App Installation') },
     ],
   },
 ])

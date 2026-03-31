@@ -40,7 +40,7 @@
       :class="field.prefix ? 'prefix' : ''"
       :options="field.options"
       v-model="data[field.fieldname]"
-      @change="(e) => fieldChange(e.target.value, field)"
+      @update:modelValue="(e) => fieldChange(e, field)"
       :placeholder="getPlaceholder(field)"
       :description="field.description"
     >
@@ -302,6 +302,11 @@ const field = computed(() => {
     }
   }
 
+  const read_only_via_depends_on = evaluateDependsOnValue(
+    field.read_only_depends_on,
+    data.value,
+  )
+
   let _field = {
     ...field,
     filters: field.link_filters && JSON.parse(field.link_filters),
@@ -314,6 +319,9 @@ const field = computed(() => {
       field.mandatory_depends_on,
       data.value,
     ),
+    read_only:
+      field.read_only ||
+      (field.read_only_depends_on && read_only_via_depends_on),
   }
   // Make fields read-only when the document is submitted (docstatus === 1)
   // unless the field explicitly allows editing on submit via `allow_on_submit`.

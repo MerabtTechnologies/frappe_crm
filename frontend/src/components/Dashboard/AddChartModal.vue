@@ -1,7 +1,7 @@
 <template>
   <Dialog
     v-model="show"
-    :options="{ title: __('Add chart') }"
+    :options="{ title: __('Add Chart') }"
     @close="show = false"
   >
     <template #body-content>
@@ -16,21 +16,21 @@
           v-if="chartType === 'number_chart'"
           v-model="numberChart"
           type="select"
-          :label="__('Number chart')"
+          :label="__('Number Chart')"
           :options="numberCharts"
         />
         <FormControl
           v-if="chartType === 'axis_chart'"
           v-model="axisChart"
           type="select"
-          :label="__('Axis chart')"
+          :label="__('Axis Chart')"
           :options="axisCharts"
         />
         <FormControl
           v-if="chartType === 'donut_chart'"
           v-model="donutChart"
           type="select"
-          :label="__('Donut chart')"
+          :label="__('Donut Chart')"
           :options="donutCharts"
         />
       </div>
@@ -66,26 +66,26 @@ const filters = inject('filters', reactive({ period: '', user: '' }))
 const chartType = ref('spacer')
 const chartTypes = [
   { label: __('Spacer'), value: 'spacer' },
-  { label: __('Number chart'), value: 'number_chart' },
-  { label: __('Axis chart'), value: 'axis_chart' },
-  { label: __('Donut chart'), value: 'donut_chart' },
+  { label: __('Number Chart'), value: 'number_chart' },
+  { label: __('Axis Chart'), value: 'axis_chart' },
+  { label: __('Donut Chart'), value: 'donut_chart' },
 ]
 
 const numberChart = ref('')
 const numberCharts = [
   { label: __('Total leads'), value: 'total_leads' },
-  {label: __('Total leads (Only Ours)'), value: 'our_total_leads' },
+  { label: __('Total leads (Only Ours)'), value: 'our_total_leads' },
   { label: __('Ongoing deals'), value: 'ongoing_deals' },
   { label: __('Avg ongoing deal value'), value: 'average_ongoing_deal_value' },
   { label: __('Won deals'), value: 'won_deals' },
   { label: __('Avg won deal value'), value: 'average_won_deal_value' },
   { label: __('Avg deal value'), value: 'average_deal_value' },
   {
-    label: __('Avg time to close a lead'),
+    label: __('Avg Time to Close a Lead'),
     value: 'average_time_to_close_a_lead',
   },
   {
-    label: __('Avg time to close a deal'),
+    label: __('Avg Time to Close a Deal'),
     value: 'average_time_to_close_a_deal',
   },
   { label: __('Total qualified leads'), value: 'total_qualified_leads' },

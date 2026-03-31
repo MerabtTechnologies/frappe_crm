@@ -157,7 +157,7 @@
             :label="getRow(itemName, fieldName).value"
           />
         </div>
-        <div v-else-if="fieldName === '_assign'" class="flex items-center">
+        <div v-else-if="fieldName === '_assign'" class="flex items-center truncate">
           <MultipleAvatar
             :avatars="getRow(itemName, fieldName).label"
             size="xs"
@@ -209,7 +209,7 @@
     v-model="deals.data.page_length_count"
     v-model:list="deals"
     :rows="rows"
-    :columns="deals.data.columns"
+    :columns="columns"
     :options="{
       showTooltip: false,
       resizeColumn: true,
@@ -226,19 +226,11 @@
       (selections) => viewControls.updateSelections(selections)
     "
   />
-  <div v-else-if="deals.data" class="flex h-full items-center justify-center">
-    <div
-      class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
-    >
-      <DealsIcon class="h-10 w-10" />
-      <span>{{ __('No {0} Found', [__('Deals')]) }}</span>
-      <Button
-        :label="__('Create')"
-        iconLeft="plus"
-        @click="showDealModal = true"
-      />
-    </div>
-  </div>
+  <EmptyState
+    v-else-if="deals.data && !rows.length"
+    name="Deals"
+    :icon="DealsIcon"
+  />
   <DealModal
     v-if="showDealModal"
     v-model="showDealModal"
@@ -273,6 +265,7 @@ import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import DealsListView from '@/components/ListViews/DealsListView.vue'
+import EmptyState from '@/components/ListViews/EmptyState.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
 import DealModal from '@/components/Modals/DealModal.vue'
 import NoteModal from '@/components/Modals/NoteModal.vue'
@@ -343,6 +336,21 @@ const rows = computed(() => {
   } else {
     return parseRows(deals.value?.data.data, deals.value.data.columns)
   }
+})
+
+const columns = computed(() => {
+  let _columns = deals.value?.data?.columns || []
+
+  if (_columns.length) {
+    _columns = _columns.map((col, index) => {
+      if (index === _columns.length - 1) {
+        return { ...col, align: 'right' }
+      }
+      return col
+    })
+  }
+
+  return _columns
 })
 
 function getGroupedByRows(listRows, groupByField, columns) {

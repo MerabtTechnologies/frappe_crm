@@ -17,7 +17,7 @@
       <div class="flex flex-col gap-3">
         <div class="flex justify-between gap-2">
           <Button
-            :label="preview ? __('Hide preview') : __('Show preview')"
+            :label="preview ? __('Hide Preview') : __('Show Preview')"
             @click="preview = !preview"
           />
           <div class="flex flex-row-reverse gap-2">
@@ -51,7 +51,7 @@
 import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import FieldLayoutEditor from '@/components/FieldLayoutEditor.vue'
 import { useDebounceFn } from '@vueuse/core'
-import { capture } from '@/telemetry'
+import { useTelemetry } from 'frappe-ui/frappe'
 import { Dialog, Badge, call, createResource } from 'frappe-ui'
 import { ref, watch, onMounted, nextTick } from 'vue'
 
@@ -67,6 +67,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['reload'])
+
+const { capture } = useTelemetry()
 
 const show = defineModel()
 const _doctype = ref(props.doctype)

@@ -3,7 +3,7 @@
     <div class="flex px-2 justify-between">
       <div class="flex flex-col gap-1 w-9/12">
         <h2 class="flex gap-2 text-xl font-semibold leading-none h-5">
-          {{ __('Send invites to') }}
+          {{ __('Send Invites To') }}
         </h2>
         <p class="text-p-base text-ink-gray-6">
           {{
@@ -27,7 +27,7 @@
       <div>
         <FormControl
           type="textarea"
-          label="Invite by email"
+          :label="__('Invite By Email')"
           placeholder="user1@example.com, user2@example.com, ..."
           @input="updateInvitees($event.target.value)"
           :debounce="100"
@@ -48,7 +48,7 @@
           type="select"
           class="mt-4"
           v-model="role"
-          :label="__('Invite as')"
+          :label="__('Invite As')"
           :options="roleOptions"
           :description="description"
         />
@@ -76,7 +76,7 @@
               </div>
               <div>
                 <Button
-                  :tooltip="__('Delete invitation')"
+                  :tooltip="__('Delete Invitation')"
                   icon="x"
                   variant="ghost"
                   :loading="
@@ -97,12 +97,13 @@
 <script setup>
 import { validateEmail, convertArrayToString } from '@/utils'
 import { usersStore } from '@/stores/users'
+import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { createListResource, createResource, FormControl } from 'frappe-ui'
-import { useOnboarding } from 'frappe-ui/frappe'
 import { ref, computed } from 'vue'
 
 const { updateOnboardingStep } = useOnboarding('frappecrm')
 const { users, isAdmin, isManager } = usersStore()
+const { capture } = useTelemetry()
 
 const invitees = ref([])
 const role = ref('Sales User')
@@ -186,6 +187,7 @@ const inviteByEmail = createResource({
     invitees.value = []
     pendingInvitations.reload()
     updateOnboardingStep('invite_your_team')
+    capture('user_invited')
   },
   onError(err) {
     error.value = err?.messages?.[0]
