@@ -10,6 +10,7 @@
           v-if="item.data"
           :key="index"
           :config="item.data"
+          @click="handleChartClick"
         />
       </Tooltip>
       <!-- Download icon button -->
@@ -147,6 +148,136 @@ const filters = inject('filters', null)
 
 // ------download excel code ends here -------
 
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+// Number card filters and routing logic
+
+function handleChartClick() {
+  const chartName = props.item?.name
+  const owner = filters?.user || null
+
+  if (!chartName) {
+    console.error('Chart name missing')
+    return
+  }
+
+  const filtersArray = []
+
+  // ✅ STATUS (based on chart)
+  if (chartName === 'open_leads') {
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Open'
+    })
+  }
+
+  else if (chartName === 'converted_leads') {
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Converted'
+    })
+  }
+
+  else if (chartName === 'lost_leads') {
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Lost'
+    })
+  }
+
+ 
+
+
+  // ✅ DATE FILTER (exact same as your logic)
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'modified',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } else if (fromDate?.value) {
+    filtersArray.push({
+      fieldname: 'modified',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate?.value) {
+    filtersArray.push({
+      fieldname: 'modified',
+      condition: '<=',
+      value: toDate.value
+    })
+  }
+
+  // ✅ OWNER FILTER (FIXED LOGIC)
+  if (owner === 'Unassigned') {
+    filtersArray.push({
+      fieldname: 'lead_owner',
+      condition: 'is',
+      value: 'not set'
+    })
+  } 
+  else if (owner && owner !== 'Total') {
+    filtersArray.push({
+      fieldname: 'lead_owner',
+      condition: 'equals',
+      value: owner
+    })
+  }
+
+  // ✅ ROUTING
+  let routeName = ''
+
+  if (
+    chartName === 'total_leads' ||
+    chartName === 'open_leads' ||
+    chartName === 'converted_leads' ||
+    chartName === 'lost_leads' ||
+    chartName === 'leads_by_source' ||
+    chartName === 'leads_by_source_performance' ||
+    chartName === 'user_status_leads' ||
+    chartName === 'leads_by_industry' || 
+    chartName === 'leads_by_territory'
+
+  ) {
+    routeName = 'Leads'
+  }
+
+  else if (chartName === 'won_deals') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Won'
+    })
+  }
+
+  else if (chartName === 'ongoing_deals') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Open'
+    })
+  }
+
+  else {
+    console.warn('Unhandled chart:', chartName)
+    return
+  }
+
+  // ✅ REDIRECT
+  router.push({
+    name: routeName,
+    query: {
+      filters: JSON.stringify(filtersArray)
+    }
+  })
+}
 
 
 const props = defineProps({
