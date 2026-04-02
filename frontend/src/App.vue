@@ -12,6 +12,41 @@
         <router-view :key="$route.fullPath" />
       </Layout>
       <Dialogs />
+      <Dialog v-model="showModal" :options="{ size: 'sm' }" :disable-outside-click-to-close="true">
+        <template #body>
+          <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
+            <div class="mb-2 items-start gap-3 place-items-center">
+              <div class="pt-1 mb-6">
+                <LucideFrown v-if="modelData.type === 'bad'" class="size-20 text-red-500" />
+                <LucideSmile v-else-if="modelData.type === 'good'" class="size-20 text-green-500" />
+                <LucideBadge v-else class="size-20 text-yellow-500" />
+              </div>
+              <div>
+                <h2 class="text-1xl font-medium text-ink-gray-9 text-center">{{ modelData.title }}</h2>
+                <div class="mt-2 text-lg text-ink-gray-7 text-center">{{ modelData.message }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-4 pb-7 pt-4 sm:px-6">
+            <div class="flex flex-row-reverse gap-2">
+              <button
+                v-for="(button, index) in modelData.buttons"
+                :key="index"
+                @click="button.action()"
+                :class="[
+                  'inline-flex justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2',
+                  button.variant === 'solid'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-500',
+                ]"
+              >
+                {{ button.label }}
+              </button>
+            </div>
+          </div>
+        </template>
+      </Dialog>
     </template>
   </FrappeUIProvider>
 </template>
@@ -23,15 +58,20 @@ import { Dialogs } from '@/utils/dialogs'
 import { sessionStore as session } from '@/stores/session'
 import { setTheme } from '@/stores/theme'
 import { FrappeUIProvider, setConfig } from 'frappe-ui'
-import { computed, defineAsyncComponent, onErrorCaptured, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onErrorCaptured, onMounted, onBeforeUnmount, ref, onUnmounted } from 'vue'
 import { bannerStore } from '@/stores/banner'
 import { useRouter } from 'vue-router'
 
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { toast, createResource } from 'frappe-ui'
+import { toast, createResource, Dialog } from 'frappe-ui'
+import LucideBadge from '~icons/lucide/badge-info'
+import LucideFrown from '~icons/lucide/frown'
+import LucideSmile from '~icons/lucide/smile'
+import { _merabtSettingsResource } from '@/composables/settings'
 import { usersStore } from '@/stores/users'
 
+let interval = null;
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB-qD0A5E4I224NR-LqvSmrCYUC0cQUG-0",
@@ -92,7 +132,6 @@ getToken(messaging,
       }
 
     } else {
-      // TODO: Show permission request UI
 
       // console.log('No registration token available. Request permission to generate one.');
       toast.info(
@@ -175,6 +214,21 @@ const Layout = computed(() => {
 })
 
 const showSplash = ref(true)
+
+// Modal state for sales performance warning
+const salesPerformance = ref('') // This would come from an API in a real app
+const showModal = ref(false)
+const modelData = ref({
+  title: 'Welcome to M Nova CRM',
+  message: 'Welcome to M Nova CRM! We are excited to have you on board. Explore the features and let us know if you have any questions.',
+  type: 'good',
+  buttons: [
+    // { label: 'Update Now', action: updateNow },
+    { label: 'Close', action: () => (showModal.value = false) },
+  ],
+})
+
+
 // Use banner store for global warnings
 const banner = bannerStore()
 const router = useRouter()
@@ -202,6 +256,74 @@ onMounted(async () => {
 function closeWarning() {
   banner.closeBanner()
 }
+
+// function updateNow() {
+//   // Close modal for now; extend to route to billing/upgrade page if desired
+//   console.log("Clicked Update Now");
+  
+//   showModal.value = false
+// }
+
+onMounted(async () => {
+  // checking sales performance on mount
+
+  const {settings: merabtSettings} = await _merabtSettingsResource.submit()
+
+  if (merabtSettings.performance_banner === 0){
+    return
+  }
+
+  const timeInterval = merabtSettings.performance_interval || 15 // default to 15 minutes if not set
+  const good_title = merabtSettings.good_banner_title || 'Your Performance is Good'
+  const good_message = merabtSettings.good_banner_content || 'Great job! Your sales performance is good. Keep up the good work and continue striving for excellence.'
+  const poor_title = merabtSettings.bad_banner_title || 'Your Performance is Below Expectations'
+  const poor_message = merabtSettings.bad_banner_content || 'Your sales performance is currently below the expected threshold. Please review your sales activities and take necessary actions to improve your performance.'
+  
+  const performance_data = await createResource({
+    url: 'merabt_crm.portal_api.sales_target.get_sales_user_performance',
+    auto: true,
+    onError(error) {
+      console.error('Error fetching sales performance:', error)
+    },
+  })
+
+
+  interval = setInterval(() => {
+    salesPerformance.value = performance_data.data
+
+    if (salesPerformance.value === 'poor') {
+      modelData.value = {
+        title: poor_title,
+        message: poor_message,
+        type: 'bad',
+        buttons: [
+          { label: 'Close', action: () => (showModal.value = false) },
+        ],
+      }
+      showModal.value = true
+    } else if (salesPerformance.value === 'good' && merabtSettings.show_good_banner === 1) {
+      modelData.value = {
+        title: good_title,
+        message: good_message,
+        type: 'good',
+        buttons: [
+          { label: 'Close', action: () => (showModal.value = false) },
+        ],
+      }
+      showModal.value = true
+    }
+    
+    performance_data.submit() // re-fetch performance data
+    // console.log("intrival: ",salesPerformance.value );
+  
+  }, timeInterval * 1000 * 60)// set interval based on settings, default to 15 minutes
+})
+
+onUnmounted(() => {
+  // Clean up any intervals or listeners if needed
+  clearInterval(interval)
+})
+
 
 setConfig('systemTimezone', window.timezone?.system || null)
 setConfig('localTimezone', window.timezone?.user || null)
