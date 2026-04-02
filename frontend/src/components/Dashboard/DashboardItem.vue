@@ -230,18 +230,13 @@ function handleChartClick() {
 
   // ✅ ROUTING
   let routeName = ''
-
+  
   if (
     chartName === 'total_leads' ||
     chartName === 'our_total_leads' ||
     chartName === 'open_leads' ||
     chartName === 'converted_leads' 
-    // chartName === 'lost_leads' ||
-    // chartName === 'leads_by_source' ||
-    // chartName === 'leads_by_source_performance' ||
-    // chartName === 'user_status_leads' ||
-    // chartName === 'leads_by_industry' || 
-    // chartName === 'leads_by_territory'
+
   ) {
     routeName = 'Leads'
     
@@ -373,7 +368,130 @@ function handleChartClick() {
       value: 'Won'
     })
   }
-  else {
+else if (chartName === 'total_call_logs_count') {
+  routeName = 'Call Logs'
+
+  filtersArray.length = 0
+
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation', // ✅ IMPORTANT (not call_datetime)
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } else if (fromDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '<=',
+      value: toDate.value
+    })
+  }
+}
+else if (chartName === 'total_incoming_call_logs_count') {
+  routeName = 'Call Logs'
+
+  filtersArray.length = 0
+
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation', // ✅ IMPORTANT (not call_datetime)
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } else if (fromDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '<=',
+      value: toDate.value
+    })
+  }
+
+  filtersArray.push({
+    fieldname: 'type',
+    condition: 'equals',
+    value: 'Incoming'
+  })
+}
+
+else if (chartName === 'total_outgoing_call_logs_count') {
+  routeName = 'Call Logs' 
+  
+  filtersArray.length = 0
+
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation', // ✅ IMPORTANT (not call_datetime)
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } else if (fromDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '<=',
+      value: toDate.value
+    })
+  }
+
+  filtersArray.push({
+    fieldname: 'type',
+    condition: 'equals',
+    value: 'Outgoing'
+  })
+}
+
+else if (chartName === 'average_call_duration') {
+  // Route to Call Logs and apply date filters — show only records with duration set
+  routeName = 'Call Logs'
+
+  filtersArray.length = 0
+
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } else if (fromDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '<=',
+      value: toDate.value
+    })
+  }
+
+  // Only include call logs where duration is set
+  filtersArray.push({
+    fieldname: 'duration',
+    condition: 'is',
+    value: 'set'
+  })
+}
+
+else {
     console.warn('Unhandled chart:', chartName)
     return
   }
