@@ -680,6 +680,8 @@ const applyFiltersFromURL = () => {
               filterObj[filter.fieldname] = ['=', filter.value]
             } else if (filter.condition === 'like') {
               filterObj[filter.fieldname] = ['like', `%${filter.value}%`]
+            } else if (filter.condition === 'Not in') {
+              filterObj[filter.fieldname] = ['not in', filter.value]
             } else {
               // Default: just use the value
               filterObj[filter.fieldname] = filter.value
