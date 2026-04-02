@@ -77,6 +77,7 @@ import { AxisChart, Button, DonutChart, NumberChart, Tooltip } from 'frappe-ui'
 import { computed, inject } from 'vue'
 import { createResource} from 'frappe-ui'
 import { usersStore } from '@/stores/users'
+import { useRouter } from 'vue-router'
 
 const { isSalesMasterManager } = usersStore()
 
@@ -148,140 +149,12 @@ const filters = inject('filters', null)
 
 // ------download excel code ends here -------
 
-import { useRouter } from 'vue-router'
 
 const router = useRouter()
-// Number card filters and routing logic
-
-// function handleChartClick() {
-//   const chartName = props.item?.name
-//   const owner = filters?.user || null
-
-//   if (!chartName) {
-//     console.error('Chart name missing')
-//     return
-//   }
-
-//   const filtersArray = []
-
-//   // ✅ STATUS (based on chart)
-//   if (chartName === 'open_leads') {
-//     filtersArray.push({
-//       fieldname: 'status',
-//       condition: 'equals',
-//       value: 'Open'
-//     })
-//   }
-
-//   else if (chartName === 'converted_leads') {
-//     filtersArray.push({
-//       fieldname: 'status',
-//       condition: 'equals',
-//       value: 'Converted'
-//     })
-//   }
-
-//   else if (chartName === 'lost_leads') {
-//     filtersArray.push({
-//       fieldname: 'status',
-//       condition: 'equals',
-//       value: 'Lost'
-//     })
-//   }
-
- 
-
-
-//   // ✅ DATE FILTER (exact same as your logic)
-//   if (fromDate?.value && toDate?.value) {
-//     filtersArray.push({
-//       fieldname: 'modified',
-//       condition: 'between',
-//       value: [fromDate.value, toDate.value]
-//     })
-//   } else if (fromDate?.value) {
-//     filtersArray.push({
-//       fieldname: 'modified',
-//       condition: '>=',
-//       value: fromDate.value
-//     })
-//   } else if (toDate?.value) {
-//     filtersArray.push({
-//       fieldname: 'modified',
-//       condition: '<=',
-//       value: toDate.value
-//     })
-//   }
-
-//   // ✅ OWNER FILTER (FIXED LOGIC)
-//   if (owner === 'Unassigned') {
-//     filtersArray.push({
-//       fieldname: 'lead_owner',
-//       condition: 'is',
-//       value: 'not set'
-//     })
-//   } 
-//   else if (owner && owner !== 'Total') {
-//     filtersArray.push({
-//       fieldname: 'lead_owner',
-//       condition: 'equals',
-//       value: owner
-//     })
-//   }
-
-//   // ✅ ROUTING
-//   let routeName = ''
-
-//   if (
-//     chartName === 'total_leads' ||
-//     chartName === 'open_leads' ||
-//     chartName === 'converted_leads' ||
-//     chartName === 'lost_leads' ||
-//     chartName === 'leads_by_source' ||
-//     chartName === 'leads_by_source_performance' ||
-//     chartName === 'user_status_leads' ||
-//     chartName === 'leads_by_industry' || 
-//     chartName === 'leads_by_territory'
-
-//   ) {
-//     routeName = 'Leads'
-//   }
-
-//   else if (chartName === 'won_deals') {
-//     routeName = 'Deals'
-//     filtersArray.push({
-//       fieldname: 'status',
-//       condition: 'equals',
-//       value: 'Won'
-//     })
-//   }
-
-//   else if (chartName === 'ongoing_deals') {
-//     routeName = 'Deals'
-//     filtersArray.push({
-//       fieldname: 'status',
-//       condition: 'equals',
-//       value: 'Open'
-//     })
-//   }
-
-//   else {
-//     console.warn('Unhandled chart:', chartName)
-//     return
-//   }
-
-//   // ✅ REDIRECT
-//   router.push({
-//     name: routeName,
-//     query: {
-//       filters: JSON.stringify(filtersArray)
-//     }
-//   })
-// }
 
 
 
-// --------- Filter Number chart----------------
+// -----Filter handling for chart click starts here-------
 function handleChartClick() {
   const chartName = props.item?.name
   const owner = filters?.user || null
@@ -316,25 +189,27 @@ function handleChartClick() {
     })
   }
 
-  // ✅ DATE FILTER
-  if (fromDate?.value && toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: 'between',
-      value: [fromDate.value, toDate.value]
-    })
-  } else if (fromDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '>=',
-      value: fromDate.value
-    })
-  } else if (toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '<=',
-      value: toDate.value
-    })
+  // ✅ DATE FILTER - Skip for average_won_deal_value, won_deals, and average_time_to_close (uses closed_date instead)
+  if (chartName !== 'average_won_deal_value' && chartName !== 'won_deals' && chartName !== 'average_time_to_close_a_deal') {
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    } else if (fromDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '>=',
+        value: fromDate.value
+      })
+    } else if (toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '<=',
+        value: toDate.value
+      })
+    }
   }
 
   // ✅ OWNER FILTER
@@ -360,13 +235,13 @@ function handleChartClick() {
     chartName === 'total_leads' ||
     chartName === 'our_total_leads' ||
     chartName === 'open_leads' ||
-    chartName === 'converted_leads' ||
-    chartName === 'lost_leads' ||
-    chartName === 'leads_by_source' ||
-    chartName === 'leads_by_source_performance' ||
-    chartName === 'user_status_leads' ||
-    chartName === 'leads_by_industry' || 
-    chartName === 'leads_by_territory'
+    chartName === 'converted_leads' 
+    // chartName === 'lost_leads' ||
+    // chartName === 'leads_by_source' ||
+    // chartName === 'leads_by_source_performance' ||
+    // chartName === 'user_status_leads' ||
+    // chartName === 'leads_by_industry' || 
+    // chartName === 'leads_by_territory'
   ) {
     routeName = 'Leads'
     
@@ -387,6 +262,19 @@ function handleChartClick() {
       value: 'Won'
     })
   }
+  else if (chartName === 'total_deal_value') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'Not in',  
+      value: "Lost"
+    })
+    filtersArray.push({
+      fieldname: 'deal_value',
+      condition: 'is',
+      value: 'set'
+    })
+  }
   else if (chartName === 'ongoing_deals') {
     routeName = 'Deals'
     filtersArray.push({
@@ -394,6 +282,100 @@ function handleChartClick() {
       condition: 'Not in',  
       value: "Won, Lost"
     })
+  }
+  else if (chartName === 'average_ongoing_deal_value') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'Not in',  
+      value: "Won, Lost"
+    })
+    filtersArray.push({
+      fieldname: 'deal_value',
+      condition: 'is',
+      value: 'set'
+    })
+  }
+  else if (chartName === 'average_deal_value') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'Not in',  
+      value: "Lost"
+    })
+    filtersArray.push({
+      fieldname: 'deal_value',
+      condition: 'is',
+      value: 'set'
+    })
+  }
+  else if (chartName === 'average_won_deal_value') {
+    routeName = 'Deals'
+    // Add closed_date filter (no creation filter added due to condition above)
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'closed_date',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    } else if (fromDate?.value) {
+      filtersArray.push({
+        fieldname: 'closed_date',
+        condition: '>=',
+        value: fromDate.value
+      })
+    } else if (toDate?.value) {
+      filtersArray.push({
+        fieldname: 'closed_date',
+        condition: '<=',
+        value: toDate.value
+      })
+    }
+    
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Won'
+    })
+    
+    filtersArray.push({
+      fieldname: 'deal_value',
+      condition: 'is',
+      value: 'set'
+    })
+  }
+  else if (chartName === 'average_time_to_close_a_deal') {
+    routeName = 'Deals'
+    // Add closed_date filter (no creation filter added due to condition above)
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'closed_date',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    } else if (fromDate?.value) {
+      filtersArray.push({
+        fieldname: 'closed_date',
+        condition: '>=',
+        value: fromDate.value
+      })
+    } else if (toDate?.value) {
+      filtersArray.push({
+        fieldname: 'closed_date',
+        condition: '<=',
+        value: toDate.value
+      })
+    }
+    
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Won'
+    })
+  }
+  else {
+    console.warn('Unhandled chart:', chartName)
+    return
   }
 
   router.push({
@@ -403,7 +385,6 @@ function handleChartClick() {
     }
   })
 }
-
 
 // ------------End--------------------
 const props = defineProps({
