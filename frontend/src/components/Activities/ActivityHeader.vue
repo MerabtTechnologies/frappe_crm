@@ -21,6 +21,13 @@
       @click="modalRef.showGammaProposal()"
     />
     <Button
+      v-else-if="title == 'Quotations'"
+      variant="solid"
+      :label="__('New Quotations')"
+      iconLeft="plus"
+      @click="modalRef.showQuotation()"
+    />
+    <Button
       v-else-if="title == 'Comments'"
       variant="solid"
       :label="__('New Comment')"
@@ -100,6 +107,7 @@ import { globalStore } from '@/stores/global'
 import { whatsappEnabled, callEnabled } from '@/composables/settings'
 import { Dropdown } from 'frappe-ui'
 import { computed, h } from 'vue'
+import QuotationIcon from '../Icons/QuotationIcon.vue'
 
 const props = defineProps({
   tabs: Array,
@@ -174,6 +182,12 @@ const defaultActions = computed(() => {
       label: __('WhatsApp Message'),
       onClick: () => (tabIndex.value = getTabIndex('WhatsApp')),
       condition: () => whatsappEnabled.value && props.doc?.doctype !== 'Project' && props.doc?.doctype !== 'Project Planning' && props.doc?.doctype !== 'Task',
+    },
+    {
+      icon: h(QuotationIcon, { class: 'h-4 w-4' }),
+      label: __('Quotation Action'),
+      onClick: () => props.modalRef.showQuotation(),
+      condition: () => props.doc?.doctype === 'Quotation',
     },
   ]
   return actions.filter((action) =>
