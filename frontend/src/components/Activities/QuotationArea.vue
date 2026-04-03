@@ -62,7 +62,7 @@ const getStatusVariant = (status) => {
     default: return 'gray'
   }
 }
-
+// routing
 function oper_quo(row) {
   
   router.push({

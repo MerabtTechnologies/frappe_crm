@@ -43,6 +43,35 @@
           showConfirm()
         }"
       />
+      <!-- Amend Button -->
+        <button
+          v-if="document.doc.hasOwnProperty('amended_from') && document.doc.docstatus === 2"
+          :disabled="amendResource.loading"
+          @click="showAmendConfirm = true"
+          style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 12px;
+            height: 28px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #d97706;
+            background: #fffbeb;
+            color: #92400e;
+            transition: background 0.15s, box-shadow 0.15s;
+          "
+          onmouseover="this.style.background='#fef3c7'; this.style.boxShadow='0 0 0 2px #fcd34d'"
+          onmouseout="this.style.background='#fffbeb'; this.style.boxShadow='none'"
+        >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81 3.19 11.371a.25.25 0 0 0-.063.108l-.587 2.054 2.054-.587a.25.25 0 0 0 .108-.063L11.19 6.25Z" fill="#92400e"/>
+          </svg>
+          <span v-if="amendResource.loading">Amending...</span>
+          <span v-else>Amend</span>
+        </button>
     </div>
   </div>
   <div
@@ -87,6 +116,20 @@
       // console.log('Submission cancelled Data Fields.vue')
       showConfirmDialogBox = false
     }"
+    />
+  <ConfirmDialogBox
+    v-if="showAmendConfirm"
+    v-model="showAmendConfirm"
+    :doctype="doctype"
+    :docname="docname"
+    :title="'Amend ' + docname + '?'"
+    message="This will create a new draft copy of this document for editing."
+    confirmText="Amend"
+    confirmIcon="edit"
+    confirmButtonColor="orange"
+    name="Employee Task Assignments"
+    @confirm="amendDocument"
+    @cancel="showAmendConfirm = false"
   />
 
 </template>
@@ -95,13 +138,13 @@
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import DataFieldsModal from '@/components/Modals/DataFieldsModal.vue'
 import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
-import { Badge, createResource } from 'frappe-ui'
-import { toast } from 'frappe-ui'
+import { Badge, createResource, toast } from 'frappe-ui'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
 import { usersStore } from '@/stores/users'
 import { useDocument } from '@/data/document'
 import { isMobileView } from '@/composables/settings'
 import { ref, watch, getCurrentInstance } from 'vue'
+import { useRouter } from 'vue-router'
 import ConfirmDialogBox from '@/components/ConfirmDialogBox.vue'
 const props = defineProps({
   doctype: {
@@ -125,6 +168,8 @@ const showDataFieldsModal = ref(false)
 
 const { document } = useDocument(props.doctype, props.docname)
 const showConfirmDialogBox = ref(false)
+const showAmendConfirm = ref(false)       // ← new
+const router = useRouter()
 
 
 const tabs = createResource({
@@ -133,7 +178,43 @@ const tabs = createResource({
   params: { doctype: props.doctype, type: 'Data Fields' },
   auto: true,
 })
+// ── Amend resource ──────────────────────────────────────────────
+const amendResource = createResource({
+  url: 'frappe.client.insert',
+  onSuccess(newDoc) {
+   
+    toast.success(__(`New draft ${newDoc.name} created from ${props.docname}`))
+     console.log('Amended doc:', newDoc)
+    // Navigate to the new amended doc
+    router.push({
+          name: 'Quotation',
+          params: { quotationId: newDoc.name },
+        })
+    },
+  onError(err) {
+    toast.error(__(`${err.message || 'Something went wrong'}`))
+  },
+})
 
+function amendDocument() {
+  showAmendConfirm.value = false
+
+  // Build a fresh draft copy, stripping submission-related fields
+  const docCopy = { ...document.doc }
+
+  // Fields to reset for the amended draft
+  delete docCopy.name
+  delete docCopy.creation
+  delete docCopy.modified
+  delete docCopy.modified_by
+  delete docCopy.owner
+
+  docCopy.docstatus = 0
+  docCopy.amended_from = props.docname
+  
+  amendResource.submit({ doc: { doctype: props.doctype, ...docCopy } })
+}
+// ───────────────────────────────────────────────────────────────
 function saveChanges() {
   if (!document.isDirty) return
 
