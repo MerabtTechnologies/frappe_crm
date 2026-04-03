@@ -46,7 +46,9 @@
         @click.stop="downloadExcel"
         
       />
+
       <!-- end here -->
+      
       <AxisChart v-if="item.data" :config="item.data" />
     </div>
     <div
@@ -62,8 +64,14 @@
         @click.stop="downloadExcel"
       />
       
-      <DonutChart v-if="item.data" :config="item.data" />
-  </div>
+      <!-- <DonutChart v-if="item.data" :config="item.data"  -->
+      
+      <ClickableDonutChart 
+          v-if="item.data" 
+          :config="item.data" 
+          @click="handleEChartClick"
+        />
+    </div>
      <!-- Download icon button -->
     </div>
   </div>
@@ -73,11 +81,12 @@
 
 //------- For Download Excel Data For donut Chart--------
 
-import { AxisChart, Button, DonutChart, NumberChart, Tooltip } from 'frappe-ui'
+import { AxisChart, Button, NumberChart, Tooltip } from 'frappe-ui'
 import { computed, inject } from 'vue'
 import { createResource} from 'frappe-ui'
 import { usersStore } from '@/stores/users'
 import { useRouter } from 'vue-router'
+import ClickableDonutChart from './Echart.vue' 
 
 const { isSalesMasterManager } = usersStore()
 
@@ -505,6 +514,203 @@ else {
 }
 
 // ------------End--------------------
+
+
+
+// -----Filter handling for Vue E chart click starts here-------
+function handleEChartClick(segment) {
+
+  const chartName = props.item?.name
+
+  if (!chartName || !segment) {
+    return
+  }
+
+  const filtersArray = []
+  let routeName = ''
+  const value = segment.name  // ✅ IMPORTANT FIX
+
+  if (chartName === 'leads_by_source') {
+    routeName = 'Leads'
+
+    filtersArray.push({
+      fieldname: 'source',
+      condition: 'equals',
+      value: value   // ✅ use segment.name
+    })
+
+    // Date filter
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    }
+  }
+    else if (chartName === 'deals_by_source') {
+    routeName = 'Deals'
+    
+    // Handle 'Empty' source (deals with no source set)
+    if (value === 'Empty') {
+      filtersArray.push({
+        fieldname: 'source',
+        condition: 'is',
+        value: 'not set'
+      })
+    } else {
+      filtersArray.push({
+        fieldname: 'source',
+        condition: 'equals',
+        value: value
+      })
+    }
+  }
+  
+  else if (chartName === 'deals_by_stage_donut') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: value
+    })
+  } 
+// ✅ Handle Qualified Lead Status
+else if (chartName === 'user_status_leads') {
+  routeName = 'Leads'
+  
+  if (value === 'Qualified') {
+    // Show only qualified leads
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Qualified'
+    })
+  } else if (value === 'Other') {
+    // Show all leads EXCEPT qualified
+    filtersArray.push({
+      fieldname: 'status',
+      condition: '!=',
+      value: 'Qualified'
+    })
+  }
+  
+  // Add the customer filter (empty customer - only ours)
+  filtersArray.push({
+    fieldname: 'custom_customer',
+    condition: 'is',
+    value: 'not set'
+  })
+  
+  // Date filter
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  }
+}
+
+else if (chartName === 'tasks_by_stage') {
+  routeName = 'Tasks'
+  filtersArray.push({
+    fieldname: 'status',
+    condition: 'equals',
+    value: value
+  })
+  // Date filter
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({       
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } 
+}
+
+else if (chartName === 'deals_by_stage_deal_value') {
+  routeName = 'Deals'
+  filtersArray.push({
+    fieldname: 'status',
+    condition: 'equals',
+    value: value
+  })
+  filtersArray.push({
+    fieldname: 'deal_value',
+    condition: 'is',
+    value: 'set'
+  })  
+  // Date filter
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: 'between',   
+      value: [fromDate.value, toDate.value]
+    })
+  }
+}
+
+// ✅ Handle Won Deals by Source
+else if (chartName === 'won_deals_by_source_for_owner_donut') {
+ 
+  routeName = 'Deals' 
+  if (value === 'Not Assigned') {
+    filtersArray.push({
+      fieldname: 'source',
+      condition: 'is',
+      value: 'not set'
+    })
+  } else {
+    filtersArray.push({
+      fieldname: 'source',
+      condition: 'equals',
+      value: value
+    })
+  }
+  filtersArray.push({
+    fieldname: 'status',
+    condition: 'equals',
+    value: 'Won'
+  })  
+
+  // Date filter
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  }
+  console.log('=== DEBUG ===');
+  console.log('Raw value:', value);
+  console.log('Value type:', typeof value);
+  console.log('Value length:', value?.length);
+  console.log('Is "Not Assigned"?', value === 'Not Assigned');
+  console.log('Is "Empty"?', value === 'Empty');
+  
+  // Check for hidden characters
+  if (value) {
+    console.log('Character codes:', [...value].map(c => c.charCodeAt(0)));
+  }
+  console.log('Won Deals by Source filters:', filtersArray)
+  
+  router.push({
+    name: 'Deals',
+    query: { filters: JSON.stringify(filters) }
+  })
+}
+
+  router.push({
+    name: routeName,
+    query: {
+      filters: JSON.stringify(filtersArray)
+    }
+  })
+}
+
+
+
 const props = defineProps({
   index: {
     type: Number,
