@@ -22,8 +22,12 @@
                 <LucideBadge v-else class="size-20 text-yellow-500" />
               </div>
               <div>
-                <h2 class="text-1xl font-medium text-ink-gray-9 text-center">{{ modelData.title }}</h2>
-                <div class="mt-2 text-lg text-ink-gray-7 text-center">{{ modelData.message }}</div>
+                <h2 v-if="modelData.type === 'bad'" class="text-1xl font-bold text-red-500 text-center ">{{ modelData.title }}</h2>
+                <h2 v-else-if="modelData.type === 'good'" class="text-1xl font-bold text-green-600 text-center">{{ modelData.title }}</h2>
+                <h2 v-else class="text-1xl font-bold text-yellow-500 text-center">{{ modelData.title }}</h2>
+                <div v-if="modelData.type === 'bad'" class="mt-2 text-lg text-red-500 text-center">{{ modelData.message }}</div>
+                <div v-else-if="modelData.type === 'good'" class="mt-2 text-lg text-green-600 text-center">{{ modelData.message }}</div>
+                <div v-else class="mt-2 text-lg text-yellow-500 text-center">{{ modelData.message }}</div>
               </div>
             </div>
           </div>
