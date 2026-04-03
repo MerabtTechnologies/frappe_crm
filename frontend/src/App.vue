@@ -68,8 +68,13 @@ import { toast, createResource, Dialog } from 'frappe-ui'
 import LucideBadge from '~icons/lucide/badge-info'
 import LucideFrown from '~icons/lucide/frown'
 import LucideSmile from '~icons/lucide/smile'
-import { _merabtSettingsResource } from '@/composables/settings'
 import { usersStore } from '@/stores/users'
+
+const _merabtSettingsResource = createResource({
+  url: 'merabt_crm.portal_api.api.get_merabt_settings',
+  cache: 'Merabt Settings',
+  auto: true,
+})
 
 let interval = null;
 // Firebase configuration

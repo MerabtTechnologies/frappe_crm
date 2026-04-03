@@ -52,7 +52,7 @@ createResource({
 export const merabtNewLeadColour = ref(false)
 export const merabtSettings = ref({})
 
-export const _merabtSettingsResource = createResource({
+createResource({
   url: 'merabt_crm.portal_api.api.get_merabt_settings',
   cache: 'Merabt Settings',
   auto: true,
