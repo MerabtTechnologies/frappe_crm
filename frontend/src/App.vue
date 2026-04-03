@@ -24,10 +24,10 @@
               <div>
                 <h2 v-if="modelData.type === 'bad'" class="text-1xl font-bold text-red-500 text-center ">{{ modelData.title }}</h2>
                 <h2 v-else-if="modelData.type === 'good'" class="text-1xl font-bold text-green-600 text-center">{{ modelData.title }}</h2>
-                <h2 v-else class="text-1xl font-bold text-yellow-500 text-center">{{ modelData.title }}</h2>
+                <h2 v-else class="text-1xl font-bold text-ink-gray-8 text-center">{{ modelData.title }}</h2>
                 <div v-if="modelData.type === 'bad'" class="mt-2 text-lg text-red-500 text-center">{{ modelData.message }}</div>
                 <div v-else-if="modelData.type === 'good'" class="mt-2 text-lg text-green-600 text-center">{{ modelData.message }}</div>
-                <div v-else class="mt-2 text-lg text-yellow-500 text-center">{{ modelData.message }}</div>
+                <div v-else class="mt-2 text-lg text-ink-gray-7 text-center">{{ modelData.message }}</div>
               </div>
             </div>
           </div>
