@@ -45,7 +45,7 @@
       />
       <!-- Amend Button -->
         <button
-          v-if="document.doc.hasOwnProperty('amended_from') && document.doc.docstatus === 2"
+          v-if="document.doc.hasOwnProperty('amended_from') && document.doc.docstatus === 2 &&hasAmendedChild.data === 0"
           :disabled="amendResource.loading"
           @click="showAmendConfirm = true"
           style="
@@ -118,15 +118,15 @@
     }"
     />
   <ConfirmDialogBox
-    v-if="showAmendConfirm"
+    v-if=" showAmendConfirm && document.doc.hasOwnProperty('amended_from') && document.doc.docstatus === 2 && hasAmendedChild.data === 0"
     v-model="showAmendConfirm"
     :doctype="doctype"
     :docname="docname"
     :title="'Amend ' + docname + '?'"
-    message="This will create a new draft copy of this document for editing."
-    confirmText="Amend"
+    :message="'This will create a new draft copy of ' + docname + ' for editing.'"
+    :confirmText="__('Amend')"
     confirmIcon="edit"
-    confirmButtonColor="orange"
+    confirmButtonColor="blue"
     name="Employee Task Assignments"
     @confirm="amendDocument"
     @cancel="showAmendConfirm = false"
@@ -170,7 +170,15 @@ const { document } = useDocument(props.doctype, props.docname)
 const showConfirmDialogBox = ref(false)
 const showAmendConfirm = ref(false)       // ← new
 const router = useRouter()
-
+// Check if this doc has already been amended (a child exists with amended_from = this docname)
+const hasAmendedChild = createResource({
+  url: 'frappe.client.get_count',
+  params: {
+    doctype: props.doctype,
+    filters: { amended_from: props.docname },
+  },
+  auto: true,
+})
 
 const tabs = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_fields_layout',
@@ -237,6 +245,14 @@ function saveChanges() {
       onSuccess: () => emit('afterSave', changes),
     })
   }
+  document.save.submit(null, {
+    onSuccess: () => {
+      // CRITICAL: Reload the document to get server-calculated values
+      document.reload() 
+      emit('afterSave', changes)
+      toast.success(__('Saved successfully'))
+    },
+  })
 }
 
 function submitChanges() {
