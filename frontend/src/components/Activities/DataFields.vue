@@ -223,36 +223,138 @@ function amendDocument() {
   amendResource.submit({ doc: { doctype: props.doctype, ...docCopy } })
 }
 // ───────────────────────────────────────────────────────────────
-function saveChanges() {
-  if (!document.isDirty) return
+// function saveChanges() {
+//   if (!document.isDirty) return
 
-  const updatedDoc = { ...document.doc }
-  const oldDoc = { ...document.originalDoc }
+//   const updatedDoc = { ...document.doc }
+//   const oldDoc = { ...document.originalDoc }
+
+//   const changes = Object.keys(updatedDoc).reduce((acc, key) => {
+//     if (JSON.stringify(updatedDoc[key]) !== JSON.stringify(oldDoc[key])) {
+//       acc[key] = updatedDoc[key]
+//     }
+//     return acc
+//   }, {})
+
+//   const hasListener = attrs['onBeforeSave'] !== undefined
+
+//   if (hasListener) {
+//     emit('beforeSave', changes)
+//   } else {
+//     document.save.submit(null, {
+//       onSuccess: () => emit('afterSave', changes),
+//     })
+//   }
+//   document.save.submit(null, {
+//     onSuccess: () => {
+//       // CRITICAL: Reload the document to get server-calculated values
+//       document.reload() 
+//       emit('afterSave', changes)
+//       toast.success(__('Saved successfully'))
+//     },
+//   })
+// }
+
+// 1. Resource to fetch Item details with logging
+const itemDetailsResource = createResource({
+  url: 'frappe.client.get_value',
+  onBeforeSubmit() {
+    console.log('--- [Item Fetch] Starting to fetch item data from server ---');
+  },
+  onSuccess(data) {
+    console.log('--- [Item Fetch] Success! Received data:', data);
+  },
+  onError(err) {
+    console.error('--- [Item Fetch] Error fetching item:', err);
+  }
+})
+
+// 2. Updated saveChanges function
+function saveChanges() {
+  if (!document.isDirty) {
+    console.log('--- [Save] No changes detected. Skipping save. ---');
+    return;
+  }
+
+  console.log('--- [Save] Initiating document save... ---');
+
+  const updatedDoc = { ...document.doc };
+  const oldDoc = { ...document.originalDoc };
 
   const changes = Object.keys(updatedDoc).reduce((acc, key) => {
     if (JSON.stringify(updatedDoc[key]) !== JSON.stringify(oldDoc[key])) {
-      acc[key] = updatedDoc[key]
+      acc[key] = updatedDoc[key];
     }
-    return acc
-  }, {})
+    return acc;
+  }, {});
 
-  const hasListener = attrs['onBeforeSave'] !== undefined
-
-  if (hasListener) {
-    emit('beforeSave', changes)
-  } else {
-    document.save.submit(null, {
-      onSuccess: () => emit('afterSave', changes),
-    })
-  }
   document.save.submit(null, {
-    onSuccess: () => {
-      // CRITICAL: Reload the document to get server-calculated values
-      document.reload() 
-      emit('afterSave', changes)
-      toast.success(__('Saved successfully'))
+    onSuccess: async () => {
+      console.log('--- [Save] Document saved successfully to database. ---');
+
+      // Trigger the auto-addition logic
+      if (props.doctype === 'Quotation') {
+        console.log('--- [Process] DocType is Quotation. Checking auto-item logic... ---');
+        await handleAutoItemAddition();
+      }
+
+      document.reload(); 
+      emit('afterSave', changes);
+      toast.success(__('Saved successfully'));
     },
-  })
+  });
+}
+
+// 3. Logic with detailed logs for the Child Table
+async function handleAutoItemAddition() {
+  const targetItemCode = 'YOUR_ITEM_CODE_HERE'; // Replace with your actual Item Code
+  
+  console.log(`--- [Logic] Checking if ${targetItemCode} already exists in items table... ---`);
+
+  // Check if item already exists
+  const exists = document.doc.items.find(row => row.item_code === targetItemCode);
+  
+  if (exists) {
+    console.warn(`--- [Logic] Item ${targetItemCode} already exists. Aborting to prevent duplicates. ---`);
+    return;
+  }
+
+  try {
+    console.log(`--- [Logic] Item not found. Fetching details for: ${targetItemCode} ---`);
+    
+    const itemData = await itemDetailsResource.submit({
+      doctype: 'Item',
+      filters: { name: targetItemCode },
+      fieldname: ['item_name', 'description', 'standard_rate', 'stock_uom']
+    });
+
+    if (itemData) {
+      console.log('--- [Logic] Preparing to push new row to child table... ---');
+      
+      const newRow = {
+        doctype: 'Quotation Item',
+        item_code: targetItemCode,
+        item_name: itemData.item_name,
+        description: itemData.description,
+        qty: 1,
+        rate: itemData.standard_rate || 0,
+        uom: itemData.stock_uom,
+        amount: (itemData.standard_rate || 0) * 1,
+      };
+
+      document.doc.items.push(newRow);
+      
+      console.log('--- [Logic] New row added to document.doc.items:', newRow);
+      
+      // Force UI to show "Save" button again
+      document.isDirty = true;
+      console.log('--- [Logic] document.isDirty set to true. User can now save the new item. ---');
+    } else {
+      console.error('--- [Logic] No data returned for this Item Code. Check if the Item exists in Item Master. ---');
+    }
+  } catch (error) {
+    console.error('--- [Logic] Critical Error in handleAutoItemAddition:', error);
+  }
 }
 
 function submitChanges() {
@@ -282,19 +384,89 @@ function showConfirm() {
   showConfirmDialogBox.value = true
 }
 
+// watch(
+//   () => document.doc,
+//   (newValue, oldValue) => {
+//     if (!oldValue) return
+//     if (newValue && oldValue) {
+//       const isDirty =
+//         JSON.stringify(newValue) !== JSON.stringify(document.originalDoc)
+//       document.isDirty = isDirty
+//       if (isDirty) {
+//         document.save.loading = false
+//       }
+//     }
+//   },
+//   { deep: true },
+// )
+// 1. Watch the items array for changes in item_code
 watch(
-  () => document.doc,
-  (newValue, oldValue) => {
-    if (!oldValue) return
-    if (newValue && oldValue) {
-      const isDirty =
-        JSON.stringify(newValue) !== JSON.stringify(document.originalDoc)
-      document.isDirty = isDirty
-      if (isDirty) {
-        document.save.loading = false
+  () => document.doc.items,
+  (newItems) => {
+    if (!newItems) return;
+
+    newItems.forEach(async (row, index) => {
+      // Trigger: Item is selected, but not yet processed
+      if (row.item_code && !row.item_name) {
+        try {
+          // 1. Fetch the Item Document (The Source)
+          const itemData = await createResource({
+            url: 'frappe.client.get',
+            params: { doctype: 'Item', name: row.item_code }
+          }).submit();
+
+          // 2. Fetch Item Price
+          const priceData = await createResource({
+            url: 'frappe.client.get_value',
+            params: {
+              doctype: 'Item Price',
+              filters: { item_code: row.item_code, selling: 1 },
+              fieldname: 'price_list_rate'
+            }
+          }).submit();
+
+          if (itemData) {
+            // --- FULLY DYNAMIC MAPPING ---
+            // We loop through the 'row' object keys. 
+            // If a key in the Row exists in the Item Data, we sync it.
+            for (const key in row) {
+              // Handle your specific naming edge case for 'recurring'
+              if (key === 'custom__is_recurring_item' && itemData.custom_is_recurring_item !== undefined) {
+                row[key] = itemData.custom_is_recurring_item;
+                continue;
+              }
+
+              // Map standard differences
+              if (key === 'rate') {
+                row.rate = priceData?.price_list_rate || itemData.standard_rate || 0;
+                continue;
+              }
+              if (key === 'uom') {
+                row.uom = itemData.stock_uom || row.uom;
+                continue;
+              }
+
+              // Generic Match: If 'item_name' exists in both, copy it.
+              if (itemData[key] !== undefined) {
+                row[key] = itemData[key];
+              }
+            }
+
+            row.qty = row.qty || 1;
+            row.amount = row.rate * row.qty;
+            document.isDirty = true;
+          }
+        } catch (error) {
+          console.error("Dynamic Fetch Failed:", error);
+        }
       }
-    }
+
+      // Live Calculation
+      const q = parseFloat(row.qty) || 0;
+      const r = parseFloat(row.rate) || 0;
+      row.amount = q * r;
+    });
   },
-  { deep: true },
-)
+  { deep: true }
+);
 </script>
