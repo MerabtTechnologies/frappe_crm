@@ -48,8 +48,17 @@
       />
 
       <!-- end here -->
-      
-      <AxisChart v-if="item.data" :config="item.data" />
+    <div
+        v-else-if="item.type == 'axis_chart'"
+        class="h-full w-full rounded-md bg-surface-white shadow cursor-pointer"
+      >
+        <AxisEchart 
+          v-if="item.data" 
+          :config="item.data"
+          @click="handleAxisChartClick"
+        />
+      </div>
+      <!-- <AxisChart v-if="item.data" :config="item.data" /> -->
     </div>
     <div
       v-else-if="item.type == 'donut_chart'"
@@ -86,9 +95,8 @@ import { computed, inject } from 'vue'
 import { createResource} from 'frappe-ui'
 import { usersStore } from '@/stores/users'
 import { useRouter } from 'vue-router'
+import AxisEchart from './AxisEchart.vue'
 import ClickableDonutChart from './Echart.vue' 
-
-const { isSalesMasterManager } = usersStore()
 
 const downloadExcelResource = createResource({
   url: 'merabt_crm.merabt_crm.override.custom_chart.download_donut_chart_excel',
@@ -710,7 +718,139 @@ else if (chartName === 'won_deals_by_source_for_owner_donut') {
 }
 
 
+// -----Filter handling for Axis chart click starts here-------
+function handleAxisChartClick({ territory }) {
+  const chartName = props.item?.name
 
+  if (!chartName) {
+    return
+  }
+  
+  const filtersArray = []
+  let routeName = ''
+  
+  // Handle Deals by Territory
+  if (chartName === 'deals_by_territory') {
+    routeName = 'Deals'
+    
+    if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
+      if (territory === 'Empty' || territory === 'Not Assigned') {
+        filtersArray.push({
+          fieldname: 'territory',
+          condition: 'is',
+          value: 'not set'
+        })
+      } else {
+        filtersArray.push({
+          fieldname: 'territory',
+          condition: '=',
+          value: territory
+        })
+      }
+    } else {
+   
+      return
+    }
+  }
+  
+  // Handle Deals by Salesperson
+ 
+
+ else if (chartName === 'deals_by_salesperson') {
+  routeName = 'Deals'
+  
+  const salespersonName = territory  
+  
+  if (salespersonName && salespersonName !== 'null' && salespersonName !== 'undefined' && salespersonName !== '') {
+    
+    const getUserEmail = createResource({
+      url: 'frappe.client.get_value',
+      params: {
+        doctype: 'User',
+        filters: { full_name: salespersonName },
+        fieldname: 'name'  
+      },
+      auto: false,
+      onSuccess: (data) => {
+        if (data && data.name) {
+          const email = data.name  
+          
+          filtersArray.push({
+            fieldname: 'deal_owner',
+            condition: '=',
+            value: email
+          })          
+          // Add date filter
+          if (fromDate?.value && toDate?.value) {
+            filtersArray.push({
+              fieldname: 'creation',
+              condition: 'between',
+              value: [fromDate.value, toDate.value]
+            })
+          }
+          router.push({
+            name: routeName,
+            query: {
+              filters: JSON.stringify(filtersArray)
+            }
+          })
+        } else {
+        }
+      },
+      onError: (err) => {
+        console.error(' Error fetching user email:', err)
+      }
+    })
+    
+    // Fetch the email
+    getUserEmail.fetch()
+    return  
+  } else {
+    return
+  }
+}
+
+  if (routeName) {
+    // ✅ Add date filter
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    }
+    
+ 
+    if (chartName === 'deals_by_territory') {
+      const owner = filters?.user || null
+      if (owner && owner !== 'Total') {
+        if (owner === 'Unassigned') {
+          filtersArray.push({
+            fieldname: 'deal_owner',
+            condition: 'is',
+            value: 'not set'
+          })
+        } else {
+          filtersArray.push({
+            fieldname: 'deal_owner',
+            condition: '=',
+            value: owner
+          })
+        }
+        console.log('✅ Added owner filter:', owner)
+      }
+    }
+
+   
+    // Navigate with filters
+    router.push({
+      name: routeName,
+      query: {
+        filters: JSON.stringify(filtersArray)
+      }
+    })
+  }
+}
 const props = defineProps({
   index: {
     type: Number,
@@ -724,6 +864,9 @@ const props = defineProps({
     type: Boolean,
     default: false,
   }
+
+
+  
 
 })
 </script>
