@@ -230,7 +230,13 @@ const routes = [
   path: '/performance-review',
   name: 'PerformanceReview',
   component: () => import('@/components/DealPerfomanceSummary.vue'),
-},
+  },
+  {
+  alias: '/task-follow-up',
+  path: '/task-follow-up/view/:viewType?',
+  name: 'TaskFollowUp',
+  component: () => import('@/pages/TaskFollowUp.vue'),
+  },
 
 
 

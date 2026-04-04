@@ -255,6 +255,11 @@ const links = [
     to: 'Tasks',
   },
   {
+    label: 'Task Follow Up',
+    icon: TaskIcon,
+    to: 'TaskFollowUp',
+  },
+  {
     label: 'Call Logs',
     icon: PhoneIcon,
     to: 'Call Logs',
