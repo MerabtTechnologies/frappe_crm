@@ -439,6 +439,7 @@ import {
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useActiveTabManager } from '@/composables/useActiveTabManager'
+import QuotationIcon from '../components/Icons/QuotationIcon.vue'
 
 const { brand } = getSettings()
 const { $dialog, $socket, makeCall } = globalStore()
@@ -629,7 +630,7 @@ const tabs = computed(() => {
     {
       name: 'Quotations',
       label: __('Quotations'),
-      icon: AttachmentIcon,
+      icon: QuotationIcon,
     },
     {
       name: 'WhatsApp',
