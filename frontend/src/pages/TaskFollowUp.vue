@@ -34,7 +34,10 @@
     <div class="overflow-x-auto">
       <div class="flex gap-4 md:grid md:grid-cols-3">
       <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="font-semibold mb-2 text-center border-solid border-b border-gray-300">{{ __('Today') }}</div>
+        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
+          <div class="font-semibold mb-2 text-center "">{{ __('Today') }}</div>
+          <div class="font-semibold mb-2 text-center ">{{ `[${todayItems.length}]` }}</div>
+        </div>
         <div class="flex flex-col gap-2">
           <TaskItem
             v-for="item in todayItems"
@@ -48,7 +51,10 @@
       </div>
 
       <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="font-semibold mb-2 text-center border-solid border-b border-gray-300">{{ __('Overdue') }}</div>
+        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
+          <div class="font-semibold mb-2 text-center">{{ __('Overdue') }}</div>
+          <div class="font-semibold mb-2 text-center">{{ `[${overdueItems.length}]` }}</div>
+        </div>
         <div class="flex flex-col gap-2">
           <TaskItem
             v-for="item in overdueItems"
@@ -62,7 +68,10 @@
       </div>
 
       <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="font-semibold mb-2 text-center border-solid border-b border-gray-300">{{ __('Upcoming') }}</div>
+        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
+          <div class="font-semibold mb-2 text-center">{{ __('Upcoming') }}</div>
+          <div class="font-semibold mb-2 text-center">{{ `[${upcomingItems.length}]` }}</div>
+        </div>
         <div class="flex flex-col gap-2">
           <TaskItem
             v-for="item in upcomingItems"
@@ -358,7 +367,3 @@ const openTaskFromURL = () => {
   }
 }
 </script>
-
-
-filter the tasks with status not equal to 'Completed' or 'Cancelled' as these are not relevant for follow up
-show only pending tasks in the three columns (Today, Overdue, Upcoming) and hide completed or cancelled tasks
