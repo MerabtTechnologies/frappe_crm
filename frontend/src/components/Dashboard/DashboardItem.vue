@@ -690,12 +690,7 @@ else if (chartName === 'won_deals_by_source_for_owner_donut') {
       value: [fromDate.value, toDate.value]
     })
   }
-  console.log('=== DEBUG ===');
-  console.log('Raw value:', value);
-  console.log('Value type:', typeof value);
-  console.log('Value length:', value?.length);
-  console.log('Is "Not Assigned"?', value === 'Not Assigned');
-  console.log('Is "Empty"?', value === 'Empty');
+
   
   // Check for hidden characters
   if (value) {
@@ -719,18 +714,68 @@ else if (chartName === 'won_deals_by_source_for_owner_donut') {
 
 
 // -----Filter handling for Axis chart click starts here-------
+// -----Filter handling for Axis chart click starts here-------
 function handleAxisChartClick({ territory }) {
   const chartName = props.item?.name
-
   if (!chartName) {
+    console.error('No chart name')
     return
   }
   
   const filtersArray = []
   let routeName = ''
   
-  // Handle Deals by Territory
-  if (chartName === 'deals_by_territory') {
+  // ========== LEAD SOURCE PERFORMANCE (PUT THIS FIRST FOR TESTING) ==========
+  // Leads by Source Performance has some unique handling so we are putting it first to test and verify before other charts (as they are working fine)
+  if (chartName === 'leads_by_source_performance') {
+    routeName = 'Leads'
+    
+    if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
+      const sourceName = territory
+      
+      if (sourceName === 'Not Assigned') {
+        filtersArray.push({
+          fieldname: 'source',
+          condition: 'is',
+          value: 'not set'
+        })
+      } else {
+        filtersArray.push({
+          fieldname: 'source',
+          condition: '=',
+          value: sourceName
+        })
+      }
+      
+      filtersArray.push({
+        fieldname: 'custom_customer',
+        condition: 'is',
+        value: 'not set'
+      })
+      
+      if (fromDate?.value && toDate?.value) {
+        filtersArray.push({
+          fieldname: 'creation',
+          condition: 'between',
+          value: [fromDate.value, toDate.value]
+        })
+      }
+      
+      router.push({
+        name: routeName,
+        query: {
+          filters: JSON.stringify(filtersArray)
+        }
+      })
+      return
+    } else {
+      console.error('❌ No source received')
+      return
+    }
+  }
+  
+  // ========== DEALS BY TERRITORY ==========
+  else if (chartName === 'deals_by_territory') {
     routeName = 'Deals'
     
     if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
@@ -747,71 +792,8 @@ function handleAxisChartClick({ territory }) {
           value: territory
         })
       }
-    } else {
-   
-      return
     }
-  }
-  
-  // Handle Deals by Salesperson
- 
-
- else if (chartName === 'deals_by_salesperson') {
-  routeName = 'Deals'
-  
-  const salespersonName = territory  
-  
-  if (salespersonName && salespersonName !== 'null' && salespersonName !== 'undefined' && salespersonName !== '') {
     
-    const getUserEmail = createResource({
-      url: 'frappe.client.get_value',
-      params: {
-        doctype: 'User',
-        filters: { full_name: salespersonName },
-        fieldname: 'name'  
-      },
-      auto: false,
-      onSuccess: (data) => {
-        if (data && data.name) {
-          const email = data.name  
-          
-          filtersArray.push({
-            fieldname: 'deal_owner',
-            condition: '=',
-            value: email
-          })          
-          // Add date filter
-          if (fromDate?.value && toDate?.value) {
-            filtersArray.push({
-              fieldname: 'creation',
-              condition: 'between',
-              value: [fromDate.value, toDate.value]
-            })
-          }
-          router.push({
-            name: routeName,
-            query: {
-              filters: JSON.stringify(filtersArray)
-            }
-          })
-        } else {
-        }
-      },
-      onError: (err) => {
-        console.error(' Error fetching user email:', err)
-      }
-    })
-    
-    // Fetch the email
-    getUserEmail.fetch()
-    return  
-  } else {
-    return
-  }
-}
-
-  if (routeName) {
-    // ✅ Add date filter
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
@@ -820,29 +802,6 @@ function handleAxisChartClick({ territory }) {
       })
     }
     
- 
-    if (chartName === 'deals_by_territory') {
-      const owner = filters?.user || null
-      if (owner && owner !== 'Total') {
-        if (owner === 'Unassigned') {
-          filtersArray.push({
-            fieldname: 'deal_owner',
-            condition: 'is',
-            value: 'not set'
-          })
-        } else {
-          filtersArray.push({
-            fieldname: 'deal_owner',
-            condition: '=',
-            value: owner
-          })
-        }
-        console.log('✅ Added owner filter:', owner)
-      }
-    }
-
-   
-    // Navigate with filters
     router.push({
       name: routeName,
       query: {
@@ -850,7 +809,181 @@ function handleAxisChartClick({ territory }) {
       }
     })
   }
+  
+  // ========== DEALS BY SALESPERSON ==========
+  else if (chartName === 'deals_by_salesperson') {
+    routeName = 'Deals'
+    
+    const salespersonName = territory  
+    
+    if (salespersonName && salespersonName !== 'null' && salespersonName !== 'undefined' && salespersonName !== '') {
+      const getUserEmail = createResource({
+        url: 'frappe.client.get_value',
+        params: {
+          doctype: 'User',
+          filters: { full_name: salespersonName },
+          fieldname: 'name'  
+        },
+        auto: false,
+        onSuccess: (data) => {
+          if (data && data.name) {
+            const email = data.name  
+            
+            filtersArray.push({
+              fieldname: 'deal_owner',
+              condition: '=',
+              value: email
+            })          
+            
+            if (fromDate?.value && toDate?.value) {
+              filtersArray.push({
+                fieldname: 'creation',
+                condition: 'between',
+                value: [fromDate.value, toDate.value]
+              })
+            }
+            
+            router.push({
+              name: routeName,
+              query: {
+                filters: JSON.stringify(filtersArray)
+              }
+            })
+          }
+        },
+        onError: (err) => {
+          console.error('Error fetching user email:', err)
+        }
+      })
+      
+      getUserEmail.fetch()
+      return  
+    }
+  }
+  // Lost deal reasons chart click handling
+else if (chartName === 'lost_deal_reasons'){
+  routeName = 'Deals'
+  
+  if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
+    filtersArray.push({
+      fieldname: 'lost_reason',
+      condition: '=',
+      value: territory
+    })
+    
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    }
+    filtersArray.push({
+      fieldname: 'status',
+      condition: '=',
+      value: 'Lost'
+    })  
+  
+    router.push({
+      name: routeName,
+      query: {
+        filters: JSON.stringify(filtersArray)
+      }
+    })
+  } else {
+    console.error('❌ No lost reason received')
+    return
+  }
 }
+
+// Conversion ratio by salesperson click handling
+
+else if (chartName === 'conversion_ratio_by_salesperson') {
+  
+  let salesperson = territory
+  routeName = 'Deals'
+  const filtersArray = []
+  
+  // Handle "Unknown" case
+  if (salesperson === 'Unknown') {
+    filtersArray.push({
+      fieldname: 'deal_owner',
+      condition: 'in',
+      value: ['', null]
+    })
+  } 
+  // Handle valid salesperson
+  else if (salesperson && salesperson !== 'null' && salesperson !== 'undefined' && salesperson !== '') {
+    filtersArray.push({
+      fieldname: 'deal_owner',
+      condition: '=',
+      value: salesperson
+    })
+  } else {
+    console.error('❌ No valid salesperson received')
+    return
+  }
+  
+  // Add date filter
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  }
+  
+  
+  // Check if router exists
+  if (!router) {
+    console.error('❌ Router is not defined!')
+    return
+  }
+  
+  router.push({
+    name: routeName,
+    query: {
+      filters: JSON.stringify(filtersArray)
+    }
+  })
+  return
+}
+// Deal Value by Stage click handling
+  else if (chartName === 'deal_value_by_stage') {
+    routeName = 'Deals'
+    
+    const stageName = territory  
+    
+    if (stageName && stageName !== 'null' && stageName !== 'undefined' && stageName !== '') {
+      filtersArray.push({
+        fieldname: 'status',
+        condition: '=',
+        value: stageName
+      })
+      filtersArray.push({
+        fieldname: 'deal_value',
+        condition: 'is',
+        value: 'set'
+      })
+    }
+    
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    }
+  }
+  
+    router.push({
+      name: routeName,
+      query: {
+        filters: JSON.stringify(filtersArray)
+      }
+    })
+  }
+
 const props = defineProps({
   index: {
     type: Number,
