@@ -166,13 +166,78 @@ const filters = inject('filters', null)
 
 // ------download excel code ends here -------
 
+async function getUserEmailFromName(fullName) {
+  return new Promise((resolve, reject) => {
+    const getUserEmail = createResource({
+      url: 'frappe.client.get_value',
+      params: {
+        doctype: 'User',
+        filters: { full_name: fullName },
+        fieldname: 'name'
+      },
+      auto: false,
+      onSuccess: (data) => {
+        if (data && data.name) {
+          resolve(data.name) // Return email
+        } else {
+          resolve(null)
+        }
+      },
+      onError: (err) => {
+        console.error('Error fetching user email:', err)
+        reject(err)
+      }
+    })
+    
+    getUserEmail.fetch()
+  })
+}
 
 const router = useRouter()
+// Simple cache for full_name -> email lookups to avoid repeated requests
+const userEmailCache = {}
 
-
+// Helper function to apply user filter
+async function applyUserFilter(filtersArray, routeName) {
+  const owner = filters?.user || null
+  
+  if (owner && (routeName === 'Leads' || routeName === 'Deals' || routeName === 'Tasks' || routeName === 'Call Logs')) {
+    if (owner === 'Unassigned') {
+      let field = ''
+      if (routeName === 'Leads') field = 'lead_owner'
+      else if (routeName === 'Deals') field = 'deal_owner'
+      else if (routeName === 'Tasks') field = 'owner'
+      else if (routeName === 'Call Logs') field = 'owner'
+      
+      if (field) {
+        filtersArray.push({ fieldname: field, condition: 'is', value: 'not set' })
+      }
+    } else if (owner !== 'Total') {
+      let email = userEmailCache[owner]
+      if (!email) {
+        try {
+          email = await getUserEmailFromName(owner)
+          if (email) userEmailCache[owner] = email
+        } catch (err) {
+          console.error('Error fetching email for owner:', err)
+        }
+      }
+      
+      let field = ''
+      if (routeName === 'Leads') field = 'lead_owner'
+      else if (routeName === 'Deals') field = 'deal_owner'
+      else if (routeName === 'Tasks') field = 'owner'
+      else if (routeName === 'Call Logs') field = 'owner'
+      
+      if (field) {
+        filtersArray.push({ fieldname: field, condition: 'equals', value: email || owner })
+      }
+    }
+  }
+}
 
 // -----Filter handling for chart click starts here-------
-function handleChartClick() {
+async function handleChartClick() {
   const chartName = props.item?.name
   const owner = filters?.user || null
 
@@ -182,9 +247,11 @@ function handleChartClick() {
   }
 
   const filtersArray = []
+  let routeName = ''
 
   // ✅ STATUS (based on chart)
   if (chartName === 'open_leads') {
+    routeName = 'Leads'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
@@ -192,6 +259,7 @@ function handleChartClick() {
     })
   }
   else if (chartName === 'converted_leads') {
+    routeName = 'Leads'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
@@ -199,62 +267,15 @@ function handleChartClick() {
     })
   }
   else if (chartName === 'lost_leads') {
+    routeName = 'Leads'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
       value: 'Lost'
     })
+    
   }
-
-  // ✅ DATE FILTER - Skip for average_won_deal_value, won_deals, and average_time_to_close (uses closed_date instead)
-  if (chartName !== 'average_won_deal_value' && chartName !== 'won_deals' && chartName !== 'average_time_to_close_a_deal') {
-    if (fromDate?.value && toDate?.value) {
-      filtersArray.push({
-        fieldname: 'creation',
-        condition: 'between',
-        value: [fromDate.value, toDate.value]
-      })
-    } else if (fromDate?.value) {
-      filtersArray.push({
-        fieldname: 'creation',
-        condition: '>=',
-        value: fromDate.value
-      })
-    } else if (toDate?.value) {
-      filtersArray.push({
-        fieldname: 'creation',
-        condition: '<=',
-        value: toDate.value
-      })
-    }
-  }
-
-  // ✅ OWNER FILTER
-  if (owner === 'Unassigned') {
-    filtersArray.push({
-      fieldname: 'lead_owner',
-      condition: 'is',
-      value: 'not set'
-    })
-  } 
-  else if (owner && owner !== 'Total') {
-    filtersArray.push({
-      fieldname: 'lead_owner',
-      condition: 'equals',
-      value: owner
-    })
-  }
-
-  // ✅ ROUTING
-  let routeName = ''
-  
-  if (
-    chartName === 'total_leads' ||
-    chartName === 'our_total_leads' ||
-    chartName === 'open_leads' ||
-    chartName === 'converted_leads' 
-
-  ) {
+  else if (chartName === 'total_leads' || chartName === 'our_total_leads') {
     routeName = 'Leads'
     
     // ✅ ADD CUSTOMER FILTER FOR our_total_leads
@@ -265,6 +286,19 @@ function handleChartClick() {
         value: 'not set'
       })
     }
+  }
+  else if (chartName === 'total_qualified_leads') {
+    routeName = 'Leads'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Qualified'
+    })
+    filtersArray.push({
+      fieldname: 'custom_customer',
+      condition: 'is',
+      value: 'not set'
+    })
   }
   else if (chartName === 'won_deals') {
     routeName = 'Deals'
@@ -385,133 +419,147 @@ function handleChartClick() {
       value: 'Won'
     })
   }
-else if (chartName === 'total_call_logs_count') {
-  routeName = 'Call Logs'
+  else if (chartName === 'total_call_logs_count') {
+    routeName = 'Call Logs'
 
-  filtersArray.length = 0
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    } else if (fromDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '>=',
+        value: fromDate.value
+      })
+    } else if (toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '<=',
+        value: toDate.value
+      })
+    }
+  }
+  else if (chartName === 'total_incoming_call_logs_count') {
+    routeName = 'Call Logs'
 
-  if (fromDate?.value && toDate?.value) {
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    } else if (fromDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '>=',
+        value: fromDate.value
+      })
+    } else if (toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '<=',
+        value: toDate.value
+      })
+    }
+
     filtersArray.push({
-      fieldname: 'creation', // ✅ IMPORTANT (not call_datetime)
-      condition: 'between',
-      value: [fromDate.value, toDate.value]
-    })
-  } else if (fromDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '>=',
-      value: fromDate.value
-    })
-  } else if (toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '<=',
-      value: toDate.value
+      fieldname: 'type',
+      condition: 'equals',
+      value: 'Incoming'
     })
   }
-}
-else if (chartName === 'total_incoming_call_logs_count') {
-  routeName = 'Call Logs'
+  else if (chartName === 'total_outgoing_call_logs_count') {
+    routeName = 'Call Logs' 
 
-  filtersArray.length = 0
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    } else if (fromDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '>=',
+        value: fromDate.value
+      })
+    } else if (toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '<=',
+        value: toDate.value
+      })
+    }
 
-  if (fromDate?.value && toDate?.value) {
     filtersArray.push({
-      fieldname: 'creation', // ✅ IMPORTANT (not call_datetime)
-      condition: 'between',
-      value: [fromDate.value, toDate.value]
-    })
-  } else if (fromDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '>=',
-      value: fromDate.value
-    })
-  } else if (toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '<=',
-      value: toDate.value
-    })
-  }
-
-  filtersArray.push({
-    fieldname: 'type',
-    condition: 'equals',
-    value: 'Incoming'
-  })
-}
-
-else if (chartName === 'total_outgoing_call_logs_count') {
-  routeName = 'Call Logs' 
-  
-  filtersArray.length = 0
-
-  if (fromDate?.value && toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation', // ✅ IMPORTANT (not call_datetime)
-      condition: 'between',
-      value: [fromDate.value, toDate.value]
-    })
-  } else if (fromDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '>=',
-      value: fromDate.value
-    })
-  } else if (toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '<=',
-      value: toDate.value
+      fieldname: 'type',
+      condition: 'equals',
+      value: 'Outgoing'
     })
   }
+  else if (chartName === 'average_call_duration') {
+    routeName = 'Call Logs'
 
-  filtersArray.push({
-    fieldname: 'type',
-    condition: 'equals',
-    value: 'Outgoing'
-  })
-}
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    } else if (fromDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '>=',
+        value: fromDate.value
+      })
+    } else if (toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '<=',
+        value: toDate.value
+      })
+    }
 
-else if (chartName === 'average_call_duration') {
-  // Route to Call Logs and apply date filters — show only records with duration set
-  routeName = 'Call Logs'
-
-  filtersArray.length = 0
-
-  if (fromDate?.value && toDate?.value) {
     filtersArray.push({
-      fieldname: 'creation',
-      condition: 'between',
-      value: [fromDate.value, toDate.value]
-    })
-  } else if (fromDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '>=',
-      value: fromDate.value
-    })
-  } else if (toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: '<=',
-      value: toDate.value
+      fieldname: 'duration',
+      condition: 'is',
+      value: 'set'
     })
   }
-
-  // Only include call logs where duration is set
-  filtersArray.push({
-    fieldname: 'duration',
-    condition: 'is',
-    value: 'set'
-  })
-}
-
-else {
+  else {
     console.warn('Unhandled chart:', chartName)
     return
   }
+
+  // ✅ Add date filters for charts that don't have special date handling
+  const skipDateCharts = ['average_won_deal_value', 'average_time_to_close_a_deal']
+  if (!skipDateCharts.includes(chartName) && routeName !== 'Call Logs') {
+    if (fromDate?.value && toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: 'between',
+        value: [fromDate.value, toDate.value]
+      })
+    } else if (fromDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '>=',
+        value: fromDate.value
+      })
+    } else if (toDate?.value) {
+      filtersArray.push({
+        fieldname: 'creation',
+        condition: '<=',
+        value: toDate.value
+      })
+    }
+  }
+
+  // ✅ Apply user filter for all charts
+  await applyUserFilter(filtersArray, routeName)
 
   router.push({
     name: routeName,
@@ -523,11 +571,8 @@ else {
 
 // ------------End--------------------
 
-
-
 // -----Filter handling for Vue E chart click starts here-------
-function handleEChartClick(segment) {
-
+async function handleEChartClick(segment) {
   const chartName = props.item?.name
 
   if (!chartName || !segment) {
@@ -544,22 +589,12 @@ function handleEChartClick(segment) {
     filtersArray.push({
       fieldname: 'source',
       condition: 'equals',
-      value: value   // ✅ use segment.name
+      value: value
     })
-
-    // Date filter
-    if (fromDate?.value && toDate?.value) {
-      filtersArray.push({
-        fieldname: 'creation',
-        condition: 'between',
-        value: [fromDate.value, toDate.value]
-      })
-    }
   }
-    else if (chartName === 'deals_by_source') {
+  else if (chartName === 'deals_by_source') {
     routeName = 'Deals'
     
-    // Handle 'Empty' source (deals with no source set)
     if (value === 'Empty') {
       filtersArray.push({
         fieldname: 'source',
@@ -574,7 +609,6 @@ function handleEChartClick(segment) {
       })
     }
   }
-  
   else if (chartName === 'deals_by_stage_donut') {
     routeName = 'Deals'
     filtersArray.push({
@@ -583,126 +617,99 @@ function handleEChartClick(segment) {
       value: value
     })
   } 
-// ✅ Handle Qualified Lead Status
-else if (chartName === 'user_status_leads') {
-  routeName = 'Leads'
-  
-  if (value === 'Qualified') {
-    // Show only qualified leads
+  else if (chartName === 'user_status_leads') {
+    routeName = 'Leads'
+    
+    if (value === 'Qualified') {
+      filtersArray.push({
+        fieldname: 'status',
+        condition: 'equals',
+        value: 'Qualified'
+      })
+    } else if (value === 'Other') {
+      filtersArray.push({
+        fieldname: 'status',
+        condition: '!=',
+        value: 'Qualified'
+      })
+    }
+    
     filtersArray.push({
-      fieldname: 'status',
-      condition: 'equals',
-      value: 'Qualified'
-    })
-  } else if (value === 'Other') {
-    // Show all leads EXCEPT qualified
-    filtersArray.push({
-      fieldname: 'status',
-      condition: '!=',
-      value: 'Qualified'
-    })
-  }
-  
-  // Add the customer filter (empty customer - only ours)
-  filtersArray.push({
-    fieldname: 'custom_customer',
-    condition: 'is',
-    value: 'not set'
-  })
-  
-  // Date filter
-  if (fromDate?.value && toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: 'between',
-      value: [fromDate.value, toDate.value]
-    })
-  }
-}
-
-else if (chartName === 'tasks_by_stage') {
-  routeName = 'Tasks'
-  filtersArray.push({
-    fieldname: 'status',
-    condition: 'equals',
-    value: value
-  })
-  // Date filter
-  if (fromDate?.value && toDate?.value) {
-    filtersArray.push({       
-      fieldname: 'creation',
-      condition: 'between',
-      value: [fromDate.value, toDate.value]
-    })
-  } 
-}
-
-else if (chartName === 'deals_by_stage_deal_value') {
-  routeName = 'Deals'
-  filtersArray.push({
-    fieldname: 'status',
-    condition: 'equals',
-    value: value
-  })
-  filtersArray.push({
-    fieldname: 'deal_value',
-    condition: 'is',
-    value: 'set'
-  })  
-  // Date filter
-  if (fromDate?.value && toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: 'between',   
-      value: [fromDate.value, toDate.value]
-    })
-  }
-}
-
-// ✅ Handle Won Deals by Source
-else if (chartName === 'won_deals_by_source_for_owner_donut') {
- 
-  routeName = 'Deals' 
-  if (value === 'Not Assigned') {
-    filtersArray.push({
-      fieldname: 'source',
+      fieldname: 'custom_customer',
       condition: 'is',
       value: 'not set'
     })
-  } else {
+  }
+  else if (chartName === 'tasks_by_stage') {
+    routeName = 'Tasks'
     filtersArray.push({
-      fieldname: 'source',
+      fieldname: 'status',
       condition: 'equals',
       value: value
     })
   }
-  filtersArray.push({
-    fieldname: 'status',
-    condition: 'equals',
-    value: 'Won'
-  })  
+  else if (chartName === 'deals_by_stage_deal_value') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: value
+    })
+    filtersArray.push({
+      fieldname: 'deal_value',
+      condition: 'is',
+      value: 'set'
+    })
+  }
+  else if (chartName === 'won_deals_by_source_for_owner_donut') {
+    routeName = 'Deals' 
+    if (value === 'Not Assigned') {
+      filtersArray.push({
+        fieldname: 'source',
+        condition: 'is',
+        value: 'not set'
+      })
+    } else {
+      filtersArray.push({
+        fieldname: 'source',
+        condition: 'equals',
+        value: value
+      })
+    }
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Won'
+    })
+  }
+  else {
+    console.warn('Unhandled donut chart:', chartName)
+    return
+  }
 
-  // Date filter
+  // ✅ Add date filters
   if (fromDate?.value && toDate?.value) {
     filtersArray.push({
       fieldname: 'creation',
       condition: 'between',
       value: [fromDate.value, toDate.value]
     })
+  } else if (fromDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '<=',
+      value: toDate.value
+    })
   }
 
-  
-  // Check for hidden characters
-  if (value) {
-    console.log('Character codes:', [...value].map(c => c.charCodeAt(0)));
-  }
-  console.log('Won Deals by Source filters:', filtersArray)
-  
-  router.push({
-    name: 'Deals',
-    query: { filters: JSON.stringify(filters) }
-  })
-}
+  // ✅ Apply user filter
+  await applyUserFilter(filtersArray, routeName)
 
   router.push({
     name: routeName,
@@ -712,10 +719,8 @@ else if (chartName === 'won_deals_by_source_for_owner_donut') {
   })
 }
 
-
 // -----Filter handling for Axis chart click starts here-------
-// -----Filter handling for Axis chart click starts here-------
-function handleAxisChartClick({ territory }) {
+async function handleAxisChartClick({ territory }) {
   const chartName = props.item?.name
   if (!chartName) {
     console.error('No chart name')
@@ -725,8 +730,7 @@ function handleAxisChartClick({ territory }) {
   const filtersArray = []
   let routeName = ''
   
-  // ========== LEAD SOURCE PERFORMANCE (PUT THIS FIRST FOR TESTING) ==========
-  // Leads by Source Performance has some unique handling so we are putting it first to test and verify before other charts (as they are working fine)
+  // Leads by Source Performance
   if (chartName === 'leads_by_source_performance') {
     routeName = 'Leads'
     
@@ -752,29 +756,12 @@ function handleAxisChartClick({ territory }) {
         condition: 'is',
         value: 'not set'
       })
-      
-      if (fromDate?.value && toDate?.value) {
-        filtersArray.push({
-          fieldname: 'creation',
-          condition: 'between',
-          value: [fromDate.value, toDate.value]
-        })
-      }
-      
-      router.push({
-        name: routeName,
-        query: {
-          filters: JSON.stringify(filtersArray)
-        }
-      })
-      return
     } else {
       console.error('❌ No source received')
       return
     }
   }
-  
-  // ========== DEALS BY TERRITORY ==========
+  // Deals by Territory
   else if (chartName === 'deals_by_territory') {
     routeName = 'Deals'
     
@@ -793,162 +780,89 @@ function handleAxisChartClick({ territory }) {
         })
       }
     }
-    
-    if (fromDate?.value && toDate?.value) {
-      filtersArray.push({
-        fieldname: 'creation',
-        condition: 'between',
-        value: [fromDate.value, toDate.value]
-      })
-    }
-    
-    router.push({
-      name: routeName,
-      query: {
-        filters: JSON.stringify(filtersArray)
-      }
-    })
   }
-  
-  // ========== DEALS BY SALESPERSON ==========
+  // Deals by Salesperson
   else if (chartName === 'deals_by_salesperson') {
     routeName = 'Deals'
     
     const salespersonName = territory  
     
     if (salespersonName && salespersonName !== 'null' && salespersonName !== 'undefined' && salespersonName !== '') {
-      const getUserEmail = createResource({
-        url: 'frappe.client.get_value',
-        params: {
-          doctype: 'User',
-          filters: { full_name: salespersonName },
-          fieldname: 'name'  
-        },
-        auto: false,
-        onSuccess: (data) => {
-          if (data && data.name) {
-            const email = data.name  
-            
-            filtersArray.push({
-              fieldname: 'deal_owner',
-              condition: '=',
-              value: email
-            })          
-            
-            if (fromDate?.value && toDate?.value) {
-              filtersArray.push({
-                fieldname: 'creation',
-                condition: 'between',
-                value: [fromDate.value, toDate.value]
-              })
-            }
-            
-            router.push({
-              name: routeName,
-              query: {
-                filters: JSON.stringify(filtersArray)
-              }
-            })
-          }
-        },
-        onError: (err) => {
-          console.error('Error fetching user email:', err)
+      let email = userEmailCache[salespersonName]
+      if (!email) {
+        try {
+          email = await getUserEmailFromName(salespersonName)
+          if (email) userEmailCache[salespersonName] = email
+        } catch (err) {
+          console.error('Error fetching email for salesperson:', err)
         }
+      }
+      
+      filtersArray.push({
+        fieldname: 'deal_owner',
+        condition: '=',
+        value: email || salespersonName
+      })
+    } else {
+      console.error('❌ No valid salesperson received')
+      return
+    }
+  }
+  // Lost deal reasons
+  else if (chartName === 'lost_deal_reasons') {
+    routeName = 'Deals'
+    
+    if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
+      filtersArray.push({
+        fieldname: 'lost_reason',
+        condition: '=',
+        value: territory
       })
       
-      getUserEmail.fetch()
-      return  
-    }
-  }
-  // Lost deal reasons chart click handling
-else if (chartName === 'lost_deal_reasons'){
-  routeName = 'Deals'
-  
-  if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
-    filtersArray.push({
-      fieldname: 'lost_reason',
-      condition: '=',
-      value: territory
-    })
-    
-    if (fromDate?.value && toDate?.value) {
       filtersArray.push({
-        fieldname: 'creation',
-        condition: 'between',
-        value: [fromDate.value, toDate.value]
+        fieldname: 'status',
+        condition: '=',
+        value: 'Lost'
       })
+    } else {
+      console.error('❌ No lost reason received')
+      return
     }
-    filtersArray.push({
-      fieldname: 'status',
-      condition: '=',
-      value: 'Lost'
-    })  
-  
-    router.push({
-      name: routeName,
-      query: {
-        filters: JSON.stringify(filtersArray)
+  }
+  // Conversion ratio by salesperson
+  else if (chartName === 'conversion_ratio_by_salesperson') {
+    let salesperson = territory
+    routeName = 'Deals'
+    
+    if (salesperson === 'Unknown') {
+      filtersArray.push({
+        fieldname: 'deal_owner',
+        condition: 'in',
+        value: ['', null]
+      })
+    } 
+    else if (salesperson && salesperson !== 'null' && salesperson !== 'undefined' && salesperson !== '') {
+      let email = userEmailCache[salesperson]
+      if (!email) {
+        try {
+          email = await getUserEmailFromName(salesperson)
+          if (email) userEmailCache[salesperson] = email
+        } catch (err) {
+          console.error('Error fetching email for salesperson:', err)
+        }
       }
-    })
-  } else {
-    console.error('❌ No lost reason received')
-    return
-  }
-}
 
-// Conversion ratio by salesperson click handling
-
-else if (chartName === 'conversion_ratio_by_salesperson') {
-  
-  let salesperson = territory
-  routeName = 'Deals'
-  const filtersArray = []
-  
-  // Handle "Unknown" case
-  if (salesperson === 'Unknown') {
-    filtersArray.push({
-      fieldname: 'deal_owner',
-      condition: 'in',
-      value: ['', null]
-    })
-  } 
-  // Handle valid salesperson
-  else if (salesperson && salesperson !== 'null' && salesperson !== 'undefined' && salesperson !== '') {
-    filtersArray.push({
-      fieldname: 'deal_owner',
-      condition: '=',
-      value: salesperson
-    })
-  } else {
-    console.error('❌ No valid salesperson received')
-    return
-  }
-  
-  // Add date filter
-  if (fromDate?.value && toDate?.value) {
-    filtersArray.push({
-      fieldname: 'creation',
-      condition: 'between',
-      value: [fromDate.value, toDate.value]
-    })
-  }
-  
-  
-  // Check if router exists
-  if (!router) {
-    console.error('❌ Router is not defined!')
-    return
-  }
-  
-  router.push({
-    name: routeName,
-    query: {
-      filters: JSON.stringify(filtersArray)
+      filtersArray.push({
+        fieldname: 'deal_owner',
+        condition: '=',
+        value: email || salesperson
+      })
+    } else {
+      console.error('❌ No valid salesperson received')
+      return
     }
-  })
-  return
-}
-// Deal Value by Stage click handling
+  }
+  // Deal Value by Stage
   else if (chartName === 'deal_value_by_stage') {
     routeName = 'Deals'
     
@@ -966,23 +880,43 @@ else if (chartName === 'conversion_ratio_by_salesperson') {
         value: 'set'
       })
     }
-    
-    if (fromDate?.value && toDate?.value) {
-      filtersArray.push({
-        fieldname: 'creation',
-        condition: 'between',
-        value: [fromDate.value, toDate.value]
-      })
-    }
   }
-  
-    router.push({
-      name: routeName,
-      query: {
-        filters: JSON.stringify(filtersArray)
-      }
+  else {
+    console.warn('Unhandled axis chart:', chartName)
+    return
+  }
+
+  // ✅ Add date filters for all axis charts
+  if (fromDate?.value && toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+  } else if (fromDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '>=',
+      value: fromDate.value
+    })
+  } else if (toDate?.value) {
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: '<=',
+      value: toDate.value
     })
   }
+
+  // ✅ Apply user filter for all axis charts
+  await applyUserFilter(filtersArray, routeName)
+
+  router.push({
+    name: routeName,
+    query: {
+      filters: JSON.stringify(filtersArray)
+    }
+  })
+}
 
 const props = defineProps({
   index: {
@@ -997,9 +931,5 @@ const props = defineProps({
     type: Boolean,
     default: false,
   }
-
-
-  
-
 })
 </script>
