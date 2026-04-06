@@ -88,10 +88,6 @@
 <script setup>
 import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import CustomActions from '@/components/CustomActions.vue'
-import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
-import TaskStatusIcon from '@/components/Icons/TaskStatusIcon.vue'
-import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
-// Email2Icon removed (not used in three-column view)
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import TaskModal from '@/components/Modals/TaskModal.vue'
@@ -99,7 +95,7 @@ import TaskItem from '@/components/TaskItem.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
-import { Tooltip, Avatar, TextEditor, Dropdown, call } from 'frappe-ui'
+import { call } from 'frappe-ui'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -161,33 +157,35 @@ const todayItems = computed(() => {
   const s = startOfDay(new Date())
   const t = new Date(s)
   t.setDate(t.getDate() + 1)
-  return (rows.value || []).filter((item) => {
+  const dated_data = (rows.value || []).filter((item) => {
     const d = parseDateSafe(item.due_date)
     if (!d) return false
     return d >= s && d < t
   })
+  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
 })
 
 const overdueItems = computed(() => {
   const s = startOfDay(new Date())
-  return (rows.value || []).filter((item) => {
+  const dated_data = (rows.value || []).filter((item) => {
     const d = parseDateSafe(item.due_date)
     if (!d) return false
     return d < s
   })
+  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
 })
 
 const upcomingItems = computed(() => {
   const t = new Date(startOfDay(new Date()))
   t.setDate(t.getDate() + 1)
-  return (rows.value || []).filter((item) => {
+  const dated_data = (rows.value || []).filter((item) => {
     const d = parseDateSafe(item.due_date)
     if (!d) return true
     return d >= t
   })
+  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
 })
 
-console.log("Today:", todayItems);
 
 
 const columns = computed(() => {
@@ -360,3 +358,7 @@ const openTaskFromURL = () => {
   }
 }
 </script>
+
+
+filter the tasks with status not equal to 'Completed' or 'Cancelled' as these are not relevant for follow up
+show only pending tasks in the three columns (Today, Overdue, Upcoming) and hide completed or cancelled tasks
