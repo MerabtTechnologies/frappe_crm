@@ -56,7 +56,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ProjectTaskModal from '@/components/Modals/ProjectTaskModal.vue'
 import GammaModal from '../Modals/GammaModal.vue'
-import QuotationModal from '../modals/QuotationModal.vue'
+import QuotationModal from '../Modals/QuotationModal.vue'
 
 const props = defineProps({
   doctype: String,
