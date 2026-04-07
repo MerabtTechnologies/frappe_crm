@@ -302,22 +302,22 @@ function calculateTaxes() {
   deal.doc.total_taxes_and_charges = deal.doc.taxes.reduce((sum, t) => sum + (t.tax_amount || 0), 0);
   deal.doc.grand_total = itemTotal + deal.doc.total_taxes_and_charges;
 }
-const printQuotation = (printFormat = 'Standard') => {
-  const baseUrl = window.location.origin;
-  const doctype = 'Quotation';
-  const docname = deal.doc.name; // Ensure the doc is saved first!
+// const printQuotation = (printFormat = 'Standard') => {
+//   const baseUrl = window.location.origin;
+//   const doctype = 'Quotation';
+//   const docname = deal.doc.name; // Ensure the doc is saved first!
   
-  if (!docname) {
-    console.error("Save the Quotation before printing.");
-    return;
-  }
+//   if (!docname) {
+//     console.error("Save the Quotation before printing.");
+//     return;
+//   }
 
-  // Construct the Frappe Print URL
-  const printUrl = `${baseUrl}/printview?doctype=${doctype}&name=${docname}&format=${printFormat}&no_letterhead=0`;
+//   // Construct the Frappe Print URL
+//   const printUrl = `${baseUrl}/printview?doctype=${doctype}&name=${docname}&format=${printFormat}&no_letterhead=0`;
   
-  // Open in a new tab
-  window.open(printUrl, '_blank');
-};
+//   // Open in a new tab
+//   window.open(printUrl, '_blank');
+// };
 const tabs = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_fields_layout',
   cache: ['QuickEntry', 'Quotation'],
