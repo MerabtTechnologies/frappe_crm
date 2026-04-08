@@ -200,14 +200,14 @@ const userEmailCache = {}
 // Helper function to apply user filter
 async function applyUserFilter(filtersArray, routeName) {
   const owner = filters?.user || null
-  
   if (owner && (routeName === 'Leads' || routeName === 'Deals' || routeName === 'Tasks' || routeName === 'Call Logs')) {
     if (owner === 'Unassigned') {
       let field = ''
       if (routeName === 'Leads') field = 'lead_owner'
       else if (routeName === 'Deals') field = 'deal_owner'
       else if (routeName === 'Tasks') field = 'owner'
-      else if (routeName === 'Call Logs') field = 'owner'
+      else if (routeName === 'Call Logs') field = 'caller' || 'receiver'
+
       
       if (field) {
         filtersArray.push({ fieldname: field, condition: 'is', value: 'not set' })
@@ -222,22 +222,26 @@ async function applyUserFilter(filtersArray, routeName) {
           console.error('Error fetching email for owner:', err)
         }
       }
-      
       let field = ''
       if (routeName === 'Leads') field = 'lead_owner'
       else if (routeName === 'Deals') field = 'deal_owner'
       else if (routeName === 'Tasks') field = 'owner'
-      else if (routeName === 'Call Logs') field = 'owner'
+       else if (routeName === 'Call Logs') field = 'caller' || 'receiver'
       
       if (field) {
         filtersArray.push({ fieldname: field, condition: 'equals', value: email || owner })
       }
+      
     }
   }
+  
 }
+
 
 // -----Filter handling for chart click starts here-------
 async function handleChartClick() {
+
+  
   const chartName = props.item?.name
   const owner = filters?.user || null
 
@@ -287,26 +291,34 @@ async function handleChartClick() {
       })
     }
   }
-  else if (chartName === 'total_qualified_leads') {
-    routeName = 'Leads'
-    filtersArray.push({
-      fieldname: 'status',
-      condition: 'equals',
-      value: 'Qualified'
-    })
-    filtersArray.push({
-      fieldname: 'custom_customer',
-      condition: 'is',
-      value: 'not set'
-    })
-  }
-  else if (chartName === 'won_deals') {
-    routeName = 'Deals'
-    filtersArray.push({
-      fieldname: 'status',
-      condition: 'equals',
-      value: 'Won'
-    })
+  // else if (chartName === 'total_qualified_leads') {
+  //   routeName = 'Leads'
+  //   filtersArray.push({
+  //     fieldname: 'status',
+  //     condition: 'equals',
+  //     value: 'Qualified'
+  //   })
+  //   filtersArray.push({
+  //     fieldname: 'custom_customer',
+  //     condition: 'is',
+  //     value: 'not set'
+  //   })
+  // }
+
+
+else if (chartName === 'won_deals') {
+  routeName = 'Deals'
+  filtersArray.push({
+    fieldname: 'status',
+    condition: 'equals',
+    value: 'Won'
+  })
+  filtersArray.push({
+    fieldname: 'closed_date',
+    condition: 'between',
+    value: [fromDate.value, toDate.value]   
+  })
+
   }
   else if (chartName === 'total_deal_value') {
     routeName = 'Deals'
@@ -346,13 +358,8 @@ async function handleChartClick() {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
-      condition: 'Not in',  
-      value: "Lost"
-    })
-    filtersArray.push({
-      fieldname: 'deal_value',
-      condition: 'is',
-      value: 'set'
+      condition: '!=',
+      value: 'Lost'
     })
   }
   else if (chartName === 'average_won_deal_value') {
@@ -386,6 +393,27 @@ async function handleChartClick() {
     
     filtersArray.push({
       fieldname: 'deal_value',
+      condition: 'is',
+      value: 'set'
+    })
+  }
+  else if(chartName === 'total_won_deal_value') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Won'
+    })
+  }
+  else if (chartName === 'total_won_deal_balance_value') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'equals',
+      value: 'Won'
+    })
+    filtersArray.push({
+      fieldname: 'custom_balance_amount',
       condition: 'is',
       value: 'set'
     })
@@ -529,13 +557,27 @@ async function handleChartClick() {
       value: 'set'
     })
   }
+  else if(chartName === 'total_call_duration'){
+    routeName = 'Call Logs'
+    filtersArray.push({
+      fieldname: 'duration',
+      condition: 'is',
+      value: 'set'
+    })
+    filtersArray.push({
+      fieldname: 'creation',
+      condition: 'between',
+      value: [fromDate.value, toDate.value]
+    })
+    
+  }
   else {
     console.warn('Unhandled chart:', chartName)
     return
   }
 
   // ✅ Add date filters for charts that don't have special date handling
-  const skipDateCharts = ['average_won_deal_value', 'average_time_to_close_a_deal']
+  const skipDateCharts = ['average_won_deal_value', 'average_time_to_close_a_deal', 'won_deals','total_won_deal_value','total_won_deal_balance_value']
   if (!skipDateCharts.includes(chartName) && routeName !== 'Call Logs') {
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({

@@ -685,6 +685,9 @@ const applyFiltersFromURL = () => {
             }else if (filter.condition === 'In') {
               filterObj[filter.fieldname] = ['in', filter.value]
             } 
+            else if (filter.condition === '!=') {  // ✅ ADD THIS HANDLER
+              filterObj[filter.fieldname] = ['!=', filter.value]
+            }
             // else if (filter.condition === 'is') {
             //   // Handle 'is' condition properly for empty fields
             //   if (filter.value === 'not set') {
