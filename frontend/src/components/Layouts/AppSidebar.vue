@@ -162,6 +162,7 @@ import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import ListChecks from '@/components/Icons/ListChecks.vue'
+import IssueIcon from '@/components/Icons/IssueIcon.vue'
 import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CollapseSidebar from '@/components/Icons/CollapseSidebar.vue'
@@ -259,6 +260,11 @@ const links = [
     label: 'Task Follow Up',
     icon: ListChecks,
     to: 'TaskFollowUp',
+  },
+  {
+    label: 'Task Tickets',
+    icon: IssueIcon,
+    to: 'Task Issues',
   },
   {
     label: 'Call Logs',

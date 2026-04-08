@@ -1,7 +1,7 @@
 <template>
   <LayoutHeader>
     <template #left-header>
-      <ViewBreadcrumbs v-model="viewControls" routeName="Tasks" />
+      <ViewBreadcrumbs v-model="viewControls" routeName="Task Issues" />
     </template>
     <template #right-header>
       <CustomActions
@@ -22,7 +22,8 @@
     v-model:loadMore="loadMore"
     v-model:resizeColumn="triggerResize"
     v-model:updatedPageCount="updatedPageCount"
-    doctype="CRM Task"
+    doctype="Issue"
+    
   />
   <div class="mt-4 p-2 bg-gray-50 ">
     <!-- Filters and Create are provided by ViewControls -->
@@ -36,7 +37,7 @@
           <div class="font-semibold mb-2 text-center ">{{ `[${todayItems.length}]` }}</div>
         </div>
         <div class="flex flex-col gap-2">
-          <TaskItem
+          <IssueItem
             v-for="item in todayItems"
             :key="item.name"
             :item="item"
@@ -53,7 +54,7 @@
           <div class="font-semibold mb-2 text-center">{{ `[${overdueItems.length}]` }}</div>
         </div>
         <div class="flex flex-col gap-2">
-          <TaskItem
+          <IssueItem
             v-for="item in overdueItems"
             :key="item.name"
             :item="item"
@@ -66,12 +67,12 @@
 
       <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
         <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
-          <div class="font-semibold mb-2 text-center">{{ __('Upcoming') }}</div>
-          <div class="font-semibold mb-2 text-center">{{ `[${upcomingItems.length}]` }}</div>
+          <div class="font-semibold mb-2 text-center">{{ __('Completed/Closed') }}</div>
+          <div class="font-semibold mb-2 text-center">{{ `[${completedItems.length}]` }}</div>
         </div>
         <div class="flex flex-col gap-2">
-          <TaskItem
-            v-for="item in upcomingItems"
+          <IssueItem
+            v-for="item in completedItems"
             :key="item.name"
             :item="item"
             :actions="actions"
@@ -83,10 +84,16 @@
       </div>
     </div>
   </div>
-  <TaskModal
+  <IssueViewModal
     v-if="showTaskModal"
     v-model="showTaskModal"
-    v-model:reloadTasks="tasks"
+    v-model:reloadIssues="tasks"
+    :task="task"
+  />
+  <IssueModal
+    v-if="showTaskEditModal"
+    v-model="showTaskEditModal"
+    v-model:reloadIssues="tasks"
     :task="task"
   />
 </template>
@@ -96,17 +103,18 @@ import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
-import TaskModal from '@/components/Modals/TaskModal.vue'
-import TaskItem from '@/components/TaskItem.vue'
+import IssueViewModal from '@/components/Modals/IssueViewModal.vue'
+import IssueModal from '@/components/Modals/IssueModal.vue'
+import IssueItem from '@/components/IssueItem.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
-import { call } from 'frappe-ui'
+import { call, ListItem, toast } from 'frappe-ui'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
-  getMeta('CRM Task')
+  getMeta('Issue')
 const { getUser } = usersStore()
 
 const router = useRouter()
@@ -148,6 +156,13 @@ function getLabel(value) {
 }
 function parseDateSafe(value) {
   if (!value) return null
+  if (typeof value === 'object' && value.label) {
+    value = value.label
+  }
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-').map(Number)
+    return new Date(y, m - 1, d)
+  }
   const d = new Date(value)
   if (isNaN(d.getTime())) return null
   return d
@@ -164,35 +179,31 @@ const todayItems = computed(() => {
   const t = new Date(s)
   t.setDate(t.getDate() + 1)
   const dated_data = (rows.value || []).filter((item) => {
-    const d = parseDateSafe(item.due_date)
+    const d = parseDateSafe(item.opening_date_raw ?? item.opening_date)
     if (!d) return false
     return d >= s && d < t
   })
-  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
+  return dated_data.filter(item => !['Resolved', 'Closed'].includes(item.status))
 })
 
 const overdueItems = computed(() => {
   const s = startOfDay(new Date())
   const dated_data = (rows.value || []).filter((item) => {
-    const d = parseDateSafe(item.due_date)
+    const d = parseDateSafe(item.opening_date_raw ?? item.opening_date)
     if (!d) return false
     return d < s
   })
-  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
+  return dated_data.filter(item => !['Resolved', 'Closed'].includes(item.status))
 })
 
-const upcomingItems = computed(() => {
-  const t = new Date(startOfDay(new Date()))
-  t.setDate(t.getDate() + 1)
+const completedItems = computed(() => {
   const dated_data = (rows.value || []).filter((item) => {
-    const d = parseDateSafe(item.due_date)
-    if (!d) return true
-    return d >= t
+    const d = parseDateSafe(item.opening_date_raw ?? item.opening_date)
+    if (!d) return false
+    return ['Resolved', 'Closed'].includes(item.status)
   })
-  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
+  return dated_data
 })
-
-
 
 const columns = computed(() => {
   let _columns = tasks.value?.data?.columns || []
@@ -240,6 +251,7 @@ function parseRows(rows, columns = []) {
         !['modified', 'creation', 'due_date'].includes(row)
       ) {
         _rows[row] = formatDate(task[row], '', true, fieldType == 'Datetime')
+        _rows[`${row}_raw`] = task[row]
       }
 
       if (fieldType && fieldType == 'Currency') {
@@ -271,44 +283,72 @@ function parseRows(rows, columns = []) {
 }
 
 const showTaskModal = ref(false)
+const showTaskEditModal = ref(false)
 
+
+// chanve this to pass data to issue modal instead of task modal for new data creation
 const task = ref({
   name: '',
+  subject: '',
   title: '',
   description: '',
   assigned_to: '',
-  due_date: '',
+  opening_date: '',
+  opening_time: '',
   status: 'Backlog',
   priority: 'Low',
+  issue_type: '',
+  resolution_details: '',
   reference_doctype: 'CRM Lead',
   reference_docname: '',
 })
 
-function showTask(name) {
+// chanve this to pass data to issue modal instead of task modal
+function showTask(name, edit=false) {
   let t = rows.value?.find((row) => row.name === name)
   task.value = {
     name: t.name,
     title: t.title,
+    subject: t.subject,
     description: t.description,
     assigned_to: t.assigned_to?.name || '',
-    due_date: t.due_date,
     status: t.status,
     priority: t.priority,
+    issue_type: t.issue_type,
+    resolution_details: t.resolution_details,
     reference_doctype: t.reference_doctype,
     reference_docname: t.reference_docname,
   }
-  showTaskModal.value = true
+  if(edit) {
+    showTaskEditModal.value = true
+    task.value = {
+      ...task.value,
+    }
+  } else {
+    task.value = {
+      ...task.value,
+      owner: t.owner,
+      creation: t.creation,
+      opening_date: t.opening_date,
+      opening_time: t.opening_time,
+    }
+    showTaskModal.value = true
+  }
 }
 
 function createTask(column) {
   task.value = {
     name: '',
     title: '',
+    subject: '',
     description: '',
     assigned_to: '',
-    due_date: '',
-    status: 'Backlog',
+    opening_date: '',
+    opening_time: '',
+    issue_type: '',
+    status: 'Open',
     priority: 'Low',
+    resolution_details: '',
     reference_doctype: 'CRM Lead',
     reference_docname: '',
   }
@@ -320,7 +360,7 @@ function createTask(column) {
     }
   }
 
-  showTaskModal.value = true
+  showTaskEditModal.value = true
 }
 
 function actions(name) {
@@ -333,12 +373,23 @@ function actions(name) {
         tasks.value.reload()
       },
     },
+    {
+      label: __('Edit'),
+      icon: 'edit-2',
+      onClick: () => {
+        if (getUser().name == task.value.owner) {
+          showTask(name, true)
+        } else {
+          toast.error(__('Only the owner can edit this ticket'))
+        }
+      },
+    },
   ]
 }
 
 async function deletetask(name) {
   await call('frappe.client.delete', {
-    doctype: 'CRM Task',
+    doctype: 'Issue',
     name,
   })
 }

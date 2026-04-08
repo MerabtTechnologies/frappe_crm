@@ -237,7 +237,12 @@ const routes = [
   name: 'TaskFollowUp',
   component: () => import('@/pages/TaskFollowUp.vue'),
   },
-
+  {
+  alias: '/task-issues',
+  path: '/task-issues/view/:viewType?',
+  name: 'Task Issues',
+  component: () => import('@/pages/TaskIssues.vue'),
+  },
 
 
 ]
