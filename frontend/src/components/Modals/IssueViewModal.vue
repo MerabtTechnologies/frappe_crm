@@ -77,7 +77,7 @@
                     <div v-if="commentsLoading" class="text-sm text-ink-gray-5">{{ __('Loading comments...') }}</div>
                     <div v-else-if="!comments.length" class="text-sm text-ink-gray-5">{{ __('No comments yet') }}</div>
                     <div v-else>
-                        <div v-for="c in comments" :key="c.name" class="flex gap-3 items-start">
+                        <div v-for="c in comments" :key="c.name" class="flex gap-3 items-start mb-2">
                             <Avatar :label="c.comment_by || c.comment_email" size="sm" />
                             <div class="flex-1">
                                 <div class="flex items-center justify-between">
@@ -99,7 +99,12 @@
                     <div class="mb-1.5 text-xs text-ink-gray-5">{{ __('Add a comment') }}</div>
                     <TextEditor :editable="true" :content="newComment" @change="(val) => (newComment = val)"
                         editor-class="!prose-sm min-h-[80px] max-h-40" :placeholder="__('Write a comment...')" />
-                    <div class="flex justify-end mt-2">
+                    <div class="flex justify-end mt-2 gap-2">
+                        <Button v-if="_task.status !== 'Closed'" :label="__('Close Ticket')" :loading="addingComment"
+                            @click="() => closeIssue('Closed')" />
+                        <Button v-if="_task.status !== 'Resolved'" :label="__('Resolved')" :loading="addingComment"
+                            @click="() => closeIssue('Resolved')" />
+                            
                         <Button :label="__('Post Comment')" variant="solid" :loading="addingComment"
                             @click="postComment" />
                     </div>
@@ -171,7 +176,11 @@ const { capture } = useTelemetry()
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency, getFields } = getMeta(props.doctype)
 
-const { triggerOnChange,triggerOnLoad , assignees, permissions, document, error } = useDocument('Issue', props.task.name)
+const { triggerOnChange, triggerOnLoad, assignees, permissions, document, error } = useDocument(
+    'Issue',
+    props.task.name,
+    { fields: '*', auto: true }
+)
 
 const comments = ref([])
 const commentsLoading = ref(false)
@@ -350,7 +359,23 @@ async function updateTask() {
         _task.value.assigned_to = getUser().name
     }
     if (_task.value.name) {
-        updateTaskResource.submit()
+        if (document && document.setValue && typeof document.setValue.submit === 'function') {
+            document.setValue.submit(
+                { ..._task.value },
+                {
+                    onSuccess: (d) => {
+                        issues.value?.reload()
+                        emit('after', d)
+                        show.value = false
+                    },
+                    onError: () => {
+                        toast.error(__('Could not update issue'))
+                    },
+                },
+            )
+        } else {
+            updateTaskResource.submit()
+        }
     } else {
         createTaskResource.submit()
     }
@@ -361,10 +386,15 @@ function render() {
     nextTick(async () => {
         subject.value?.el?.focus?.()
         _task.value = { ...props.task }
+        // Merge full server document if available to avoid overwriting
+        // with partial `props.task` coming from list view.
+        if (document?.doc) {
+            _task.value = { ..._task.value, ...document.doc }
+        }
         if (_task.value.subject) {
             editMode.value = true
         }
-        loadComments()
+        await loadComments()
 
     })
     
@@ -378,10 +408,14 @@ watch(show, (value) => {
     render()
 })
 
-watch(document, (newDoc) => {
-    if (!newDoc.doc) return
-    _task.value = { ..._task.value, ...newDoc.doc }
-})
+watch(
+    () => document.doc,
+    (doc) => {
+        if (!doc) return
+        _task.value = { ..._task.value, ...doc }
+    },
+    { immediate: true },
+)
 
 function issueStatusOptions(action, data) {
 
@@ -455,13 +489,15 @@ const createCommentsResource = createResource({
             content: newComment.value,
         }
     },
-    onSuccess(d) {
-        if (d.name) {
+    // cache: ['comments', _task.value.name],
+    onSuccess: (d) =>  {
+        
+        if (d.name && d.success == 1) {
             issues.value?.reload()
             emit('after', d)
             show.value = false
         }
-    },
+    }
 })
 
 async function loadComments() {
@@ -483,10 +519,11 @@ async function loadComments() {
 
 async function postComment() {
     if (!newComment.value || !_task.value?.name) return
+    
     addingComment.value = true
     try {
         const res = await createCommentsResource.submit()
-        if (res?.success) {
+        if (res?.success == 1) {
             toast.success(__('Comment posted'))
             newComment.value = ''
             await loadComments()
@@ -497,6 +534,33 @@ async function postComment() {
         toast.error(__('Could not post comment'))
     }
     addingComment.value = false
+}
+
+async function closeIssue(status = 'Closed') {
+    if (comments.value && comments.value.length > 0) {
+        const lastComment = comments.value[comments.value.length - 1]
+        _task.value.status = status
+        if (document && document.setValue && typeof document.setValue.submit === 'function') {
+            document.setValue.submit({ status }, {
+                onSuccess: (d) => {
+                    issues.value?.reload()
+                    emit('after', d)
+                    toast.success(__('Issue closed'))
+                    show.value = false
+                },
+                onError: () => {
+                    toast.error(__('Could not close issue'))
+                },
+            })
+        } else {
+            updateTaskResource.submit()
+            issues.value?.reload()
+            emit('after', _task.value)
+        }
+    } else {
+        toast.error(__('Add comment before closing issue'))
+    }
+
 }
 
 function combineDateTime(dateStr, timeStr) {
