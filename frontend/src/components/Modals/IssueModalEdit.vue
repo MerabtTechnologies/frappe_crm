@@ -5,7 +5,7 @@
         <div class="mb-5 flex items-center justify-between">
           <div>
             <h3 class="text-2xl font-semibold leading-6 text-ink-gray-9">
-              {{ __('Create Ticket') }}
+              {{ __('Edit Ticket') }}
             </h3>
           </div>
           <div class="flex items-center gap-1">
@@ -45,9 +45,9 @@
         <div class="flex flex-row-reverse gap-2">
           <Button
             variant="solid"
-            :label="__('Create')"
+            :label="__('Update')"
             :loading="isDealCreating"
-            @click="createDeal"
+            @click="updateTaskResource"
           />
         </div>
       </div>
@@ -83,8 +83,15 @@ const router = useRouter()
 const { capture } = useTelemetry()
 const error = ref(null)
 
-const { document: deal, triggerOnBeforeCreate } = useDocument('Issue')
+const { document: deal, triggerOnBeforeCreate, triggerOnSave } = useDocument('Issue')
 
+const {document: issue } = useDocument('Issue', props.defaults.name)
+
+
+deal.doc = computed(() => {
+
+  return issue.doc || {}
+})
 
 
 const hasOrganizationSections = ref(true)
@@ -162,68 +169,53 @@ const tabs = createResource({
 //   return statuses
 // })
 
-const updateTaskResource = createResource({
-  url: 'frappe.client.set_value',
-  makeParams() {
-    return {
-      doctype: 'Issue',
-      name: _task.value.name,
-      fieldname: _task.value,
-    }
-  },
-  validate() {
-      error.value = null
-      isDealCreating.value = true
+async function updateTaskResource(){
+
+  const updateTaskResource = createResource({
+    url: 'frappe.client.set_value',
+    makeParams() {
+      return {
+        doctype: 'Issue',
+        name: deal.doc.name,
+        fieldname: deal.doc,
+      }
     },
-  onSuccess(d) {
-    if (d.name) {
-      issues.value?.reload()
-      emit('after', d.name)
-      show.value = false
-    }
-  },
-
-})
-
-async function createDeal() {
-
-  await triggerOnBeforeCreate?.()
-
-  createResource({
-    url: 'merabt_crm.portal_api.api.create_new_doc',
-    params: { args: deal.doc, doctype: 'Issue' },
-    auto: true,
     validate() {
-      error.value = null
-      isDealCreating.value = true
-    },
-    onSuccess(name) {
-      capture('issue_created')
-      isDealCreating.value = false
-      show.value = false
-      if (name) {
+        error.value = null
+        isDealCreating.value = true
+      },
+    onSuccess(d) {
+      if (d.name) {
         issues.value?.reload()
-        emit('after', name)
+        emit('after', d.name)
         show.value = false
       }
-      // router.push({ name: 'Issue', params: { issueId: name } })
     },
     onError(err) {
-      isDealCreating.value = false
-      if (!err.messages) {
-        error.value = err.message
-        return
-      }
-      error.value = err.messages.join('\n')
-    },
+      console.log("Error: ",err);
+      
+    }
+
   })
+
+  updateTaskResource.submit()
 }
+
 
 function openQuickEntryModal() {
   showQuickEntryModal.value = true
   quickEntryProps.value = { doctype: 'Issue' }
   nextTick(() => (show.value = false))
 }
+
+watch(issue, (newIssue) => {
+  console.log("new Issue: ", newIssue);
+  
+  if (newIssue) {
+    // deal.doc = {custom_task: 54}
+    // Object.assign(deal.doc, newIssue.doc)
+  }
+})
 
 onMounted(() => {
   // deal.doc = { no_of_employees: '1-10' }
@@ -236,7 +228,7 @@ onMounted(() => {
   //   deal.doc.status = dealStatuses.value[0].value
   // }
 
-  Object.assign(deal.doc, props.defaults)
+  // Object.assign(deal.doc, props.defaults)
   
   // deal.doc = {
   //   ...deal.doc,

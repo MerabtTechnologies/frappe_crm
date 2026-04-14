@@ -52,8 +52,11 @@
                     <div>
                         <div class="mb-1.5 text-xs text-ink-gray-5">{{ __('Subject') }}</div>
                         <TextInput ref="subject" disabled
-                            :label="__('Subject')" v-model="_task.subject" :placeholder="__('Call with John Doe')" />
-
+                            :label="__('Subject')" v-model="_task.subject" :placeholder="__('Call with John Doe')" 
+                        />
+                        <div class="mb-1.5 mt-1 text-xs text-ink-gray-5">{{ __('Task') }}</div>
+                            <TextInput disabled :label="__('Task')" v-model="_task.custom_task" :placeholder="__('Call with John Doe')" />
+                        
 
                         <div class="mt-3">
                             <div class="mb-1.5 text-xs text-ink-gray-5">{{ __('Description') }}</div>
@@ -137,6 +140,8 @@ import { useOnboarding } from 'frappe-ui/frappe'
 import { ref, watch, nextTick, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMeta } from '@/stores/meta'
+import { useDocument } from '@/data/document'
+
 
 
 const props = defineProps({
@@ -166,6 +171,7 @@ const { capture } = useTelemetry()
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency, getFields } = getMeta(props.doctype)
 
+const { triggerOnChange,triggerOnLoad , assignees, permissions, document, error } = useDocument('Issue', props.task.name)
 
 const comments = ref([])
 const commentsLoading = ref(false)
@@ -182,6 +188,7 @@ const _task = ref({
     assigned_to: '',
     opening_date: null,
     opening_time: null,
+    custom_task: '',
     status: 'Backlog',
     priority: 'Low',
     resolution_details: '',
@@ -351,7 +358,7 @@ async function updateTask() {
 
 function render() {
     editMode.value = false
-    nextTick(() => {
+    nextTick(async () => {
         subject.value?.el?.focus?.()
         _task.value = { ...props.task }
         if (_task.value.subject) {
@@ -369,6 +376,11 @@ onMounted(() => show.value && render())
 watch(show, (value) => {
     if (!value) return
     render()
+})
+
+watch(document, (newDoc) => {
+    if (!newDoc.doc) return
+    _task.value = { ..._task.value, ...newDoc.doc }
 })
 
 function issueStatusOptions(action, data) {

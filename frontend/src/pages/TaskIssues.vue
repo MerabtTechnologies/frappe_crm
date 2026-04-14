@@ -91,10 +91,18 @@
     :task="task"
   />
   <IssueModal
-    v-if="showTaskEditModal"
-    v-model="showTaskEditModal"
+    v-if="showTaskCreateModal"
+    v-model="showTaskCreateModal"
     v-model:reloadIssues="tasks"
-    :task="task"
+    :defaults="task"
+    :create="data_edit"
+  />
+  <IssueModalEdit
+    v-if="data_edit"
+    v-model="data_edit"
+    v-model:reloadIssues="tasks"
+    :defaults="task"
+    :create="data_edit"
   />
 </template>
 
@@ -104,6 +112,7 @@ import CustomActions from '@/components/CustomActions.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import IssueViewModal from '@/components/Modals/IssueViewModal.vue'
+import IssueModalEdit from '@/components/Modals/IssueModalEdit.vue'
 import IssueModal from '@/components/Modals/IssueModal.vue'
 import IssueItem from '@/components/IssueItem.vue'
 import { getMeta } from '@/stores/meta'
@@ -179,7 +188,7 @@ const todayItems = computed(() => {
   const t = new Date(s)
   t.setDate(t.getDate() + 1)
   const dated_data = (rows.value || []).filter((item) => {
-    const d = parseDateSafe(item.opening_date_raw ?? item.opening_date)
+    const d = parseDateSafe(item.creation ?? item.opening_date_raw)
     if (!d) return false
     return d >= s && d < t
   })
@@ -189,7 +198,7 @@ const todayItems = computed(() => {
 const overdueItems = computed(() => {
   const s = startOfDay(new Date())
   const dated_data = (rows.value || []).filter((item) => {
-    const d = parseDateSafe(item.opening_date_raw ?? item.opening_date)
+    const d = parseDateSafe(item.creation ?? item.opening_date_raw)
     if (!d) return false
     return d < s
   })
@@ -198,7 +207,7 @@ const overdueItems = computed(() => {
 
 const completedItems = computed(() => {
   const dated_data = (rows.value || []).filter((item) => {
-    const d = parseDateSafe(item.opening_date_raw ?? item.opening_date)
+    const d = parseDateSafe(item.creation ?? item.opening_date_raw)
     if (!d) return false
     return ['Resolved', 'Closed'].includes(item.status)
   })
@@ -283,16 +292,18 @@ function parseRows(rows, columns = []) {
 }
 
 const showTaskModal = ref(false)
-const showTaskEditModal = ref(false)
+const showTaskCreateModal = ref(false)
+const data_edit = ref(false)
 
 
-// chanve this to pass data to issue modal instead of task modal for new data creation
+// change this to pass data to issue modal instead of task modal for new data creation
 const task = ref({
   name: '',
   subject: '',
   title: '',
   description: '',
-  assigned_to: '',
+  custom_task: '',
+  custom_assigned_to: '',
   opening_date: '',
   opening_time: '',
   status: 'Backlog',
@@ -303,37 +314,44 @@ const task = ref({
   reference_docname: '',
 })
 
-// chanve this to pass data to issue modal instead of task modal
+// change this to pass data to issue modal instead of task modal
 function showTask(name, edit=false) {
   let t = rows.value?.find((row) => row.name === name)
   task.value = {
-    name: t.name,
-    title: t.title,
-    subject: t.subject,
-    description: t.description,
-    assigned_to: t.assigned_to?.name || '',
-    status: t.status,
-    priority: t.priority,
-    issue_type: t.issue_type,
-    resolution_details: t.resolution_details,
-    reference_doctype: t.reference_doctype,
-    reference_docname: t.reference_docname,
+    name: t.name || '',
+    title: t.title || '',
+    subject: t.subject || '',
+    description: t.description || '',
+    custom_task: t.custom_task || '',
+    custom_assigned_to: t.custom_assigned_to || '',
+    status: t.status || '',
+    priority: t.priority || '',
+    issue_type: t.issue_type || '',
+    resolution_details: t.resolution_details || '',
+    reference_doctype: t.reference_doctype || '',
+    reference_docname: t.reference_docname || '',
   }
   if(edit) {
-    showTaskEditModal.value = true
-    task.value = {
-      ...task.value,
-    }
+    showTaskCreateModal.value = true
   } else {
     task.value = {
       ...task.value,
-      owner: t.owner,
-      creation: t.creation,
-      opening_date: t.opening_date,
-      opening_time: t.opening_time,
+      owner: t.owner || '',
+      creation: t.creation || '',
+      opening_date: t.opening_date || '',
+      opening_time: t.opening_time || '',
     }
     showTaskModal.value = true
   }
+}
+
+function editTask(name) {
+  task.value = {
+    name: name,
+  }
+
+
+  data_edit.value = true
 }
 
 function createTask(column) {
@@ -342,7 +360,8 @@ function createTask(column) {
     title: '',
     subject: '',
     description: '',
-    assigned_to: '',
+    custom_task: '',
+    custom_assigned_to: '',
     opening_date: '',
     opening_time: '',
     issue_type: '',
@@ -360,7 +379,7 @@ function createTask(column) {
     }
   }
 
-  showTaskEditModal.value = true
+  showTaskCreateModal.value = true
 }
 
 function actions(name) {
@@ -377,11 +396,9 @@ function actions(name) {
       label: __('Edit'),
       icon: 'edit-2',
       onClick: () => {
-        if (getUser().name == task.value.owner) {
-          showTask(name, true)
-        } else {
-          toast.error(__('Only the owner can edit this ticket'))
-        }
+        // showTask(name, true)
+        editTask(name)
+
       },
     },
   ]

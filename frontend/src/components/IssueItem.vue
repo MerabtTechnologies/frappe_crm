@@ -90,3 +90,6 @@ function getActions(name) {
   return props.actions ? props.actions(name) : []
 }
 </script>
+
+
+<!-- Add open task button to show the task details -->
