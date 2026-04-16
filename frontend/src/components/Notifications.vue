@@ -134,25 +134,37 @@ function getRoute(notification) {
   // console.log('Notification Route: ', notification);
   
   if(notification?.reference_name){
-    let params = {
-      leadId: notification.reference_name,
-    }
+    let params = {}
     if (notification.route_name === 'Deal') {
       params = {
         dealId: notification.reference_name,
       }
     }
-    if (notification.route_name === 'Tasks') {
+    if (notification.route_name === 'Lead') {
       params = {
-        
+        leadId: notification.reference_name,
       }
     }
-
-    return {
+    if (notification.route_name === 'CRM Task') {
+      params = {
+      }
+      return {
+        name: 'Tasks',
+        hash: notification.hash,
+      }
+    }
+    if (notification.route_name === 'Issue') {      
+      params = {
+        issueId: notification.reference_name,
+      }      
+    }
+    
+    const data =  {
       name: notification.route_name,
       params: params,
       hash: notification.hash,
     }
+    return data
   }
   return { name: 'Dashboard' }
 }

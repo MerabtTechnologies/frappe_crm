@@ -1,7 +1,7 @@
 <template>
   <LayoutHeader>
     <template #left-header>
-      <ViewBreadcrumbs v-model="viewControls" routeName="Task Issues" />
+      <ViewBreadcrumbs v-model="viewControls" routeName="Issues" label="Task Issues" />
     </template>
     <template #right-header>
       <CustomActions
@@ -119,8 +119,10 @@ import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
 import { call, ListItem, toast } from 'frappe-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { globalStore } from '@/stores/global'
+
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta('Issue')
@@ -128,6 +130,7 @@ const { getUser } = usersStore()
 
 const router = useRouter()
 
+const { $dialog, $socket, makeCall } = globalStore()
 
 const tasksListView = ref(null)
 
@@ -431,4 +434,17 @@ const openTaskFromURL = () => {
     window.history.replaceState(null, '', window.location.pathname)
   }
 }
+
+onMounted(() => {
+  $socket.on('new_issue_notification', () => {
+    toast.success(__('New Task Ticket Created'))
+    // console.log("socket capture : new_issue_notification");
+    
+  })
+})
+
+onBeforeUnmount(() => {
+  $socket.off('new_issue_notification')
+})
+
 </script>

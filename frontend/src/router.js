@@ -240,8 +240,14 @@ const routes = [
   {
   alias: '/task-issues',
   path: '/task-issues/view/:viewType?',
-  name: 'Task Issues',
+  name: 'Issues',
   component: () => import('@/pages/TaskIssues.vue'),
+  },
+  {
+    path: '/task-issues/:issueId',
+    name: 'Issue',
+    component: () => import(`@/pages/TaskIssues.vue`),
+    props: true,
   },
 
 

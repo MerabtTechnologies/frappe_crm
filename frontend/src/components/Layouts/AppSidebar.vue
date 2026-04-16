@@ -264,7 +264,7 @@ const links = [
   {
     label: 'Task Tickets',
     icon: IssueIcon,
-    to: 'Task Issues',
+    to: 'Issues',
   },
   {
     label: 'Call Logs',

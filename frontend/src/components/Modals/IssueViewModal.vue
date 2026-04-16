@@ -57,6 +57,9 @@
                         <div class="mb-1.5 mt-1 text-xs text-ink-gray-5">{{ __('Task') }}</div>
                             <TextInput disabled :label="__('Task')" v-model="_task.custom_task" :placeholder="__('Call with John Doe')" />
                         
+                        <div v-if="_task.custom_assigned_to" class="mb-1.5 mt-1 text-xs text-ink-gray-5">{{ __('Assign To') }}</div>
+                        <TextInput v-if="_task.custom_assigned_to" disabled :label="__('Assign To')" v-model="_task.custom_assigned_to" :placeholder="__('John Doe')" />
+                    
 
                         <div class="mt-3">
                             <div class="mb-1.5 text-xs text-ink-gray-5">{{ __('Description') }}</div>
@@ -99,14 +102,26 @@
                     <div class="mb-1.5 text-xs text-ink-gray-5">{{ __('Add a comment') }}</div>
                     <TextEditor :editable="true" :content="newComment" @change="(val) => (newComment = val)"
                         editor-class="!prose-sm min-h-[80px] max-h-40" :placeholder="__('Write a comment...')" />
-                    <div class="flex justify-end mt-2 gap-2">
-                        <Button v-if="_task.status !== 'Closed'" :label="__('Close Ticket')" :loading="addingComment"
-                            @click="() => closeIssue('Closed')" />
-                        <Button v-if="_task.status !== 'Resolved'" :label="__('Resolved')" :loading="addingComment"
-                            @click="() => closeIssue('Resolved')" />
-                            
-                        <Button :label="__('Post Comment')" variant="solid" :loading="addingComment"
-                            @click="postComment" />
+                    <div class="flex justify-between mt-2 gap-2">
+                        <Button 
+                            :label="__('Open Task')" 
+                            @click="() => {
+                                console.log('Open Task');
+                                
+                            }"
+                            :iconRight="ArrowUpRightIcon"
+                        />
+                    
+                        
+                        <div class="flex self-end gap-2">
+                            <Button v-if="_task.status !== 'Closed'" :label="__('Close Ticket')" :loading="addingComment"
+                                @click="() => closeIssue('Closed')" />
+                            <Button v-if="_task.status !== 'Resolved'" :label="__('Resolved')" :loading="addingComment"
+                                @click="() => closeIssue('Resolved')" />
+                                
+                            <Button :label="__('Post Comment')" variant="solid" :loading="addingComment"
+                                @click="postComment" />
+                        </div>
                     </div>
                 </div>
             </div>
