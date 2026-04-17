@@ -145,19 +145,22 @@ function getRoute(notification) {
         leadId: notification.reference_name,
       }
     }
-    if (notification.route_name === 'CRM Task') {
-      params = {
+      if (notification.route_name === 'CRM Task' || notification.reference_doctype === 'CRM Task') {
+        // Open Tasks page and trigger open by query param
+        return {
+          name: 'Tasks',
+          query: { open: notification.reference_name },
+          hash: notification.hash,
+        }
       }
-      return {
-        name: 'Tasks',
-        hash: notification.hash,
+      if (notification.route_name === 'Issue' || notification.reference_doctype === 'Issue') {      
+        // Open Issues page and trigger issue modal by query param
+        return {
+          name: 'Issues',
+          query: { open: notification.reference_name },
+          hash: notification.hash,
+        }
       }
-    }
-    if (notification.route_name === 'Issue') {      
-      params = {
-        issueId: notification.reference_name,
-      }      
-    }
     
     const data =  {
       name: notification.route_name,

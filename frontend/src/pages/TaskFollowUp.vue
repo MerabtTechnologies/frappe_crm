@@ -9,6 +9,12 @@
         :actions="tasksListView.customListActions"
       />
       <Button
+        variant="ghost"
+        :label="filterByIssues ? __('Show All') : __('Only with Issues')"
+        iconLeft="tag"
+        @click="filterByIssues = !filterByIssues"
+      />
+      <Button
         variant="solid"
         :label="__('Create')"
         iconLeft="plus"
@@ -167,27 +173,45 @@ const issueCounts = computed(() => {
   return counts
 })
 
+const filterByIssues = ref(false)
+
 
 const rows = computed(() => {
   if (!tasks.value?.data?.data) return []
 
-  if (tasks.value.data.view_type === 'kanban') {
+  const viewType = tasks.value.data.view_type
+
+  // Kanban uses the full dataset
+  if (viewType === 'kanban') {
     return getKanbanRows(tasks.value.data.data, tasks.value.data.fields)
   }
 
   openTaskFromURL()
 
-  const parsed = parseRows(tasks.value?.data.data, tasks.value?.data.columns)
+  // Work with raw rows so we can sort & limit for list view
+  let raw = Array.isArray(tasks.value.data.data) ? [...tasks.value.data.data] : []
+
+    // If enabled, filter tasks to only those referenced by issues
+    if (filterByIssues.value && issueTaskIds.value && issueTaskIds.value.size) {
+      raw = raw.filter((r) => issueTaskIds.value.has(String(r.name)))
+  }
+
+  // Sort by modified or creation (descending)
+  raw.sort((a, b) => {
+    const aDate = new Date(a.modified || a.creation || 0).getTime() || 0
+    const bDate = new Date(b.modified || b.creation || 0).getTime() || 0
+    return bDate - aDate
+  })
+
+  // Limit list view to top 20
+  const limited = raw.slice(0, 20)
+
+  const parsed = parseRows(limited, tasks.value?.data?.columns)
 
   // attach ticket counts to parsed rows
   parsed.forEach((t) => {
     t.tickets = issueCounts.value[String(t.name)] || 0
   })
-
-  // If there are issue -> task links, filter tasks to only those referenced by issues
-  if (issueTaskIds.value && issueTaskIds.value.size) {
-    return parsed.filter((t) => issueTaskIds.value.has(String(t.name)))
-  }
 
   return parsed
 })
