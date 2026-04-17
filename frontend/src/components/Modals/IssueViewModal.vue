@@ -55,7 +55,10 @@
                             :label="__('Subject')" v-model="_task.subject" :placeholder="__('Call with John Doe')" 
                         />
                         <div class="mb-1.5 mt-1 text-xs text-ink-gray-5">{{ __('Task') }}</div>
-                            <TextInput disabled :label="__('Task')" v-model="_task.custom_task" :placeholder="__('Call with John Doe')" />
+                        <div>
+                            <TextInput disabled :label="__('Task')" v-model="taskSubject" :placeholder="__('No Task')" />
+                            <!-- <div class="text-sm text-ink-gray-7 truncate max-w-xs">{{ taskSubject || __('-') }}</div> -->
+                        </div>
                         
                         <div v-if="_task.custom_assigned_to" class="mb-1.5 mt-1 text-xs text-ink-gray-5">{{ __('Assign To') }}</div>
                         <TextInput v-if="_task.custom_assigned_to" disabled :label="__('Assign To')" v-model="_task.custom_assigned_to" :placeholder="__('John Doe')" />
@@ -105,10 +108,7 @@
                     <div class="flex justify-between mt-2 gap-2">
                         <Button 
                             :label="__('Open Task')" 
-                            @click="() => {
-                                console.log('Open Task');
-                                
-                            }"
+                            @click="openLinkedTask"
                             :iconRight="ArrowUpRightIcon"
                         />
                     
@@ -410,6 +410,7 @@ function render() {
             editMode.value = true
         }
         await loadComments()
+        await loadLinkedTask()
 
     })
     
@@ -428,8 +429,20 @@ watch(
     (doc) => {
         if (!doc) return
         _task.value = { ..._task.value, ...doc }
+        loadLinkedTask()
     },
     { immediate: true },
+)
+
+watch(
+    () => _task.value.custom_task,
+    (val) => {
+        if (!val) {
+            taskSubject.value = ''
+            return
+        }
+        loadLinkedTask()
+    },
 )
 
 function issueStatusOptions(action, data) {
@@ -658,6 +671,49 @@ function formateDatetime(datetime) {
     if (diffWeek < 5) return `${diffWeek} week${diffWeek === 1 ? '' : 's'} ago`
     // older than ~month, show full date
     return formatFullDatetime(datetime)
+}
+
+function openLinkedTask() {
+    const linked = _task.value?.custom_task ?? _task.value?.reference_docname ?? null
+    const id = linked && typeof linked === 'object' ? (linked.name ?? linked) : linked
+    if (!id) {
+        toast.error(__('No linked task'))
+        return
+    }
+    show.value = false
+    try {
+        router.push({ name: 'Tasks', query: { open: String(id) } })
+    } catch (e) {
+        // ignore navigation errors
+    }
+}
+
+const taskSubject = ref('')
+
+const loadTaskResource = createResource({
+    url: 'frappe.client.get',
+    makeParams() {
+        const linked = _task.value?.custom_task ?? null
+        const id = linked && typeof linked === 'object' ? (linked.name ?? linked) : linked
+        return { doctype: 'CRM Task', name: id }
+    },
+})
+
+async function loadLinkedTask() {
+    const linked = _task.value?.custom_task ?? null
+    const id = linked && typeof linked === 'object' ? (linked.name ?? linked) : linked
+    if (!id) {
+        taskSubject.value = ''
+        return
+    }
+    try {
+        await loadTaskResource.submit()
+        const res = loadTaskResource.data
+        const payload = res && res.data ? res.data : res
+        taskSubject.value = (payload && (payload.subject || payload.title)) || ''
+    } catch (e) {
+        taskSubject.value = ''
+    }
 }
 
 

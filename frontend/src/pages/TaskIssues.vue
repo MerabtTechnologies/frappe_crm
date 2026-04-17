@@ -318,8 +318,14 @@ const task = ref({
 })
 
 // change this to pass data to issue modal instead of task modal
-function showTask(name, edit=false) {
-  let t = rows.value?.find((row) => row.name === name)
+function showTask(name, edit = false) {
+  const searchName = String(name)
+  const t = rows.value?.find((row) => String(row.name) === searchName)
+  if (!t) {
+    // row not found yet — likely data not loaded. fail gracefully.
+    console.warn('showTask: task not found', name)
+    return
+  }
   task.value = {
     name: t.name || '',
     title: t.title || '',
@@ -428,11 +434,32 @@ const openTaskFromURL = () => {
   const searchParams = new URLSearchParams(window.location.search)
   const taskName = searchParams.get('open')
 
-  if (taskName && rows.value?.length) {
-    showTask(parseInt(taskName))
-    searchParams.delete('open')
-    window.history.replaceState(null, '', window.location.pathname)
+  if (!taskName) return
+
+  const tryOpen = () => {
+    if (!rows.value?.length) return false
+    const found = rows.value.find((row) => String(row.name) === String(taskName))
+    if (found) {
+      showTask(found.name)
+      searchParams.delete('open')
+      window.history.replaceState(null, '', window.location.pathname)
+      return true
+    }
+    return false
   }
+
+  // Try immediately
+  if (tryOpen()) return
+
+  // Retry for a short period while data loads
+  const interval = setInterval(() => {
+    if (tryOpen()) {
+      clearInterval(interval)
+    }
+  }, 200)
+
+  // stop retrying after 5s
+  setTimeout(() => clearInterval(interval), 5000)
 }
 
 onMounted(() => {

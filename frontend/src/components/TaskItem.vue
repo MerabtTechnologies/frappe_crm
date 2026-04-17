@@ -27,11 +27,13 @@
             <TaskPriorityIcon v-if="item.priority" :priority="item.priority"/> 
             <div class=" text-sm">{{ item.priority }}</div>
         </div>
-        <div class="flex gap-2 items-center bg-gray-200 pt-1 pb-1 px-2 rounded">
+        <div class="flex gap-2 items-center pt-1 pb-1 px-2 rounded">
             <Avatar v-if="item.assigned_to?.full_name" :image="item.assigned_to.user_image" :label="item.assigned_to.full_name" size="sm" /> 
             <div class=" text-sm">{{ item.assigned_to?.full_name }}</div>
         </div>
-        
+        <div v-if="item.tickets" class="flex gap-2 items-center bg-gray-200 pt-1 pb-1 px-2 rounded">
+            <div class=" text-sm">{{ item.tickets }} Tickets</div>
+        </div>
     </div>
     <div class="mt-2 w-full border-t"  v-if="item.reference_docname">
         <Button

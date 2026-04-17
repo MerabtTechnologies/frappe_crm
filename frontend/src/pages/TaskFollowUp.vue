@@ -101,7 +101,7 @@ import TaskItem from '@/components/TaskItem.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
-import { call } from 'frappe-ui'
+import { call, createListResource } from 'frappe-ui'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -131,6 +131,43 @@ function getRow(name, field) {
   return getValue(rows.value?.find((row) => row.name == name)[field])
 }
 
+// Load Issue list (only need `custom_task` field) and compute referenced task ids
+const issueTickets = createListResource({
+  type: 'list',
+  doctype: 'Issue',
+  cache: ['issues', 'issue_all'],
+  fields: ['custom_task'],
+  orderBy: 'modified desc',
+  pageLength: 1000,
+  auto: true,
+})
+
+const issueTaskIds = computed(() => {
+  const raw = issueTickets.data?.data || issueTickets.data || []
+  return new Set(
+    (raw || [])
+      .map((it) => {
+        const v = it?.custom_task || (it?.custom_task?.name ?? null)
+        return v == null ? null : String(v)
+      })
+      .filter(Boolean),
+  )
+})
+
+// Map of taskId -> issue count
+const issueCounts = computed(() => {
+  const raw = issueTickets.data?.data || issueTickets.data || []
+  const counts = {}
+  ;(raw || []).forEach((it) => {
+    const v = it?.custom_task || (it?.custom_task?.name ?? null)
+    const key = v == null ? null : String(v)
+    if (!key) return
+    counts[key] = (counts[key] || 0) + 1
+  })
+  return counts
+})
+
+
 const rows = computed(() => {
   if (!tasks.value?.data?.data) return []
 
@@ -139,7 +176,20 @@ const rows = computed(() => {
   }
 
   openTaskFromURL()
-  return parseRows(tasks.value?.data.data, tasks.value?.data.columns)
+
+  const parsed = parseRows(tasks.value?.data.data, tasks.value?.data.columns)
+
+  // attach ticket counts to parsed rows
+  parsed.forEach((t) => {
+    t.tickets = issueCounts.value[String(t.name)] || 0
+  })
+
+  // If there are issue -> task links, filter tasks to only those referenced by issues
+  if (issueTaskIds.value && issueTaskIds.value.size) {
+    return parsed.filter((t) => issueTaskIds.value.has(String(t.name)))
+  }
+
+  return parsed
 })
 
 function getLabel(value) {
