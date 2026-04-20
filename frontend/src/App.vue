@@ -298,8 +298,9 @@ onMounted(async () => {
 
 
   interval = setInterval(() => {
-    salesPerformance.value = performance_data.data
 
+    salesPerformance.value = performance_data.data.status || 'none'
+    
     if (salesPerformance.value === 'poor') {
       modelData.value = {
         title: poor_title,
