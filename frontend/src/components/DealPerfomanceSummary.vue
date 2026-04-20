@@ -14,6 +14,32 @@
           <p class="text-gray-600">Actual deal and lead data from CRM</p>
         </div>
       </div>
+
+        <!-- Targets vs Achieved Chart -->
+        <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
+                  <div class="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 class="text-lg font-semibold text-gray-800">Targets vs Achieved</h3>
+                      <p class="text-sm text-gray-600">Monthly target vs achieved for the sales person</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <div v-if="isManager()" class="">
+                        <select
+                          v-model="selectedUser"
+                          class="w-56 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm"
+                        >
+                          <option v-for="u in crmUsers" :key="u.name" :value="u.email || u.name">
+                            {{ u.full_name || u.name }}
+                          </option>
+                        </select>
+                      </div>
+                      <div class="text-sm text-gray-600">
+                        <button @click="applyFilters" class="text-sm text-blue-600 hover:text-blue-800 px-2 py-1 rounded">Refresh</button>
+                      </div>
+                    </div>
+                  </div>
+          <div ref="chartRef" class="w-full h-96 md:h-[420px]"></div>
+        </div>
     </div>
   <div v-if="false" class="bg-gray-100 p-4 rounded mb-4">
     <h3 class="font-bold mb-2">Debug Info</h3>
@@ -66,6 +92,8 @@
           Custom Range
         </button>
       </div>
+
+      
 
       <!-- Date Inputs (only visible when custom range is selected) -->
       <div v-if="dateRange === 'custom'" class="flex flex-col md:flex-row md:items-end gap-4">
@@ -486,14 +514,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
 import { createResource } from 'frappe-ui'
 import { usersStore } from '../stores/users'
 import { useRouter } from 'vue-router'
 
 const API_ENDPOINT = 'merabt_crm.merabt_crm.override.custom_chart.get_deal_performance_cards'
 
-const { users, getUser, isManager, isSalesMasterManager } = usersStore()
+const { users, getUser, isManager, crmUsers } = usersStore()
 const router = useRouter()
 
 // Reactive variables
@@ -501,10 +530,70 @@ const loading = ref(false)
 const error = ref(null)
 const dataUpdatedTime = ref('')
 
+// Chart refs and resource
+const chartRef = ref(null)
+let chartInstance = null
+
+const chartResource = createResource({
+  url: `merabt_crm.portal_api.sales_target.get_month_wise_sales_chart`,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  transform: (data) => {
+    if (data.message) return data.message
+    if (data.data) return data.data
+    return data
+  },
+  auto: false,
+  onError: (err) => {
+    console.error('Chart data error:', err)
+  },
+  onSuccess: () => {
+    try {
+      // Update the displayed data time when chart data arrives
+      dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+
+      // Ensure the DOM is updated (chart container exists) before rendering
+      nextTick(() => {
+        try {
+          renderChart(chartResource.data)
+        } catch (e) {
+          console.error('Error rendering chart after nextTick:', e)
+        }
+      })
+    } catch (e) {
+      console.error('Error rendering chart:', e)
+    }
+  }
+})
+
 // Date filter variables
 const fromDate = ref('')
 const toDate = ref('')
 const dateRange = ref('30days')
+const selectedUser = ref(getUser().email || getUser().name)
+
+// Ensure managers default to the current user once crmUsers are loaded;
+// if current user is not in the list, fall back to the first CRM user.
+watch(crmUsers, (list) => {
+  if (!isManager()) return
+  const usersList = list || []
+  if (!Array.isArray(usersList) || usersList.length === 0) return
+
+  const me = getUser().email || getUser().name
+  const found = usersList.find(u => (u.email === me || u.name === me))
+  if (found) {
+    selectedUser.value = found.email || found.name
+  } else if (!selectedUser.value || !usersList.find(u => (u.email === selectedUser.value || u.name === selectedUser.value))) {
+    selectedUser.value = usersList[0].email || usersList[0].name
+  }
+}, { immediate: true })
 
 // Create resource for data fetching (similar to Lead.vue pattern)
 const performanceData = createResource({
@@ -588,6 +677,67 @@ const getDateRangeLabel = () => {
   }
 }
 
+// Render ECharts bar chart from payload
+const renderChart = (payload) => {
+  if (!chartRef.value) return
+
+  const chartPayload = payload?.data || payload || {}
+  const labels = chartPayload.labels || (chartPayload.data && chartPayload.data.labels) || []
+  const datasets = chartPayload.datasets || (chartPayload.data && chartPayload.data.datasets) || []
+
+  const option = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { data: datasets.map(d => d.name) },
+    // give more bottom space so x-axis labels render below the chart
+    grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisTick: { alignWithLabel: true },
+      axisLabel: {
+        inside: false,
+        interval: 0,
+        rotate: 0,
+        margin: 14,
+      }
+    },
+    yAxis: { type: 'value' },
+    series: datasets.map((d) => ({
+      name: d.name,
+      type: 'bar',
+      data: d.values || [],
+      emphasis: { focus: 'series' }
+    })),
+    color: ['#60A5FA', '#34D399']
+  }
+
+  // If no meaningful data, dispose any existing chart and exit early
+  const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && Array.isArray(datasets) && datasets.length > 0 && datasets.some(ds => Array.isArray(ds.values) && ds.values.some(v => Number(v) !== 0))
+  if (!hasMeaningfulData) {
+    try {
+      if (chartInstance) {
+        chartInstance.clear()
+        chartInstance.dispose()
+        chartInstance = null
+      }
+    } catch (e) {
+      // ignore
+    }
+    return
+  }
+
+  if (!chartInstance) {
+    try {
+      chartInstance = echarts.init(chartRef.value, 'light', { renderer: 'svg' })
+    } catch (e) {
+      console.error('ECharts init error', e)
+      return
+    }
+  }
+
+  chartInstance.setOption(option)
+}
+
 // Apply filters
 const applyFilters = () => {
   loading.value = true
@@ -604,14 +754,31 @@ const applyFilters = () => {
     requestBody.to_date = toDate.value
   }
 
-  if (isManager() || isSalesMasterManager() ) {
-    requestBody.user = null
+  // User selection handling (visible only to managers):
+  if (selectedUser.value) {
+    // If non-manager somehow set a different user, restrict to current user
+    if (!isManager() && selectedUser.value !== (getUser().email || getUser().name)) {
+      requestBody.user = getUser().email || getUser().name
+    } else {
+      requestBody.user = selectedUser.value
+    }
   } else {
-    requestBody.user = getUser().email
+    // No selection -> if manager show all (null), else restrict to current user
+    if (isManager()) {
+      requestBody.user = null
+    } else {
+      requestBody.user = getUser().email || getUser().name
+    }
   }
   
   // Submit the request
   performanceData.submit(requestBody)
+  // Also submit chart data for Targets vs Achieved
+  try {
+    chartResource.submit(requestBody)
+  } catch (e) {
+    // ignore
+  }
 }
 
 // Reset filters
@@ -637,6 +804,24 @@ const formatDateDisplay = (dateString) => {
 // Data computed properties from the resource
 const apiData = computed(() => {
   return performanceData.data || {}
+})
+
+// Chart payload normalization and presence check
+const chartPayload = computed(() => {
+  const payload = chartResource.data || {}
+  const cp = payload?.data || payload
+  return cp || {}
+})
+
+const chartHasData = computed(() => {
+  const cp = chartPayload.value || {}
+  const labels = cp.labels || []
+  const datasets = cp.datasets || []
+  if (!Array.isArray(labels) || labels.length === 0) return false
+  if (!Array.isArray(datasets) || datasets.length === 0) return false
+  // require at least one non-zero value in datasets
+  const hasNonZero = datasets.some(d => Array.isArray(d.values) && d.values.some(v => Number(v) !== 0))
+  return hasNonZero
 })
 
 const dealSummary = computed(() => {
@@ -970,6 +1155,15 @@ watch([fromDate, toDate], () => {
   }
 })
 
+// Auto-apply filters when manager changes selected user (debounced)
+watch(selectedUser, (newVal, oldVal) => {
+  if (!isManager()) return
+  clearTimeout(window.filterTimeout)
+  window.filterTimeout = setTimeout(() => {
+    applyFilters()
+  }, 300)
+})
+
 // Watch loading state from resource
 watch(() => performanceData.loading, (newVal) => {
   loading.value = newVal
@@ -979,6 +1173,18 @@ watch(() => performanceData.loading, (newVal) => {
 watch(() => performanceData.error, (newVal) => {
   if (newVal) {
     error.value = newVal.messages?.[0] || newVal.message || 'Error loading data'
+  }
+})
+
+// Cleanup chart instance on unmount
+onUnmounted(() => {
+  try {
+    if (chartInstance) {
+      chartInstance.dispose()
+      chartInstance = null
+    }
+  } catch (e) {
+    // ignore
   }
 })
 </script>
