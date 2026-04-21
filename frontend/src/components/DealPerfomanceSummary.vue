@@ -40,6 +40,25 @@
                   </div>
           <div ref="chartRef" class="w-full h-96 md:h-[420px]"></div>
         </div>
+          <!-- Sales Persons Comparison Chart -->
+          <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-800">Salesperson Comparison</h3>
+                <p class="text-sm text-gray-600">Targets vs Achieved across sales persons</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <select v-model="selectedYear" class="px-2 py-1 border border-gray-300 rounded-md text-sm select-fit">
+                  <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+                </select>
+                <select v-model="selectedMonth" class="px-2 py-1 border border-gray-300 rounded-md text-sm select-fit">
+                  <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+                </select>
+                <button @click="applyFilters" class="text-sm text-blue-600 hover:text-blue-800 px-2 py-1 rounded">Refresh</button>
+              </div>
+            </div>
+            <div ref="allSalesChartRef" class="w-full h-96 md:h-[420px]"></div>
+          </div>
     </div>
   <div v-if="false" class="bg-gray-100 p-4 rounded mb-4">
     <h3 class="font-bold mb-2">Debug Info</h3>
@@ -573,6 +592,66 @@ const chartResource = createResource({
   }
 })
 
+// All Sales Persons chart
+const allSalesChartRef = ref(null)
+let allSalesChartInstance = null
+
+const selectedYear = ref(new Date().getFullYear().toString())
+const selectedMonth = ref(String(new Date().getMonth() + 1).padStart(2, '0'))
+const currentYear = new Date().getFullYear()
+const yearOptions = Array.from({ length: 6 }).map((_, i) => String(currentYear - i))
+const monthOptions = [
+  { value: 'all', label: 'All' },
+  { value: '01', label: 'Jan' },
+  { value: '02', label: 'Feb' },
+  { value: '03', label: 'Mar' },
+  { value: '04', label: 'Apr' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'Jun' },
+  { value: '07', label: 'Jul' },
+  { value: '08', label: 'Aug' },
+  { value: '09', label: 'Sep' },
+  { value: '10', label: 'Oct' },
+  { value: '11', label: 'Nov' },
+  { value: '12', label: 'Dec' },
+]
+
+const allSalesChartResource = createResource({
+  url: `/api/method/merabt_crm.portal_api.sales_target.get_all_sales_persons_month_wise_chart`,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  transform: (data) => {
+    if (data.message) return data.message
+    if (data.data) return data.data
+    return data
+  },
+  auto: false,
+  onError: (err) => {
+    console.error('All sales chart error:', err)
+  },
+  onSuccess: () => {
+    try {
+      dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+      nextTick(() => {
+        try {
+          renderAllSalesChart(allSalesChartResource.data)
+        } catch (e) {
+          console.error('Error rendering all sales chart after nextTick:', e)
+        }
+      })
+    } catch (e) {
+      console.error('Error rendering all sales chart:', e)
+    }
+  }
+})
+
 // Date filter variables
 const fromDate = ref('')
 const toDate = ref('')
@@ -738,6 +817,61 @@ const renderChart = (payload) => {
   chartInstance.setOption(option)
 }
 
+// Render chart for all sales persons (Target vs Achieved)
+const renderAllSalesChart = (payload) => {
+  if (!allSalesChartRef.value) return
+
+  const data = payload?.data || payload || {}
+  const sales = Array.isArray(data.sales_persons) ? data.sales_persons : []
+
+  const labels = sales.map(s => s.sales_person_name || s.sales_person)
+  const targetValues = sales.map(s => (s.totals && s.totals.target_amount) || (Array.isArray(s.target_values) ? s.target_values.reduce((a,b)=>a+ (Number(b)||0),0) : 0))
+  const achievedValues = sales.map(s => (s.totals && s.totals.achieved_amount) || (Array.isArray(s.achieved_values) ? s.achieved_values.reduce((a,b)=>a+ (Number(b)||0),0) : 0))
+
+  const option = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { data: ['Target', 'Achieved'] },
+    grid: { left: '3%', right: '4%', bottom: '20%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisTick: { alignWithLabel: true },
+      axisLabel: { interval: 0, rotate: 30 }
+    },
+    yAxis: { type: 'value' },
+    series: [
+      { name: 'Target', type: 'bar', data: targetValues },
+      { name: 'Achieved', type: 'bar', data: achievedValues }
+    ],
+    color: ['#60A5FA', '#34D399']
+  }
+
+  const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && (targetValues.some(v => Number(v) !== 0) || achievedValues.some(v => Number(v) !== 0))
+  if (!hasMeaningfulData) {
+    try {
+      if (allSalesChartInstance) {
+        allSalesChartInstance.clear()
+        allSalesChartInstance.dispose()
+        allSalesChartInstance = null
+      }
+    } catch (e) {
+      // ignore
+    }
+    return
+  }
+
+  if (!allSalesChartInstance) {
+    try {
+      allSalesChartInstance = echarts.init(allSalesChartRef.value, 'light', { renderer: 'svg' })
+    } catch (e) {
+      console.error('ECharts init error for all sales chart', e)
+      return
+    }
+  }
+
+  allSalesChartInstance.setOption(option)
+}
+
 // Apply filters
 const applyFilters = () => {
   loading.value = true
@@ -776,6 +910,16 @@ const applyFilters = () => {
   // Also submit chart data for Targets vs Achieved
   try {
     chartResource.submit(requestBody)
+  } catch (e) {
+    // ignore
+  }
+  // Submit all-sales-persons chart with month/year selection
+  try {
+    const allReq = {}
+    if (selectedMonth.value && selectedMonth.value !== 'all') {
+      allReq.months = JSON.stringify([`${selectedYear.value}-${selectedMonth.value}`])
+    }
+    allSalesChartResource.submit(allReq)
   } catch (e) {
     // ignore
   }
@@ -1164,6 +1308,14 @@ watch(selectedUser, (newVal, oldVal) => {
   }, 300)
 })
 
+// Auto-apply filters when month/year selection changes (debounced)
+watch([selectedYear, selectedMonth], () => {
+  clearTimeout(window.filterTimeout)
+  window.filterTimeout = setTimeout(() => {
+    applyFilters()
+  }, 300)
+})
+
 // Watch loading state from resource
 watch(() => performanceData.loading, (newVal) => {
   loading.value = newVal
@@ -1182,6 +1334,10 @@ onUnmounted(() => {
     if (chartInstance) {
       chartInstance.dispose()
       chartInstance = null
+    }
+    if (allSalesChartInstance) {
+      allSalesChartInstance.dispose()
+      allSalesChartInstance = null
     }
   } catch (e) {
     // ignore
@@ -1229,5 +1385,12 @@ a {
 a:hover {
   transform: scale(1.05);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Ensure select boxes have enough internal padding and a sensible min-width
+   so the native dropdown arrow does not overlap the option text. */
+.select-fit {
+  min-width: 6.5rem;
+  padding-right: 1.75rem;
 }
 </style>
