@@ -38,7 +38,24 @@
                       </div>
                     </div>
                   </div>
-          <div ref="chartRef" class="w-full h-96 md:h-[420px]"></div>
+              <!-- Cumulative numbers (current user) -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <div class="p-3 bg-gray-50 rounded border flex flex-col">
+                  <div class="text-sm text-gray-500">Cumulative Target</div>
+                  <div class="text-2xl font-bold text-gray-800 mt-2">{{ formatCurrency(currentCumulative.target) }}</div>
+                </div>
+                <div class="p-3 bg-gray-50 rounded border flex flex-col">
+                  <div class="text-sm text-gray-500">Cumulative Achieved</div>
+                  <div class="text-2xl font-bold text-gray-800 mt-2">{{ formatCurrency(currentCumulative.achieved) }}</div>
+                  <div class="text-xs text-gray-500 mt-1">Completion: <span class="font-semibold text-gray-800">{{ (currentCumulative.completion || 0).toFixed(2) }}%</span></div>
+                </div>
+                <div class="p-3 bg-gray-50 rounded border flex flex-col">
+                  <div class="text-sm text-gray-500">Cumulative Variance</div>
+                  <div class="text-2xl mt-2" :class="currentCumulative.variance >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'">{{ formatCurrency(currentCumulative.variance) }}</div>
+                </div>
+              </div>
+
+              <div ref="chartRef" class="w-full h-96 md:h-[420px]"></div>
         </div>
           <!-- Sales Persons Comparison Chart -->
           <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
@@ -592,6 +609,36 @@ const chartResource = createResource({
   }
 })
 
+// Full monthly report resource (used to get cumulative values for current user)
+const reportResource = createResource({
+  url: `/api/method/merabt_crm.portal_api.sales_target.get_month_wise_sales_report`,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  transform: (data) => {
+    if (data.message) return data.message
+    if (data.data) return data.data
+    return data
+  },
+  auto: false,
+  onError: (err) => {
+    console.error('Report data error:', err)
+  },
+  onSuccess: () => {
+    try {
+      dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    } catch (e) {
+      console.error('Error handling report success:', e)
+    }
+  }
+})
+
 // All Sales Persons chart
 const allSalesChartRef = ref(null)
 let allSalesChartInstance = null
@@ -832,8 +879,25 @@ const renderAllSalesChart = (payload) => {
   if (hasItemGroups) {
     // Collect unique group names (map null -> 'Unassigned')
     const groupSet = new Set()
+    const shouldExcludeGroup = (name) => {
+      if (!name && name !== null) return false
+      const n = String(name || '').toLowerCase().trim()
+      // exclude common "all" group labels (case-insensitive)
+      return (
+        n === 'all' ||
+        n === 'all item groups' ||
+        n === 'all item group' ||
+        n === 'all items' ||
+        n === 'all-items' ||
+        n === 'all_items'
+      )
+    }
+
     sales.forEach(s => {
-      (s.item_groups || []).forEach(g => groupSet.add(g.item_group || 'Unassigned'))
+      (s.item_groups || []).forEach(g => {
+        const name = g.item_group || 'Unassigned'
+        if (!shouldExcludeGroup(name)) groupSet.add(name)
+      })
     })
     const groups = Array.from(groupSet)
 
@@ -874,7 +938,7 @@ const renderAllSalesChart = (payload) => {
     },
     yAxis: { type: 'value' },
     series: series,
-    color: ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#F472B6']
+    color: ['#60A5FA', '#34D399', '#F44336', '#F87171', '#A78BFA', '#F472B6']
   }
 
   const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && series.some(s => Array.isArray(s.data) && s.data.some(v => Number(v) !== 0))
@@ -944,6 +1008,12 @@ const applyFilters = () => {
   } catch (e) {
     // ignore
   }
+  // Submit full report to get cumulative values for current user
+  try {
+    reportResource.submit(requestBody)
+  } catch (e) {
+    // ignore
+  }
   // Submit all-sales-persons chart with month/year selection
   try {
     const allReq = {}
@@ -986,6 +1056,26 @@ const chartPayload = computed(() => {
   const payload = chartResource.data || {}
   const cp = payload?.data || payload
   return cp || {}
+})
+
+// Report data (full months) used for cumulative summary
+const reportData = computed(() => {
+  return reportResource.data || {}
+})
+
+const currentMonth = computed(() => {
+  const months = reportData.value?.months || []
+  return months.find(m => m.is_current_month) || null
+})
+
+const currentCumulative = computed(() => {
+  const m = currentMonth.value
+  if (!m) return { target: 0, achieved: 0, variance: 0 }
+  const target = Number(m.cumulative_target_amount || 0)
+  const achieved = Number(m.cumulative_achieved_amount || 0)
+  const variance = m.cumulative_variance_amount !== undefined ? Number(m.cumulative_variance_amount) : (achieved - target)
+  const completion = Number(m.cumulative_completion_percentage || 0)
+  return { target, achieved, variance, completion }
 })
 
 const chartHasData = computed(() => {
