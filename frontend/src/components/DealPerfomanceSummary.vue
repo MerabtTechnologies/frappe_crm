@@ -823,14 +823,48 @@ const renderAllSalesChart = (payload) => {
 
   const data = payload?.data || payload || {}
   const sales = Array.isArray(data.sales_persons) ? data.sales_persons : []
-
   const labels = sales.map(s => s.sales_person_name || s.sales_person)
-  const targetValues = sales.map(s => (s.totals && s.totals.target_amount) || (Array.isArray(s.target_values) ? s.target_values.reduce((a,b)=>a+ (Number(b)||0),0) : 0))
-  const achievedValues = sales.map(s => (s.totals && s.totals.achieved_amount) || (Array.isArray(s.achieved_values) ? s.achieved_values.reduce((a,b)=>a+ (Number(b)||0),0) : 0))
+
+  // If API provides item_groups, render stacked bars for Achieved per item group
+  const hasItemGroups = sales.some(s => Array.isArray(s.item_groups) && s.item_groups.length > 0)
+  let series = []
+
+  if (hasItemGroups) {
+    // Collect unique group names (map null -> 'Unassigned')
+    const groupSet = new Set()
+    sales.forEach(s => {
+      (s.item_groups || []).forEach(g => groupSet.add(g.item_group || 'Unassigned'))
+    })
+    const groups = Array.from(groupSet)
+
+    // For each group, compute achieved values per sales person (sum across months if needed)
+    groups.forEach(group => {
+      const values = sales.map(s => {
+        const ig = (s.item_groups || []).find(x => (x.item_group || 'Unassigned') === group)
+        if (!ig) return 0
+        const arr = Array.isArray(ig.achieved_values) ? ig.achieved_values : []
+        if (arr.length === 1) return Number(arr[0] || 0)
+        return arr.reduce((a, b) => a + (Number(b) || 0), 0)
+      })
+      series.push({ name: group === 'Unassigned' ? 'Unassigned' : group, type: 'bar', stack: 'Achieved', data: values })
+    })
+
+    // Add total target as a line for comparison
+    const totalTargets = sales.map(s => (s.totals && Number(s.totals.target_amount)) || 0)
+    series.push({ name: 'Target', type: 'line', data: totalTargets })
+  } else {
+    // Fallback: simple Target vs Achieved bars
+    const targetValues = sales.map(s => (s.totals && s.totals.target_amount) || (Array.isArray(s.target_values) ? s.target_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
+    const achievedValues = sales.map(s => (s.totals && s.totals.achieved_amount) || (Array.isArray(s.achieved_values) ? s.achieved_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
+    series = [
+      { name: 'Target', type: 'bar', data: targetValues },
+      { name: 'Achieved', type: 'bar', data: achievedValues }
+    ]
+  }
 
   const option = {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { data: ['Target', 'Achieved'] },
+    legend: { data: series.map(s => s.name) },
     grid: { left: '3%', right: '4%', bottom: '20%', containLabel: true },
     xAxis: {
       type: 'category',
@@ -839,14 +873,11 @@ const renderAllSalesChart = (payload) => {
       axisLabel: { interval: 0, rotate: 30 }
     },
     yAxis: { type: 'value' },
-    series: [
-      { name: 'Target', type: 'bar', data: targetValues },
-      { name: 'Achieved', type: 'bar', data: achievedValues }
-    ],
-    color: ['#60A5FA', '#34D399']
+    series: series,
+    color: ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#F472B6']
   }
 
-  const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && (targetValues.some(v => Number(v) !== 0) || achievedValues.some(v => Number(v) !== 0))
+  const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && series.some(s => Array.isArray(s.data) && s.data.some(v => Number(v) !== 0))
   if (!hasMeaningfulData) {
     try {
       if (allSalesChartInstance) {
