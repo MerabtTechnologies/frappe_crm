@@ -55,7 +55,10 @@
                 </div>
               </div>
 
-              <div ref="chartRef" class="w-full h-96 md:h-[420px]"></div>
+              <div class="relative w-full h-96 md:h-[420px]">
+                <div ref="chartRef" class="w-full h-full"></div>
+                <div v-if="!chartHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium">No data found</div>
+              </div>
         </div>
           <!-- Sales Persons Comparison Chart -->
           <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
@@ -74,7 +77,10 @@
                 <button @click="applyFilters" class="text-sm text-blue-600 hover:text-blue-800 px-2 py-1 rounded">Refresh</button>
               </div>
             </div>
-            <div ref="allSalesChartRef" class="w-full h-96 md:h-[420px]"></div>
+            <div class="relative w-full h-96 md:h-[420px]">
+              <div ref="allSalesChartRef" class="w-full h-full"></div>
+              <div v-if="!allSalesHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium">No data found</div>
+            </div>
           </div>
     </div>
   <div v-if="false" class="bg-gray-100 p-4 rounded mb-4">
@@ -1087,6 +1093,26 @@ const chartHasData = computed(() => {
   // require at least one non-zero value in datasets
   const hasNonZero = datasets.some(d => Array.isArray(d.values) && d.values.some(v => Number(v) !== 0))
   return hasNonZero
+})
+
+// Presence check for the all-sales chart
+const allSalesHasData = computed(() => {
+  const payload = allSalesChartResource.data || {}
+  const data = payload?.data || payload || {}
+  const sales = Array.isArray(data.sales_persons) ? data.sales_persons : []
+  if (!Array.isArray(sales) || sales.length === 0) return false
+
+  return sales.some(s => {
+    const totals = s.totals || {}
+    if (Number(totals.target_amount || 0) !== 0) return true
+    if (Number(totals.achieved_amount || 0) !== 0) return true
+    if (Array.isArray(s.achieved_values) && s.achieved_values.some(v => Number(v) !== 0)) return true
+    if (Array.isArray(s.target_values) && s.target_values.some(v => Number(v) !== 0)) return true
+    if (Array.isArray(s.item_groups)) {
+      return s.item_groups.some(g => (Array.isArray(g.achieved_values) && g.achieved_values.some(v => Number(v) !== 0)) || (Array.isArray(g.target_values) && g.target_values.some(v => Number(v) !== 0)))
+    }
+    return false
+  })
 })
 
 const dealSummary = computed(() => {
