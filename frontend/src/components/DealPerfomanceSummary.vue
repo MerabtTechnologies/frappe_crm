@@ -61,7 +61,7 @@
               </div>
         </div>
           <!-- Sales Persons Comparison Chart -->
-          <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
+          <div v-if="isManager()" class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
             <div class="flex items-center justify-between mb-3">
               <div>
                 <h3 class="text-lg font-semibold text-gray-800">Salesperson Comparison</h3>
@@ -83,6 +83,57 @@
             </div>
           </div>
     </div>
+  <!-- Daily Payments Chart -->
+  <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
+    <div class="flex items-center justify-between mb-3">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-800">Daily Payments</h3>
+        <p class="text-sm text-gray-600">Daily payments for selected month and sales person</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <select v-model="selectedYear" class="px-3 py-1.5 border border-gray-200 rounded-md text-sm select-fit bg-white shadow-sm">
+          <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+        </select>
+        <select v-model="selectedMonth" class="px-3 py-1.5 border border-gray-200 rounded-md text-sm select-fit bg-white shadow-sm">
+          <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+        </select>
+        <div v-if="isManager()" class="">
+          <select
+            v-model="selectedUser"
+            class="w-56 px-3 py-1.5 border border-gray-200 rounded-md shadow-sm text-sm bg-white"
+          >
+            <option v-for="u in crmUsers" :key="u.name" :value="u.email || u.name">
+              {{ u.full_name || u.name }}
+            </option>
+          </select>
+        </div>
+        <button @click="applyFilters" class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition">Refresh</button>
+      </div>
+    </div>
+      <!-- summary cards for monthly totals -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div class="p-3 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+          <div class="text-sm text-gray-500">Monthly Target</div>
+          <div class="text-xl font-bold text-gray-800 mt-2">{{ formatChartValue(dailyPaymentsTotals.monthly_target || 0) }}</div>
+        </div>
+        <div class="p-3 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+          <div class="text-sm text-gray-500">Monthly Achieved</div>
+          <div class="text-xl font-bold text-gray-800 mt-2">{{ formatChartValue(dailyPaymentsTotals.total_amount || 0) }}</div>
+          <div class="text-xs text-gray-500 mt-1">Qty: <span class="font-semibold text-gray-800">{{ Number(dailyPaymentsTotals.total_qty || 0) }}</span></div>
+        </div>
+        <div class="p-3 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+          <div class="text-sm text-gray-500">Variance</div>
+          <div class="text-xl font-bold mt-2" :class="( (dailyPaymentsTotals.total_amount || 0) - (dailyPaymentsTotals.monthly_target || 0) ) >= 0 ? 'text-green-600' : 'text-red-600'">{{ formatChartValue((dailyPaymentsTotals.total_amount || 0) - (dailyPaymentsTotals.monthly_target || 0)) }}</div>
+          <div class="text-xs text-gray-500 mt-1">Completion: <span class="font-semibold text-gray-800">{{ ((dailyPaymentsTotals.total_amount || 0) && (dailyPaymentsTotals.monthly_target || 0)) ? ((dailyPaymentsTotals.total_amount/dailyPaymentsTotals.monthly_target)*100).toFixed(2) : '0.00' }}%</span></div>
+        </div>
+      </div>
+
+      <div class="relative w-full h-72 md:h-96">
+        <div ref="dailyPaymentsChartRef" class="w-full h-full"></div>
+        <div v-if="!dailyPaymentsHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium chart-overlay">No data found</div>
+      </div>
+  </div>
+
   <div v-if="false" class="bg-gray-100 p-4 rounded mb-4">
     <h3 class="font-bold mb-2">Debug Info</h3>
     <div class="text-sm">
@@ -654,7 +705,6 @@ const selectedMonth = ref(String(new Date().getMonth() + 1).padStart(2, '0'))
 const currentYear = new Date().getFullYear()
 const yearOptions = Array.from({ length: 6 }).map((_, i) => String(currentYear - i))
 const monthOptions = [
-  { value: 'all', label: 'All' },
   { value: '01', label: 'Jan' },
   { value: '02', label: 'Feb' },
   { value: '03', label: 'Mar' },
@@ -1018,6 +1068,116 @@ const renderAllSalesChart = (payload) => {
   allSalesChartInstance.setOption(option)
 }
 
+// Daily Payments chart (per-day, per-sales-person)
+const dailyPaymentsChartRef = ref(null)
+let dailyPaymentsChartInstance = null
+
+const dailyPaymentsResource = createResource({
+  url: `/api/method/merabt_crm.portal_api.sales_target.get_daily_payments`,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  transform: (data) => {
+    if (data.message) return data.message
+    if (data.data) return data.data
+    return data
+  },
+  auto: false,
+  onError: (err) => {
+    console.error('Daily payments chart error:', err)
+  },
+  onSuccess: () => {
+    try {
+      dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+      nextTick(() => {
+        try {
+          renderDailyPaymentsChart(dailyPaymentsResource.data)
+        } catch (e) {
+          console.error('Error rendering daily payments chart after nextTick:', e)
+        }
+      })
+    } catch (e) {
+      console.error('Error rendering daily payments chart:', e)
+    }
+  }
+})
+
+const renderDailyPaymentsChart = (payload) => {
+  if (!dailyPaymentsChartRef.value) return
+  const data = payload?.data || payload || {}
+  const labels = data.labels || []
+  const datasets = data.datasets || []
+
+  const palette = ['#60A5FA', '#34D399', '#F59E0B', '#EF4444', '#A78BFA', '#F472B6']
+  const series = []
+  datasets.forEach((d, idx) => {
+    const color = palette[idx % palette.length]
+    // Achieved as bar
+    series.push({
+      name: d.name,
+      type: 'bar',
+      data: d.values || [],
+      barGap: 0,
+      itemStyle: { borderRadius: 6, color }
+    })
+
+    // (Daily target line intentionally removed — targets remain available in number cards)
+  })
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      padding: 10,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      textStyle: { color: '#fff' },
+      formatter: function(params) {
+        const head = params[0] ? params[0].axisValue : ''
+        let out = head + '<br/>'
+        params.forEach(p => {
+          out += `<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:10px;height:10px;background:${p.color};border-radius:2px;margin-right:6px"></span>${p.seriesName}: ${formatChartValue(p.value)}</div>`
+        })
+        return out
+      }
+    },
+    legend: { data: series.map(s => s.name), top: 8, textStyle: { color: '#475569' } },
+    grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
+    xAxis: { type: 'category', data: labels, axisLine: { lineStyle: { color: '#E6E9EE' } }, axisLabel: { color: '#334155', rotate: 0 } },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#E6E9EE' } }, splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#475569' } },
+    series
+  }
+
+  const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && series.some(s => Array.isArray(s.data) && s.data.some(v => Number(v) !== 0))
+  if (!hasMeaningfulData) {
+    try {
+      if (dailyPaymentsChartInstance) {
+        dailyPaymentsChartInstance.dispose()
+        dailyPaymentsChartInstance = null
+      }
+    } catch (e) {
+      // ignore
+    }
+    return
+  }
+
+  if (!dailyPaymentsChartInstance) {
+    try {
+      dailyPaymentsChartInstance = echarts.init(dailyPaymentsChartRef.value, 'light', { renderer: 'svg' })
+    } catch (e) {
+      console.error('ECharts init error for daily payments chart', e)
+      return
+    }
+  }
+  dailyPaymentsChartInstance.setOption(option)
+}
+
 // Apply filters
 const applyFilters = () => {
   loading.value = true
@@ -1034,6 +1194,7 @@ const applyFilters = () => {
     requestBody.to_date = toDate.value
   }
 
+  // User selection handling (visible only to managers).
   // User selection handling (visible only to managers):
   if (selectedUser.value) {
     // If non-manager somehow set a different user, restrict to current user
@@ -1068,10 +1229,26 @@ const applyFilters = () => {
   // Submit all-sales-persons chart with month/year selection
   try {
     const allReq = {}
-    if (selectedMonth.value && selectedMonth.value !== 'all') {
+    if (selectedMonth.value) {
       allReq.months = JSON.stringify([`${selectedYear.value}-${selectedMonth.value}`])
     }
     allSalesChartResource.submit(allReq)
+  } catch (e) {
+    // ignore
+  }
+  // Submit daily payments chart (month/year and optional user filter)
+  try {
+    const dailyReq = {}
+    if (selectedMonth.value) {
+      dailyReq.month = selectedMonth.value
+    }
+    dailyReq.year = selectedYear.value
+    if (isManager()) {
+      dailyReq.user = selectedUser.value || null
+    } else {
+      dailyReq.user = getUser().email || getUser().name
+    }
+    dailyPaymentsResource.submit(dailyReq)
   } catch (e) {
     // ignore
   }
@@ -1158,6 +1335,26 @@ const allSalesHasData = computed(() => {
     }
     return false
   })
+})
+
+const dailyPaymentsPayload = computed(() => {
+  return dailyPaymentsResource.data || {}
+})
+
+const dailyPaymentsHasData = computed(() => {
+  const payload = dailyPaymentsResource.data || {}
+  const data = payload?.data || payload || {}
+  const labels = Array.isArray(data.labels) ? data.labels : []
+  const datasets = Array.isArray(data.datasets) ? data.datasets : []
+  if (!Array.isArray(labels) || labels.length === 0) return false
+  if (!Array.isArray(datasets) || datasets.length === 0) return false
+  return datasets.some(d => Array.isArray(d.values) && d.values.some(v => Number(v) !== 0))
+})
+ 
+const dailyPaymentsTotals = computed(() => {
+  const payload = dailyPaymentsResource.data || {}
+  const data = payload?.data || payload || {}
+  return data.totals || {}
 })
 
 const dealSummary = computed(() => {
@@ -1540,6 +1737,10 @@ onUnmounted(() => {
     if (allSalesChartInstance) {
       allSalesChartInstance.dispose()
       allSalesChartInstance = null
+    }
+    if (dailyPaymentsChartInstance) {
+      dailyPaymentsChartInstance.dispose()
+      dailyPaymentsChartInstance = null
     }
   } catch (e) {
     // ignore
