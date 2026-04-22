@@ -61,7 +61,7 @@
               </div>
         </div>
           <!-- Sales Persons Comparison Chart -->
-          <div v-if="isManager()" class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
+          <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
             <div class="flex items-center justify-between mb-3">
               <div>
                 <h3 class="text-lg font-semibold text-gray-800">Salesperson Comparison</h3>
