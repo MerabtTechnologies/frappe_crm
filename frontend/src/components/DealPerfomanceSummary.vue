@@ -26,7 +26,7 @@
                       <div v-if="isManager()" class="">
                         <select
                           v-model="selectedUser"
-                          class="w-56 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm"
+                          class="w-56 px-3 py-1.5 border border-gray-200 rounded-md shadow-sm text-sm bg-white"
                         >
                           <option v-for="u in crmUsers" :key="u.name" :value="u.email || u.name">
                             {{ u.full_name || u.name }}
@@ -34,22 +34,22 @@
                         </select>
                       </div>
                       <div class="text-sm text-gray-600">
-                        <button @click="applyFilters" class="text-sm text-blue-600 hover:text-blue-800 px-2 py-1 rounded">Refresh</button>
+                        <button @click="applyFilters" class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition">Refresh</button>
                       </div>
                     </div>
                   </div>
               <!-- Cumulative numbers (current user) -->
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                <div class="p-3 bg-gray-50 rounded border flex flex-col">
+                <div class="p-4 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
                   <div class="text-sm text-gray-500">Cumulative Target</div>
                   <div class="text-2xl font-bold text-gray-800 mt-2">{{ formatCurrency(currentCumulative.target) }}</div>
                 </div>
-                <div class="p-3 bg-gray-50 rounded border flex flex-col">
+                <div class="p-4 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
                   <div class="text-sm text-gray-500">Cumulative Achieved</div>
                   <div class="text-2xl font-bold text-gray-800 mt-2">{{ formatCurrency(currentCumulative.achieved) }}</div>
                   <div class="text-xs text-gray-500 mt-1">Completion: <span class="font-semibold text-gray-800">{{ (currentCumulative.completion || 0).toFixed(2) }}%</span></div>
                 </div>
-                <div class="p-3 bg-gray-50 rounded border flex flex-col">
+                <div class="p-4 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
                   <div class="text-sm text-gray-500">Cumulative Variance</div>
                   <div class="text-2xl mt-2" :class="currentCumulative.variance >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'">{{ formatCurrency(currentCumulative.variance) }}</div>
                 </div>
@@ -57,7 +57,7 @@
 
               <div class="relative w-full h-96 md:h-[420px]">
                 <div ref="chartRef" class="w-full h-full"></div>
-                <div v-if="!chartHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium">No data found</div>
+                <div v-if="!chartHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium chart-overlay">No data found</div>
               </div>
         </div>
           <!-- Sales Persons Comparison Chart -->
@@ -68,18 +68,18 @@
                 <p class="text-sm text-gray-600">Targets vs Achieved across sales persons</p>
               </div>
               <div class="flex items-center gap-3">
-                <select v-model="selectedYear" class="px-2 py-1 border border-gray-300 rounded-md text-sm select-fit">
+                <select v-model="selectedYear" class="px-3 py-1.5 border border-gray-200 rounded-md text-sm select-fit bg-white shadow-sm">
                   <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
                 </select>
-                <select v-model="selectedMonth" class="px-2 py-1 border border-gray-300 rounded-md text-sm select-fit">
+                <select v-model="selectedMonth" class="px-3 py-1.5 border border-gray-200 rounded-md text-sm select-fit bg-white shadow-sm">
                   <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
                 </select>
-                <button @click="applyFilters" class="text-sm text-blue-600 hover:text-blue-800 px-2 py-1 rounded">Refresh</button>
+                <button @click="applyFilters" class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition">Refresh</button>
               </div>
             </div>
             <div class="relative w-full h-96 md:h-[420px]">
               <div ref="allSalesChartRef" class="w-full h-full"></div>
-              <div v-if="!allSalesHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium">No data found</div>
+              <div v-if="!allSalesHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium chart-overlay">No data found</div>
             </div>
           </div>
     </div>
@@ -202,7 +202,7 @@
       <div class="mb-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <!-- Deal Summary -->
-          <div class="bg-white p-4 rounded-lg border shadow-sm hover:shadow transition-shadow">
+          <div class="bg-white p-4 rounded-xl border shadow-md hover:shadow-lg transition">
             <div class="text-sm text-gray-500 flex items-center gap-2">
               <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4z" clip-rule="evenodd" />
@@ -215,7 +215,7 @@
             <div class="text-xs text-gray-500 mt-1">Sum of all deal counts</div>
           </div>
           
-          <div class="bg-white p-4 rounded-lg border shadow-sm hover:shadow transition-shadow">
+          <div class="bg-white p-4 rounded-xl border shadow-md hover:shadow-lg transition">
             <div class="text-sm text-gray-500 flex items-center gap-2">
               <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
@@ -229,7 +229,7 @@
           </div>
           
           <!-- Lead Summary -->
-          <div class="bg-white p-4 rounded-lg border shadow-sm hover:shadow transition-shadow">
+          <div class="bg-white p-4 rounded-xl border shadow-md hover:shadow-lg transition">
             <div class="text-sm text-gray-500 flex items-center gap-2">
               <svg class="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
@@ -259,7 +259,7 @@
               </div>
               <button 
                 @click="applyFilters" 
-                class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
+                class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm flex items-center gap-2 hover:bg-blue-700 transition"
                 :disabled="loading"
               >
                 <svg v-if="loading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -392,7 +392,7 @@
               </div>
               <button 
                 @click="applyFilters" 
-                class="text-sm text-green-600 hover:text-green-800 flex items-center gap-1 px-3 py-1.5 rounded hover:bg-green-50 transition-colors"
+                class="px-3 py-1.5 bg-green-600 text-white rounded-md shadow-sm flex items-center gap-2 hover:bg-green-700 transition"
                 :disabled="loading"
               >
                 <svg v-if="loading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -809,7 +809,7 @@ const getDateRangeLabel = () => {
   }
 }
 
-// Render ECharts bar chart from payload
+// Render ECharts bar chart from payload (modern styling)
 const renderChart = (payload) => {
   if (!chartRef.value) return
 
@@ -817,33 +817,47 @@ const renderChart = (payload) => {
   const labels = chartPayload.labels || (chartPayload.data && chartPayload.data.labels) || []
   const datasets = chartPayload.datasets || (chartPayload.data && chartPayload.data.datasets) || []
 
+  const colors = ['#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EF4444']
+
   const option = {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { data: datasets.map(d => d.name) },
-    // give more bottom space so x-axis labels render below the chart
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      padding: 10,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      textStyle: { color: '#fff' },
+      formatter: function(params) {
+        const title = params && params[0] && params[0].axisValue ? params[0].axisValue : ''
+        const lines = (params || []).map(p => `${p.marker} ${p.seriesName}: ${formatChartValue(p.data)}`)
+        return `<div style="font-weight:600;margin-bottom:6px">${title}</div>${lines.join('<br/>')}`
+      }
+    },
+    legend: { data: datasets.map(d => d.name), top: 8, textStyle: { color: '#475569' } },
     grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
     xAxis: {
       type: 'category',
       data: labels,
       axisTick: { alignWithLabel: true },
-      axisLabel: {
-        inside: false,
-        interval: 0,
-        rotate: 0,
-        margin: 14,
-      }
+      axisLine: { lineStyle: { color: '#E6E9EE' } },
+      axisLabel: { inside: false, interval: 0, rotate: 0, margin: 14, color: '#334155' }
     },
-    yAxis: { type: 'value' },
-    series: datasets.map((d) => ({
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#E6E9EE' } }, splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#475569' } },
+    series: datasets.map((d, idx) => ({
       name: d.name,
-      type: 'bar',
+      type: d.type || 'bar',
       data: d.values || [],
+      barWidth: '36%',
+      itemStyle: {
+        borderRadius: 8,
+        color: colors[idx % colors.length],
+        shadowBlur: 8,
+        shadowColor: 'rgba(16,24,40,0.06)'
+      },
       emphasis: { focus: 'series' }
-    })),
-    color: ['#60A5FA', '#34D399']
+    }))
   }
 
-  // If no meaningful data, dispose any existing chart and exit early
   const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && Array.isArray(datasets) && datasets.length > 0 && datasets.some(ds => Array.isArray(ds.values) && ds.values.some(v => Number(v) !== 0))
   if (!hasMeaningfulData) {
     try {
@@ -870,7 +884,7 @@ const renderChart = (payload) => {
   chartInstance.setOption(option)
 }
 
-// Render chart for all sales persons (Target vs Achieved)
+// Render chart for all sales persons (Target vs Achieved) - modernized
 const renderAllSalesChart = (payload) => {
   if (!allSalesChartRef.value) return
 
@@ -878,17 +892,14 @@ const renderAllSalesChart = (payload) => {
   const sales = Array.isArray(data.sales_persons) ? data.sales_persons : []
   const labels = sales.map(s => s.sales_person_name || s.sales_person)
 
-  // If API provides item_groups, render stacked bars for Achieved per item group
   const hasItemGroups = sales.some(s => Array.isArray(s.item_groups) && s.item_groups.length > 0)
   let series = []
 
   if (hasItemGroups) {
-    // Collect unique group names (map null -> 'Unassigned')
     const groupSet = new Set()
     const shouldExcludeGroup = (name) => {
       if (!name && name !== null) return false
       const n = String(name || '').toLowerCase().trim()
-      // exclude common "all" group labels (case-insensitive)
       return (
         n === 'all' ||
         n === 'all item groups' ||
@@ -907,8 +918,9 @@ const renderAllSalesChart = (payload) => {
     })
     const groups = Array.from(groupSet)
 
-    // For each group, compute achieved values per sales person (sum across months if needed)
-    groups.forEach(group => {
+    const palette = ['#60A5FA', '#34D399', '#F59E0B', '#EF4444', '#A78BFA', '#F472B6']
+    groups.forEach((group, idx) => {
+      const color = palette[idx % palette.length]
       const values = sales.map(s => {
         const ig = (s.item_groups || []).find(x => (x.item_group || 'Unassigned') === group)
         if (!ig) return 0
@@ -916,35 +928,68 @@ const renderAllSalesChart = (payload) => {
         if (arr.length === 1) return Number(arr[0] || 0)
         return arr.reduce((a, b) => a + (Number(b) || 0), 0)
       })
-      series.push({ name: group === 'Unassigned' ? 'Unassigned' : group, type: 'bar', stack: 'Achieved', data: values })
+      series.push({ name: group === 'Unassigned' ? 'Unassigned' : group, type: 'bar', stack: 'Achieved', data: values, itemStyle: { borderRadius: 6, color } })
     })
 
-    // Add total target as a line for comparison
     const totalTargets = sales.map(s => (s.totals && Number(s.totals.target_amount)) || 0)
-    series.push({ name: 'Target', type: 'line', data: totalTargets })
+    series.push({
+      name: 'Target',
+      type: 'line',
+      data: totalTargets,
+      smooth: true,
+      showSymbol: true,
+      symbol: 'diamond',
+      symbolSize: 10,
+      itemStyle: {
+        color: '#0f172a',
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        shadowBlur: 12,
+        shadowColor: 'rgba(15,23,42,0.12)'
+      },
+      lineStyle: { width: 3, type: 'line', color: '#d5181b' },
+      areaStyle: {
+        color: echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(15,23,42,0.08)' },
+          { offset: 1, color: 'rgba(15,23,42,0)' }
+        ])
+      },
+      emphasis: { focus: 'series' },
+      tooltip: {
+        formatter: function(params) {
+          const val = params && params.value ? params.value : 0
+          return `Target: ${formatChartValue(val)}`
+        }
+      }
+    })
   } else {
-    // Fallback: simple Target vs Achieved bars
     const targetValues = sales.map(s => (s.totals && s.totals.target_amount) || (Array.isArray(s.target_values) ? s.target_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
     const achievedValues = sales.map(s => (s.totals && s.totals.achieved_amount) || (Array.isArray(s.achieved_values) ? s.achieved_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
     series = [
-      { name: 'Target', type: 'bar', data: targetValues },
-      { name: 'Achieved', type: 'bar', data: achievedValues }
+      { name: 'Target', type: 'bar', data: targetValues, itemStyle: { borderRadius: 6, color: '#6366F1' } },
+      { name: 'Achieved', type: 'bar', data: achievedValues, itemStyle: { borderRadius: 6, color: '#10B981' } }
     ]
   }
 
   const option = {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { data: series.map(s => s.name) },
-    grid: { left: '3%', right: '4%', bottom: '20%', containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: labels,
-      axisTick: { alignWithLabel: true },
-      axisLabel: { interval: 0, rotate: 30 }
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      padding: 10,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      textStyle: { color: '#fff' },
+      formatter: function(params) {
+        const title = params && params[0] && params[0].axisValue ? params[0].axisValue : ''
+        const lines = (params || []).map(p => `${p.marker} ${p.seriesName}: ${formatChartValue(p.data)}`)
+        return `<div style="font-weight:600;margin-bottom:6px">${title}</div>${lines.join('<br/>')}`
+      }
     },
-    yAxis: { type: 'value' },
-    series: series,
-    color: ['#60A5FA', '#34D399', '#F44336', '#F87171', '#A78BFA', '#F472B6']
+    legend: { data: series.map(s => s.name), top: 10, textStyle: { color: '#475569' } },
+    grid: { left: '3%', right: '4%', bottom: '20%', containLabel: true },
+    xAxis: { type: 'category', data: labels, axisTick: { alignWithLabel: true }, axisLabel: { interval: 0, rotate: 30, color: '#334155' }, axisLine: { lineStyle: { color: '#E6E9EE' } } },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#E6E9EE' } }, splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#475569' } },
+    series: series
   }
 
   const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && series.some(s => Array.isArray(s.data) && s.data.some(v => Number(v) !== 0))
@@ -1383,8 +1428,18 @@ const redirectToLeadsAll = () => {
 // Helper functions
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '₹0'
-  // Use plain number string without thousand separators (no commas)
   return '₹' + Math.round(value).toString()
+}
+
+// Modern chart tooltip / number formatting
+const formatChartValue = (v) => {
+  if (v === null || v === undefined) return '0'
+  const n = Number(v) || 0
+  try {
+    return '₹' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(n))
+  } catch (e) {
+    return '₹' + Math.round(n)
+  }
 }
 
 const formatOwnerName = (owner) => {
@@ -1539,5 +1594,13 @@ a:hover {
 .select-fit {
   min-width: 6.5rem;
   padding-right: 1.75rem;
+}
+
+.chart-overlay {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(255,255,255,0.6);
+  color: #6b7280;
+  font-weight: 600;
 }
 </style>
