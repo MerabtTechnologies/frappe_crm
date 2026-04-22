@@ -31,10 +31,9 @@ def get_notifications():
 				"notification_type_doc": notification.notification_type_doc,
 				"reference_doctype": ("deal" if notification.reference_doctype == "CRM Deal" else "lead"),
 				"reference_name": notification.reference_name,
-				"route_name": ("Deal" if notification.reference_doctype == "CRM Deal" else "Lead"),
+				"route_name": ("Deal" if notification.reference_doctype == "CRM Deal" else "Lead" if notification.reference_doctype == "CRM Lead" else notification.reference_doctype),
 			}
 		)
-
 	return _notifications
 
 
