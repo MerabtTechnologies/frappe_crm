@@ -924,7 +924,7 @@ const renderChart = (payload) => {
 
   if (!chartInstance) {
     try {
-      chartInstance = echarts.init(chartRef.value, 'light', { renderer: 'svg' })
+      chartInstance = echarts.init(chartRef.value, 'light', { renderer: 'canvas' })
     } catch (e) {
       console.error('ECharts init error', e)
       return
@@ -981,6 +981,20 @@ const renderAllSalesChart = (payload) => {
       series.push({ name: group === 'Unassigned' ? 'Unassigned' : group, type: 'bar', stack: 'Achieved', data: values, itemStyle: { borderRadius: 6, color } })
     })
 
+    // Create a safe gradient for the target area; some builds may not expose echarts.graphic
+    let targetAreaGradient = 'rgba(15,23,42,0.08)'
+    try {
+      if (echarts && echarts.graphic && typeof echarts.graphic.LinearGradient === 'function') {
+        targetAreaGradient = echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(15,23,42,0.08)' },
+          { offset: 1, color: 'rgba(15,23,42,0)' }
+        ])
+      }
+    } catch (e) {
+      console.warn('ECharts gradient creation failed, falling back to solid color', e)
+      targetAreaGradient = 'rgba(15,23,42,0.08)'
+    }
+
     const totalTargets = sales.map(s => (s.totals && Number(s.totals.target_amount)) || 0)
     series.push({
       name: 'Target',
@@ -999,10 +1013,7 @@ const renderAllSalesChart = (payload) => {
       },
       lineStyle: { width: 3, type: 'line', color: '#d5181b' },
       areaStyle: {
-        color: echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: 'rgba(15,23,42,0.08)' },
-          { offset: 1, color: 'rgba(15,23,42,0)' }
-        ])
+        color: targetAreaGradient
       },
       emphasis: { focus: 'series' },
       tooltip: {
@@ -1058,7 +1069,7 @@ const renderAllSalesChart = (payload) => {
 
   if (!allSalesChartInstance) {
     try {
-      allSalesChartInstance = echarts.init(allSalesChartRef.value, 'light', { renderer: 'svg' })
+      allSalesChartInstance = echarts.init(allSalesChartRef.value, 'light', { renderer: 'canvas' })
     } catch (e) {
       console.error('ECharts init error for all sales chart', e)
       return
@@ -1169,7 +1180,7 @@ const renderDailyPaymentsChart = (payload) => {
 
   if (!dailyPaymentsChartInstance) {
     try {
-      dailyPaymentsChartInstance = echarts.init(dailyPaymentsChartRef.value, 'light', { renderer: 'svg' })
+      dailyPaymentsChartInstance = echarts.init(dailyPaymentsChartRef.value, 'light', { renderer: 'canvas' })
     } catch (e) {
       console.error('ECharts init error for daily payments chart', e)
       return
