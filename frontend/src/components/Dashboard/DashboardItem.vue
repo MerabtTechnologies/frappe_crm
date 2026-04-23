@@ -241,7 +241,11 @@ async function applyUserFilter(filtersArray, routeName) {
 // -----Filter handling for chart click starts here-------
 async function handleChartClick() {
 
-  
+  //  this.$emit('click', {
+  //   territory: params.name, // The date
+  //   seriesName: params.seriesName // leads, deals, or won_deals
+  // })
+
   const chartName = props.item?.name
   const owner = filters?.user || null
 
@@ -327,11 +331,11 @@ else if (chartName === 'won_deals') {
       condition: 'Not in',  
       value: "Lost"
     })
-    filtersArray.push({
-      fieldname: 'deal_value',
-      condition: 'is',
-      value: 'set'
-    })
+    // filtersArray.push({
+    //   fieldname: 'deal_value',
+    //   condition: 'is',
+    //   value: 'set'
+    // })
   }
   else if (chartName === 'ongoing_deals') {
     routeName = 'Deals'
@@ -348,11 +352,11 @@ else if (chartName === 'won_deals') {
       condition: 'Not in',  
       value: "Won, Lost"
     })
-    filtersArray.push({
-      fieldname: 'deal_value',
-      condition: 'is',
-      value: 'set'
-    })
+   // filtersArray.push({
+    //  fieldname: 'deal_value',
+    //  condition: 'is',
+      //value: 'set'
+   // })
   }
   else if (chartName === 'average_deal_value') {
     routeName = 'Deals'
@@ -923,6 +927,23 @@ async function handleAxisChartClick({ territory }) {
       })
     }
   }
+  // Deals by Stage - Add this to your else if chain
+else if (chartName === 'deals_by_stage_axis') {
+  routeName = 'Deals'
+  const stageName = territory  
+  
+  if (stageName && stageName !== 'null' && stageName !== 'undefined' && stageName !== '') {
+    filtersArray.push({
+      fieldname: 'status',
+      condition: '=',
+      value: stageName
+    })
+  }
+
+  
+ 
+}
+
   else {
     console.warn('Unhandled axis chart:', chartName)
     return
