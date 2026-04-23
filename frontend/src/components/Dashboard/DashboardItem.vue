@@ -331,11 +331,11 @@ else if (chartName === 'won_deals') {
       condition: 'Not in',  
       value: "Lost"
     })
-    filtersArray.push({
-      fieldname: 'deal_value',
-      condition: 'is',
-      value: 'set'
-    })
+    // filtersArray.push({
+    //   fieldname: 'deal_value',
+    //   condition: 'is',
+    //   value: 'set'
+    // })
   }
   else if (chartName === 'ongoing_deals') {
     routeName = 'Deals'
@@ -352,11 +352,11 @@ else if (chartName === 'won_deals') {
       condition: 'Not in',  
       value: "Won, Lost"
     })
-    filtersArray.push({
-      fieldname: 'deal_value',
-      condition: 'is',
-      value: 'set'
-    })
+   // filtersArray.push({
+    //  fieldname: 'deal_value',
+    //  condition: 'is',
+      //value: 'set'
+   // })
   }
   else if (chartName === 'average_deal_value') {
     routeName = 'Deals'
@@ -939,6 +939,8 @@ else if (chartName === 'deals_by_stage_axis') {
       value: stageName
     })
   }
+
+  
  
 }
 
