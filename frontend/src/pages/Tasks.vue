@@ -242,7 +242,15 @@ const rows = computed(() => {
   }
 
   openTaskFromURL()
-  return parseRows(tasks.value?.data.data, tasks.value?.data.columns)
+  // For list view, sort by modified/creation desc and limit to 20
+  let raw = Array.isArray(tasks.value.data.data) ? [...tasks.value.data.data] : []
+  raw.sort((a, b) => {
+    const aDate = new Date(a.modified || a.creation || 0).getTime() || 0
+    const bDate = new Date(b.modified || b.creation || 0).getTime() || 0
+    return bDate - aDate
+  })
+  const limited = raw.slice(0, 20)
+  return parseRows(limited, tasks.value?.data?.columns)
 })
 
 const columns = computed(() => {
@@ -409,9 +417,27 @@ const openTaskFromURL = () => {
   const taskName = searchParams.get('open')
 
   if (taskName && rows.value?.length) {
-    showTask(parseInt(taskName))
-    searchParams.delete('open')
-    window.history.replaceState(null, '', window.location.pathname)
+    const tryOpen = () => {
+      if (!rows.value?.length) return false
+      const found = rows.value.find((row) => String(row.name) === String(taskName))
+      if (found) {
+        showTask(found.name)
+        searchParams.delete('open')
+        window.history.replaceState(null, '', window.location.pathname)
+        return true
+      }
+      return false
+    }
+
+    if (tryOpen()) return
+
+    const interval = setInterval(() => {
+      if (tryOpen()) {
+        clearInterval(interval)
+      }
+    }, 200)
+
+    setTimeout(() => clearInterval(interval), 5000)
   }
 }
 
