@@ -875,7 +875,7 @@ function setWonAmount() {
   
 // reload the document to get the latest data
   document.reload()
-  toast.error(__('Please set the won amount before saving the deal'))
+  toast.error(__('Please add payment entry against this deal to set the won status.'))
 
 }
 
