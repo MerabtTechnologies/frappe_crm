@@ -678,7 +678,6 @@ const applyFiltersFromURL = () => {
   if (!filtersParam) {
     return
   }
-  
   try {
     let filters = []
     
@@ -727,7 +726,26 @@ const applyFiltersFromURL = () => {
               newFilters[filter.fieldname] = ['<=', filter.value]
             } else if (filter.condition === '=') {
               newFilters[filter.fieldname] = ['=', filter.value]
-            } else {
+            } 
+            else if (filter.condition === '!=') {
+              newFilters[filter.fieldname] = ['!=', filter.value]
+            }
+            else if (filter.condition === 'Not in') {
+              newFilters[filter.fieldname] = ['not in', filter.value]
+            }
+            else if (filter.condition === 'In') {
+              newFilters[filter.fieldname] = ['in', filter.value]
+            }
+            else if (filter.condition === 'is') {
+              // ✅ FIXED: Handle 'is' condition properly for empty fields
+              if (filter.value === 'not set') {
+                // This is the correct format for "field is not set" in Frappe
+                newFilters[filter.fieldname] = ['is', 'not set']
+              } else {
+                newFilters[filter.fieldname] = ['is', filter.value]
+              }
+            }
+            else {
               // Default: just use the value
               newFilters[filter.fieldname] = filter.value
             }

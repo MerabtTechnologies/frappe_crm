@@ -206,14 +206,14 @@ import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
 import { Tooltip, Avatar, TextEditor, Dropdown, call } from 'frappe-ui'
-import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'  // Add useRoute here
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta('CRM Task')
 const { getUser } = usersStore()
 
 const router = useRouter()
+const route = useRoute()
 
 const tasksListView = ref(null)
 
@@ -440,4 +440,112 @@ const openTaskFromURL = () => {
     setTimeout(() => clearInterval(interval), 5000)
   }
 }
+
+
+const applyFiltersFromURL = () => {
+  const filtersParam = route.query.filters
+  
+  if (!filtersParam) {
+    return
+  }
+  
+  try {
+    let filters = []
+    
+    // Parse the filters from URL
+    if (typeof filtersParam === 'string') {
+      filters = JSON.parse(filtersParam)
+    } else if (Array.isArray(filtersParam)) {
+      filters = filtersParam
+    }
+    
+    console.log('Tasks: Raw filters from URL:', filters) // Debug log
+    
+    if (Array.isArray(filters) && filters.length > 0) {
+      const checkAndApply = () => {
+        if (!viewControls.value) {
+          setTimeout(checkAndApply, 100)
+          return
+        }
+        
+        if (!tasks.value || !tasks.value.params) {
+          setTimeout(checkAndApply, 100)
+          return
+        }
+        
+        // Create new filters object
+        const newFilters = {}
+        
+        // Process each filter from URL
+        filters.forEach(filter => {
+          // Check if filter is in object format (fieldname, condition, value)
+          if (filter.fieldname && filter.value !== undefined) {
+            const fieldname = filter.fieldname
+            const condition = filter.condition
+            const value = filter.value
+            
+            // Handle different conditions
+            if (condition === 'between') {
+              if (Array.isArray(value)) {
+                newFilters[fieldname] = ['between', value]
+              } else {
+                newFilters[fieldname] = value
+              }
+            } else if (condition === 'equals' || condition === '=') {
+              newFilters[fieldname] = value
+            } else if (condition === '!=') {
+              newFilters[fieldname] = ['!=', value]
+            } else if (condition === '>=') {
+              newFilters[fieldname] = ['>=', value]
+            } else if (condition === '<=') {
+              newFilters[fieldname] = ['<=', value]
+            } else if (condition === 'is') {
+              if (value === 'not set') {
+                newFilters[fieldname] = ['is', 'not set']
+              } else {
+                newFilters[fieldname] = ['is', value]
+              }
+            } else {
+              newFilters[fieldname] = value
+            }
+          } 
+          // Handle array format [fieldname, condition, value]
+          else if (Array.isArray(filter) && filter.length >= 3) {
+            const fieldname = filter[0]
+            const condition = filter[1]
+            const value = filter[2]
+            
+            if (condition === '=') {
+              newFilters[fieldname] = value
+            } else if (condition === 'between') {
+              newFilters[fieldname] = ['between', value]
+            } else {
+              newFilters[fieldname] = [condition, value]
+            }
+          }
+        })
+        
+        console.log('Tasks: Processed filters:', newFilters) // Debug log
+        
+        // Apply the filters
+        tasks.value.params.filters = newFilters
+        
+        // Reload the data
+        if (tasks.value.reload) {
+          tasks.value.reload()
+        } else {
+          loadMore.value++
+        }
+      }
+      
+      setTimeout(checkAndApply, 500)
+    }
+  } catch (error) {
+    console.error('Tasks: Error in applyFiltersFromURL:', error)
+  }
+}
+onMounted(() => {
+  applyFiltersFromURL()
+})
+
 </script>
