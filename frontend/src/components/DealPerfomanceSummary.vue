@@ -14,7 +14,126 @@
           <p class="text-gray-600">Actual deal and lead data from CRM</p>
         </div>
       </div>
+
+        <!-- Targets vs Achieved Chart -->
+        <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
+                  <div class="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 class="text-lg font-semibold text-gray-800">Targets vs Achieved</h3>
+                      <p class="text-sm text-gray-600">Monthly target vs achieved for the sales person</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <div v-if="isManager()" class="">
+                        <select
+                          v-model="selectedUser"
+                          class="w-56 px-3 py-1.5 border border-gray-200 rounded-md shadow-sm text-sm bg-white"
+                        >
+                          <option v-for="u in crmUsers" :key="u.name" :value="u.email || u.name">
+                            {{ u.full_name || u.name }}
+                          </option>
+                        </select>
+                      </div>
+                      <div class="text-sm text-gray-600">
+                        <button @click="applyFilters" class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition">Refresh</button>
+                      </div>
+                    </div>
+                  </div>
+              <!-- Cumulative numbers (current user) -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <div class="p-4 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+                  <div class="text-sm text-gray-500">Cumulative Target</div>
+                  <div class="text-2xl font-bold text-gray-800 mt-2">{{ formatCurrency(currentCumulative.target) }}</div>
+                </div>
+                <div class="p-4 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+                  <div class="text-sm text-gray-500">Cumulative Achieved</div>
+                  <div class="text-2xl font-bold text-gray-800 mt-2">{{ formatCurrency(currentCumulative.achieved) }}</div>
+                  <div class="text-xs text-gray-500 mt-1">Completion: <span class="font-semibold text-gray-800">{{ (currentCumulative.completion || 0).toFixed(2) }}%</span></div>
+                </div>
+                <div class="p-4 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+                  <div class="text-sm text-gray-500">Cumulative Variance</div>
+                  <div class="text-2xl mt-2" :class="currentCumulative.variance >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'">{{ formatCurrency(currentCumulative.variance) }}</div>
+                </div>
+              </div>
+
+              <div class="relative w-full h-96 md:h-[420px]">
+                <div ref="chartRef" class="w-full h-full"></div>
+                <div v-if="!chartHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium chart-overlay">No data found</div>
+              </div>
+        </div>
+          <!-- Sales Persons Comparison Chart -->
+          <div v-if="isManager()" class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-800">Salesperson Comparison</h3>
+                <p class="text-sm text-gray-600">Targets vs Achieved across sales persons</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <select v-model="selectedYear" class="px-3 py-1.5 border border-gray-200 rounded-md text-sm select-fit bg-white shadow-sm">
+                  <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+                </select>
+                <select v-model="selectedMonth" class="px-3 py-1.5 border border-gray-200 rounded-md text-sm select-fit bg-white shadow-sm">
+                  <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+                </select>
+                <button @click="applyFilters" class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition">Refresh</button>
+              </div>
+            </div>
+            <div class="relative w-full h-96 md:h-[420px]">
+              <div ref="allSalesChartRef" class="w-full h-full"></div>
+              <div v-if="!allSalesHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium chart-overlay">No data found</div>
+            </div>
+          </div>
     </div>
+  <!-- Daily Payments Chart -->
+  <div class="bg-white rounded-lg border p-4 mb-6 shadow-sm">
+    <div class="flex items-center justify-between mb-3">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-800">Daily Payments</h3>
+        <p class="text-sm text-gray-600">Daily payments for selected month and sales person</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <select v-model="selectedYear" class="px-3 py-1.5 border border-gray-200 rounded-md text-sm select-fit bg-white shadow-sm">
+          <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+        </select>
+        <select v-model="selectedMonth" class="px-3 py-1.5 border border-gray-200 rounded-md text-sm select-fit bg-white shadow-sm">
+          <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+        </select>
+        <div v-if="isManager()" class="">
+          <select
+            v-model="selectedUser"
+            class="w-56 px-3 py-1.5 border border-gray-200 rounded-md shadow-sm text-sm bg-white"
+          >
+            <option v-for="u in crmUsers" :key="u.name" :value="u.email || u.name">
+              {{ u.full_name || u.name }}
+            </option>
+          </select>
+        </div>
+        <button @click="applyFilters" class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition">Refresh</button>
+      </div>
+    </div>
+      <!-- summary cards for monthly totals -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div class="p-3 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+          <div class="text-sm text-gray-500">Monthly Target</div>
+          <div class="text-xl font-bold text-gray-800 mt-2">{{ formatChartValue(dailyPaymentsTotals.monthly_target || 0) }}</div>
+        </div>
+        <div class="p-3 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+          <div class="text-sm text-gray-500">Monthly Achieved</div>
+          <div class="text-xl font-bold text-gray-800 mt-2">{{ formatChartValue(dailyPaymentsTotals.total_amount || 0) }}</div>
+          <div class="text-xs text-gray-500 mt-1">Qty: <span class="font-semibold text-gray-800">{{ Number(dailyPaymentsTotals.total_qty || 0) }}</span></div>
+        </div>
+        <div class="p-3 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col">
+          <div class="text-sm text-gray-500">Variance</div>
+          <div class="text-xl font-bold mt-2" :class="( (dailyPaymentsTotals.total_amount || 0) - (dailyPaymentsTotals.monthly_target || 0) ) >= 0 ? 'text-green-600' : 'text-red-600'">{{ formatChartValue((dailyPaymentsTotals.total_amount || 0) - (dailyPaymentsTotals.monthly_target || 0)) }}</div>
+          <div class="text-xs text-gray-500 mt-1">Completion: <span class="font-semibold text-gray-800">{{ ((dailyPaymentsTotals.total_amount || 0) && (dailyPaymentsTotals.monthly_target || 0)) ? ((dailyPaymentsTotals.total_amount/dailyPaymentsTotals.monthly_target)*100).toFixed(2) : '0.00' }}%</span></div>
+        </div>
+      </div>
+
+      <div class="relative w-full h-72 md:h-96">
+        <div ref="dailyPaymentsChartRef" class="w-full h-full"></div>
+        <div v-if="!dailyPaymentsHasData" class="absolute inset-0 flex items-center justify-center bg-white/60 text-gray-500 font-medium chart-overlay">No data found</div>
+      </div>
+  </div>
+
   <div v-if="false" class="bg-gray-100 p-4 rounded mb-4">
     <h3 class="font-bold mb-2">Debug Info</h3>
     <div class="text-sm">
@@ -66,6 +185,8 @@
           Custom Range
         </button>
       </div>
+
+      
 
       <!-- Date Inputs (only visible when custom range is selected) -->
       <div v-if="dateRange === 'custom'" class="flex flex-col md:flex-row md:items-end gap-4">
@@ -132,7 +253,7 @@
       <div class="mb-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <!-- Deal Summary -->
-          <div class="bg-white p-4 rounded-lg border shadow-sm hover:shadow transition-shadow">
+          <div class="bg-white p-4 rounded-xl border shadow-md hover:shadow-lg transition">
             <div class="text-sm text-gray-500 flex items-center gap-2">
               <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4z" clip-rule="evenodd" />
@@ -145,7 +266,7 @@
             <div class="text-xs text-gray-500 mt-1">Sum of all deal counts</div>
           </div>
           
-          <div class="bg-white p-4 rounded-lg border shadow-sm hover:shadow transition-shadow">
+          <div class="bg-white p-4 rounded-xl border shadow-md hover:shadow-lg transition">
             <div class="text-sm text-gray-500 flex items-center gap-2">
               <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
@@ -159,7 +280,7 @@
           </div>
           
           <!-- Lead Summary -->
-          <div class="bg-white p-4 rounded-lg border shadow-sm hover:shadow transition-shadow">
+          <div class="bg-white p-4 rounded-xl border shadow-md hover:shadow-lg transition">
             <div class="text-sm text-gray-500 flex items-center gap-2">
               <svg class="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
@@ -189,7 +310,7 @@
               </div>
               <button 
                 @click="applyFilters" 
-                class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
+                class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm flex items-center gap-2 hover:bg-blue-700 transition"
                 :disabled="loading"
               >
                 <svg v-if="loading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -322,7 +443,7 @@
               </div>
               <button 
                 @click="applyFilters" 
-                class="text-sm text-green-600 hover:text-green-800 flex items-center gap-1 px-3 py-1.5 rounded hover:bg-green-50 transition-colors"
+                class="px-3 py-1.5 bg-green-600 text-white rounded-md shadow-sm flex items-center gap-2 hover:bg-green-700 transition"
                 :disabled="loading"
               >
                 <svg v-if="loading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -486,14 +607,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
 import { createResource } from 'frappe-ui'
 import { usersStore } from '../stores/users'
 import { useRouter } from 'vue-router'
 
 const API_ENDPOINT = 'merabt_crm.merabt_crm.override.custom_chart.get_deal_performance_cards'
 
-const { users, getUser, isManager, isSalesMasterManager } = usersStore()
+const { users, getUser, isManager, crmUsers } = usersStore()
 const router = useRouter()
 
 // Reactive variables
@@ -501,10 +623,159 @@ const loading = ref(false)
 const error = ref(null)
 const dataUpdatedTime = ref('')
 
+// Chart refs and resource
+const chartRef = ref(null)
+let chartInstance = null
+
+const chartResource = createResource({
+  url: `merabt_crm.portal_api.sales_target.get_month_wise_sales_chart`,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  transform: (data) => {
+    if (data.message) return data.message
+    if (data.data) return data.data
+    return data
+  },
+  auto: false,
+  onError: (err) => {
+    console.error('Chart data error:', err)
+  },
+  onSuccess: () => {
+    try {
+      // Update the displayed data time when chart data arrives
+      dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+
+      // Ensure the DOM is updated (chart container exists) before rendering
+      nextTick(() => {
+        try {
+          renderChart(chartResource.data)
+        } catch (e) {
+          console.error('Error rendering chart after nextTick:', e)
+        }
+      })
+    } catch (e) {
+      console.error('Error rendering chart:', e)
+    }
+  }
+})
+
+// Full monthly report resource (used to get cumulative values for current user)
+const reportResource = createResource({
+  url: `/api/method/merabt_crm.portal_api.sales_target.get_month_wise_sales_report`,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  transform: (data) => {
+    if (data.message) return data.message
+    if (data.data) return data.data
+    return data
+  },
+  auto: false,
+  onError: (err) => {
+    console.error('Report data error:', err)
+  },
+  onSuccess: () => {
+    try {
+      dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    } catch (e) {
+      console.error('Error handling report success:', e)
+    }
+  }
+})
+
+// All Sales Persons chart
+const allSalesChartRef = ref(null)
+let allSalesChartInstance = null
+
+const selectedYear = ref(new Date().getFullYear().toString())
+const selectedMonth = ref(String(new Date().getMonth() + 1).padStart(2, '0'))
+const currentYear = new Date().getFullYear()
+const yearOptions = Array.from({ length: 6 }).map((_, i) => String(currentYear - i))
+const monthOptions = [
+  { value: '01', label: 'Jan' },
+  { value: '02', label: 'Feb' },
+  { value: '03', label: 'Mar' },
+  { value: '04', label: 'Apr' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'Jun' },
+  { value: '07', label: 'Jul' },
+  { value: '08', label: 'Aug' },
+  { value: '09', label: 'Sep' },
+  { value: '10', label: 'Oct' },
+  { value: '11', label: 'Nov' },
+  { value: '12', label: 'Dec' },
+]
+
+const allSalesChartResource = createResource({
+  url: `/api/method/merabt_crm.portal_api.sales_target.get_all_sales_persons_month_wise_chart`,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  transform: (data) => {
+    if (data.message) return data.message
+    if (data.data) return data.data
+    return data
+  },
+  auto: false,
+  onError: (err) => {
+    console.error('All sales chart error:', err)
+  },
+  onSuccess: () => {
+    try {
+      dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+      nextTick(() => {
+        try {
+          renderAllSalesChart(allSalesChartResource.data)
+        } catch (e) {
+          console.error('Error rendering all sales chart after nextTick:', e)
+        }
+      })
+    } catch (e) {
+      console.error('Error rendering all sales chart:', e)
+    }
+  }
+})
+
 // Date filter variables
 const fromDate = ref('')
 const toDate = ref('')
 const dateRange = ref('30days')
+const selectedUser = ref(getUser().email || getUser().name)
+
+// Ensure managers default to the current user once crmUsers are loaded;
+// if current user is not in the list, fall back to the first CRM user.
+watch(crmUsers, (list) => {
+  if (!isManager()) return
+  const usersList = list || []
+  if (!Array.isArray(usersList) || usersList.length === 0) return
+
+  const me = getUser().email || getUser().name
+  const found = usersList.find(u => (u.email === me || u.name === me))
+  if (found) {
+    selectedUser.value = found.email || found.name
+  } else if (!selectedUser.value || !usersList.find(u => (u.email === selectedUser.value || u.name === selectedUser.value))) {
+    selectedUser.value = usersList[0].email || usersList[0].name
+  }
+}, { immediate: true })
 
 // Create resource for data fetching (similar to Lead.vue pattern)
 const performanceData = createResource({
@@ -588,6 +859,336 @@ const getDateRangeLabel = () => {
   }
 }
 
+// Render ECharts bar chart from payload (modern styling)
+const renderChart = (payload) => {
+  if (!chartRef.value) return
+
+  const chartPayload = payload?.data || payload || {}
+  const labels = chartPayload.labels || (chartPayload.data && chartPayload.data.labels) || []
+  const datasets = chartPayload.datasets || (chartPayload.data && chartPayload.data.datasets) || []
+
+  const colors = ['#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EF4444']
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      padding: 10,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      textStyle: { color: '#fff' },
+      formatter: function(params) {
+        const title = params && params[0] && params[0].axisValue ? params[0].axisValue : ''
+        const lines = (params || []).map(p => `${p.marker} ${p.seriesName}: ${formatChartValue(p.data)}`)
+        return `<div style="font-weight:600;margin-bottom:6px">${title}</div>${lines.join('<br/>')}`
+      }
+    },
+    legend: { data: datasets.map(d => d.name), top: 8, textStyle: { color: '#475569' } },
+    grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisTick: { alignWithLabel: true },
+      axisLine: { lineStyle: { color: '#E6E9EE' } },
+      axisLabel: { inside: false, interval: 0, rotate: 0, margin: 14, color: '#334155' }
+    },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#E6E9EE' } }, splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#475569' } },
+    series: datasets.map((d, idx) => ({
+      name: d.name,
+      type: d.type || 'bar',
+      data: d.values || [],
+      barWidth: '36%',
+      itemStyle: {
+        borderRadius: 8,
+        color: colors[idx % colors.length],
+        shadowBlur: 8,
+        shadowColor: 'rgba(16,24,40,0.06)'
+      },
+      emphasis: { focus: 'series' }
+    }))
+  }
+
+  const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && Array.isArray(datasets) && datasets.length > 0 && datasets.some(ds => Array.isArray(ds.values) && ds.values.some(v => Number(v) !== 0))
+  if (!hasMeaningfulData) {
+    try {
+      if (chartInstance) {
+        chartInstance.clear()
+        chartInstance.dispose()
+        chartInstance = null
+      }
+    } catch (e) {
+      // ignore
+    }
+    return
+  }
+
+  if (!chartInstance) {
+    try {
+      chartInstance = echarts.init(chartRef.value, 'light', { renderer: 'canvas' })
+    } catch (e) {
+      console.error('ECharts init error', e)
+      return
+    }
+  }
+
+  chartInstance.setOption(option)
+}
+
+// Render chart for all sales persons (Target vs Achieved) - modernized
+const renderAllSalesChart = (payload) => {
+  if (!allSalesChartRef.value) return
+
+  const data = payload?.data || payload || {}
+  const sales = Array.isArray(data.sales_persons) ? data.sales_persons : []
+  const labels = sales.map(s => s.sales_person_name || s.sales_person)
+
+  const hasItemGroups = sales.some(s => Array.isArray(s.item_groups) && s.item_groups.length > 0)
+  let series = []
+
+  if (hasItemGroups) {
+    const groupSet = new Set()
+    const shouldExcludeGroup = (name) => {
+      if (!name && name !== null) return false
+      const n = String(name || '').toLowerCase().trim()
+      return (
+        n === 'all' ||
+        n === 'all item groups' ||
+        n === 'all item group' ||
+        n === 'all items' ||
+        n === 'all-items' ||
+        n === 'all_items'
+      )
+    }
+
+    sales.forEach(s => {
+      (s.item_groups || []).forEach(g => {
+        const name = g.item_group || 'Unassigned'
+        if (!shouldExcludeGroup(name)) groupSet.add(name)
+      })
+    })
+    const groups = Array.from(groupSet)
+
+    const palette = ['#60A5FA', '#34D399', '#F59E0B', '#EF4444', '#A78BFA', '#F472B6']
+    groups.forEach((group, idx) => {
+      const color = palette[idx % palette.length]
+      const values = sales.map(s => {
+        const ig = (s.item_groups || []).find(x => (x.item_group || 'Unassigned') === group)
+        if (!ig) return 0
+        const arr = Array.isArray(ig.achieved_values) ? ig.achieved_values : []
+        if (arr.length === 1) return Number(arr[0] || 0)
+        return arr.reduce((a, b) => a + (Number(b) || 0), 0)
+      })
+      series.push({ name: group === 'Unassigned' ? 'Unassigned' : group, type: 'bar', stack: 'Achieved', data: values, itemStyle: { borderRadius: 6, color } })
+    })
+
+    // Create a safe gradient for the target area; some builds may not expose echarts.graphic
+    let targetAreaGradient = 'rgba(15,23,42,0.08)'
+    try {
+      if (echarts && echarts.graphic && typeof echarts.graphic.LinearGradient === 'function') {
+        targetAreaGradient = echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(15,23,42,0.08)' },
+          { offset: 1, color: 'rgba(15,23,42,0)' }
+        ])
+      }
+    } catch (e) {
+      console.warn('ECharts gradient creation failed, falling back to solid color', e)
+      targetAreaGradient = 'rgba(15,23,42,0.08)'
+    }
+
+    const totalTargets = sales.map(s => (s.totals && Number(s.totals.target_amount)) || 0)
+    series.push({
+      name: 'Target',
+      type: 'line',
+      data: totalTargets,
+      smooth: true,
+      showSymbol: true,
+      symbol: 'diamond',
+      symbolSize: 10,
+      itemStyle: {
+        color: '#0f172a',
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        shadowBlur: 12,
+        shadowColor: 'rgba(15,23,42,0.12)'
+      },
+      lineStyle: { width: 3, type: 'line', color: '#d5181b' },
+      areaStyle: {
+        color: targetAreaGradient
+      },
+      emphasis: { focus: 'series' },
+      tooltip: {
+        formatter: function(params) {
+          const val = params && params.value ? params.value : 0
+          return `Target: ${formatChartValue(val)}`
+        }
+      }
+    })
+  } else {
+    const targetValues = sales.map(s => (s.totals && s.totals.target_amount) || (Array.isArray(s.target_values) ? s.target_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
+    const achievedValues = sales.map(s => (s.totals && s.totals.achieved_amount) || (Array.isArray(s.achieved_values) ? s.achieved_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
+    series = [
+      { name: 'Target', type: 'bar', data: targetValues, itemStyle: { borderRadius: 6, color: '#6366F1' } },
+      { name: 'Achieved', type: 'bar', data: achievedValues, itemStyle: { borderRadius: 6, color: '#10B981' } }
+    ]
+  }
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      padding: 10,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      textStyle: { color: '#fff' },
+      formatter: function(params) {
+        const title = params && params[0] && params[0].axisValue ? params[0].axisValue : ''
+        const lines = (params || []).map(p => `${p.marker} ${p.seriesName}: ${formatChartValue(p.data)}`)
+        return `<div style="font-weight:600;margin-bottom:6px">${title}</div>${lines.join('<br/>')}`
+      }
+    },
+    legend: { data: series.map(s => s.name), top: 10, textStyle: { color: '#475569' } },
+    grid: { left: '3%', right: '4%', bottom: '20%', containLabel: true },
+    xAxis: { type: 'category', data: labels, axisTick: { alignWithLabel: true }, axisLabel: { interval: 0, rotate: 30, color: '#334155' }, axisLine: { lineStyle: { color: '#E6E9EE' } } },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#E6E9EE' } }, splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#475569' } },
+    series: series
+  }
+
+  const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && series.some(s => Array.isArray(s.data) && s.data.some(v => Number(v) !== 0))
+  if (!hasMeaningfulData) {
+    try {
+      if (allSalesChartInstance) {
+        allSalesChartInstance.clear()
+        allSalesChartInstance.dispose()
+        allSalesChartInstance = null
+      }
+    } catch (e) {
+      // ignore
+    }
+    return
+  }
+
+  if (!allSalesChartInstance) {
+    try {
+      allSalesChartInstance = echarts.init(allSalesChartRef.value, 'light', { renderer: 'canvas' })
+    } catch (e) {
+      console.error('ECharts init error for all sales chart', e)
+      return
+    }
+  }
+
+  allSalesChartInstance.setOption(option)
+}
+
+// Daily Payments chart (per-day, per-sales-person)
+const dailyPaymentsChartRef = ref(null)
+let dailyPaymentsChartInstance = null
+
+const dailyPaymentsResource = createResource({
+  url: `/api/method/merabt_crm.portal_api.sales_target.get_daily_payments`,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  transform: (data) => {
+    if (data.message) return data.message
+    if (data.data) return data.data
+    return data
+  },
+  auto: false,
+  onError: (err) => {
+    console.error('Daily payments chart error:', err)
+  },
+  onSuccess: () => {
+    try {
+      dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+      nextTick(() => {
+        try {
+          renderDailyPaymentsChart(dailyPaymentsResource.data)
+        } catch (e) {
+          console.error('Error rendering daily payments chart after nextTick:', e)
+        }
+      })
+    } catch (e) {
+      console.error('Error rendering daily payments chart:', e)
+    }
+  }
+})
+
+const renderDailyPaymentsChart = (payload) => {
+  if (!dailyPaymentsChartRef.value) return
+  const data = payload?.data || payload || {}
+  const labels = data.labels || []
+  const datasets = data.datasets || []
+
+  const palette = ['#60A5FA', '#34D399', '#F59E0B', '#EF4444', '#A78BFA', '#F472B6']
+  const series = []
+  datasets.forEach((d, idx) => {
+    const color = palette[idx % palette.length]
+    // Achieved as bar
+    series.push({
+      name: d.name,
+      type: 'bar',
+      data: d.values || [],
+      barGap: 0,
+      itemStyle: { borderRadius: 6, color }
+    })
+
+    // (Daily target line intentionally removed — targets remain available in number cards)
+  })
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      padding: 10,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      textStyle: { color: '#fff' },
+      formatter: function(params) {
+        const head = params[0] ? params[0].axisValue : ''
+        let out = head + '<br/>'
+        params.forEach(p => {
+          out += `<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:10px;height:10px;background:${p.color};border-radius:2px;margin-right:6px"></span>${p.seriesName}: ${formatChartValue(p.value)}</div>`
+        })
+        return out
+      }
+    },
+    legend: { data: series.map(s => s.name), top: 8, textStyle: { color: '#475569' } },
+    grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
+    xAxis: { type: 'category', data: labels, axisLine: { lineStyle: { color: '#E6E9EE' } }, axisLabel: { color: '#334155', rotate: 0 } },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#E6E9EE' } }, splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#475569' } },
+    series
+  }
+
+  const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && series.some(s => Array.isArray(s.data) && s.data.some(v => Number(v) !== 0))
+  if (!hasMeaningfulData) {
+    try {
+      if (dailyPaymentsChartInstance) {
+        dailyPaymentsChartInstance.dispose()
+        dailyPaymentsChartInstance = null
+      }
+    } catch (e) {
+      // ignore
+    }
+    return
+  }
+
+  if (!dailyPaymentsChartInstance) {
+    try {
+      dailyPaymentsChartInstance = echarts.init(dailyPaymentsChartRef.value, 'light', { renderer: 'canvas' })
+    } catch (e) {
+      console.error('ECharts init error for daily payments chart', e)
+      return
+    }
+  }
+  dailyPaymentsChartInstance.setOption(option)
+}
+
 // Apply filters
 const applyFilters = () => {
   loading.value = true
@@ -604,14 +1205,64 @@ const applyFilters = () => {
     requestBody.to_date = toDate.value
   }
 
-  if (isManager() || isSalesMasterManager() ) {
-    requestBody.user = null
+  // User selection handling (visible only to managers).
+  // User selection handling (visible only to managers):
+  if (selectedUser.value) {
+    // If non-manager somehow set a different user, restrict to current user
+    if (!isManager() && selectedUser.value !== (getUser().email || getUser().name)) {
+      requestBody.user = getUser().email || getUser().name
+    } else {
+      requestBody.user = selectedUser.value
+    }
   } else {
-    requestBody.user = getUser().email
+    // No selection -> if manager show all (null), else restrict to current user
+    if (isManager()) {
+      requestBody.user = null
+    } else {
+      requestBody.user = getUser().email || getUser().name
+    }
   }
   
   // Submit the request
   performanceData.submit(requestBody)
+  // Also submit chart data for Targets vs Achieved
+  try {
+    chartResource.submit(requestBody)
+  } catch (e) {
+    // ignore
+  }
+  // Submit full report to get cumulative values for current user
+  try {
+    reportResource.submit(requestBody)
+  } catch (e) {
+    // ignore
+  }
+  // Submit all-sales-persons chart with month/year selection
+  try {
+    const allReq = {}
+    if (selectedMonth.value) {
+      allReq.months = JSON.stringify([`${selectedYear.value}-${selectedMonth.value}`])
+    }
+    allSalesChartResource.submit(allReq)
+  } catch (e) {
+    // ignore
+  }
+  // Submit daily payments chart (month/year and optional user filter)
+  try {
+    const dailyReq = {}
+    if (selectedMonth.value) {
+      dailyReq.month = selectedMonth.value
+    }
+    dailyReq.year = selectedYear.value
+    if (isManager()) {
+      dailyReq.user = selectedUser.value || null
+    } else {
+      dailyReq.user = getUser().email || getUser().name
+    }
+    dailyPaymentsResource.submit(dailyReq)
+  } catch (e) {
+    // ignore
+  }
 }
 
 // Reset filters
@@ -637,6 +1288,84 @@ const formatDateDisplay = (dateString) => {
 // Data computed properties from the resource
 const apiData = computed(() => {
   return performanceData.data || {}
+})
+
+// Chart payload normalization and presence check
+const chartPayload = computed(() => {
+  const payload = chartResource.data || {}
+  const cp = payload?.data || payload
+  return cp || {}
+})
+
+// Report data (full months) used for cumulative summary
+const reportData = computed(() => {
+  return reportResource.data || {}
+})
+
+const currentMonth = computed(() => {
+  const months = reportData.value?.months || []
+  return months.find(m => m.is_current_month) || null
+})
+
+const currentCumulative = computed(() => {
+  const m = currentMonth.value
+  if (!m) return { target: 0, achieved: 0, variance: 0 }
+  const target = Number(m.cumulative_target_amount || 0)
+  const achieved = Number(m.cumulative_achieved_amount || 0)
+  const variance = m.cumulative_variance_amount !== undefined ? Number(m.cumulative_variance_amount) : (achieved - target)
+  const completion = Number(m.cumulative_completion_percentage || 0)
+  return { target, achieved, variance, completion }
+})
+
+const chartHasData = computed(() => {
+  const cp = chartPayload.value || {}
+  const labels = cp.labels || []
+  const datasets = cp.datasets || []
+  if (!Array.isArray(labels) || labels.length === 0) return false
+  if (!Array.isArray(datasets) || datasets.length === 0) return false
+  // require at least one non-zero value in datasets
+  const hasNonZero = datasets.some(d => Array.isArray(d.values) && d.values.some(v => Number(v) !== 0))
+  return hasNonZero
+})
+
+// Presence check for the all-sales chart
+const allSalesHasData = computed(() => {
+  const payload = allSalesChartResource.data || {}
+  const data = payload?.data || payload || {}
+  const sales = Array.isArray(data.sales_persons) ? data.sales_persons : []
+  if (!Array.isArray(sales) || sales.length === 0) return false
+
+  return sales.some(s => {
+    const totals = s.totals || {}
+    if (Number(totals.target_amount || 0) !== 0) return true
+    if (Number(totals.achieved_amount || 0) !== 0) return true
+    if (Array.isArray(s.achieved_values) && s.achieved_values.some(v => Number(v) !== 0)) return true
+    if (Array.isArray(s.target_values) && s.target_values.some(v => Number(v) !== 0)) return true
+    if (Array.isArray(s.item_groups)) {
+      return s.item_groups.some(g => (Array.isArray(g.achieved_values) && g.achieved_values.some(v => Number(v) !== 0)) || (Array.isArray(g.target_values) && g.target_values.some(v => Number(v) !== 0)))
+    }
+    return false
+  })
+})
+
+const dailyPaymentsPayload = computed(() => {
+  return dailyPaymentsResource.data || {}
+})
+
+const dailyPaymentsHasData = computed(() => {
+  const payload = dailyPaymentsResource.data || {}
+  const data = payload?.data || payload || {}
+  const labels = Array.isArray(data.labels) ? data.labels : []
+  const datasets = Array.isArray(data.datasets) ? data.datasets : []
+  if (!Array.isArray(labels) || labels.length === 0) return false
+  if (!Array.isArray(datasets) || datasets.length === 0) return false
+  return datasets.some(d => Array.isArray(d.values) && d.values.some(v => Number(v) !== 0))
+})
+ 
+const dailyPaymentsTotals = computed(() => {
+  const payload = dailyPaymentsResource.data || {}
+  const data = payload?.data || payload || {}
+  return data.totals || {}
 })
 
 const dealSummary = computed(() => {
@@ -907,8 +1636,18 @@ const redirectToLeadsAll = () => {
 // Helper functions
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '₹0'
-  // Use plain number string without thousand separators (no commas)
   return '₹' + Math.round(value).toString()
+}
+
+// Modern chart tooltip / number formatting
+const formatChartValue = (v) => {
+  if (v === null || v === undefined) return '0'
+  const n = Number(v) || 0
+  try {
+    return '₹' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(n))
+  } catch (e) {
+    return '₹' + Math.round(n)
+  }
 }
 
 const formatOwnerName = (owner) => {
@@ -970,6 +1709,23 @@ watch([fromDate, toDate], () => {
   }
 })
 
+// Auto-apply filters when manager changes selected user (debounced)
+watch(selectedUser, (newVal, oldVal) => {
+  if (!isManager()) return
+  clearTimeout(window.filterTimeout)
+  window.filterTimeout = setTimeout(() => {
+    applyFilters()
+  }, 300)
+})
+
+// Auto-apply filters when month/year selection changes (debounced)
+watch([selectedYear, selectedMonth], () => {
+  clearTimeout(window.filterTimeout)
+  window.filterTimeout = setTimeout(() => {
+    applyFilters()
+  }, 300)
+})
+
 // Watch loading state from resource
 watch(() => performanceData.loading, (newVal) => {
   loading.value = newVal
@@ -979,6 +1735,26 @@ watch(() => performanceData.loading, (newVal) => {
 watch(() => performanceData.error, (newVal) => {
   if (newVal) {
     error.value = newVal.messages?.[0] || newVal.message || 'Error loading data'
+  }
+})
+
+// Cleanup chart instance on unmount
+onUnmounted(() => {
+  try {
+    if (chartInstance) {
+      chartInstance.dispose()
+      chartInstance = null
+    }
+    if (allSalesChartInstance) {
+      allSalesChartInstance.dispose()
+      allSalesChartInstance = null
+    }
+    if (dailyPaymentsChartInstance) {
+      dailyPaymentsChartInstance.dispose()
+      dailyPaymentsChartInstance = null
+    }
+  } catch (e) {
+    // ignore
   }
 })
 </script>
@@ -1023,5 +1799,20 @@ a {
 a:hover {
   transform: scale(1.05);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Ensure select boxes have enough internal padding and a sensible min-width
+   so the native dropdown arrow does not overlap the option text. */
+.select-fit {
+  min-width: 6.5rem;
+  padding-right: 1.75rem;
+}
+
+.chart-overlay {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(255,255,255,0.6);
+  color: #6b7280;
+  font-weight: 600;
 }
 </style>
