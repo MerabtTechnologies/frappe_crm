@@ -342,11 +342,11 @@
     doctype="CRM Deal"
     :document="document"
   />
-  <WonAmountModal
+  <!-- <WonAmountModal
     v-if="showWonAmountModal"
     v-model="showWonAmountModal"
     :deal="document"
-  />
+  /> -->
   <!-- <Dialog
   :options="{
     title: 'Add Payments',
@@ -439,6 +439,7 @@ import {
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useActiveTabManager } from '@/composables/useActiveTabManager'
+import QuotationIcon from '../components/Icons/QuotationIcon.vue'
 
 const { brand } = getSettings()
 const { $dialog, $socket, makeCall } = globalStore()
@@ -625,6 +626,11 @@ const tabs = computed(() => {
       name: 'Attachments',
       label: __('Attachments'),
       icon: AttachmentIcon,
+    },
+    {
+      name: 'Quotations',
+      label: __('Quotations'),
+      icon: QuotationIcon,
     },
     {
       name: 'WhatsApp',
@@ -859,19 +865,18 @@ function setLostReason() {
 const showWonAmountModal = ref(false)
 
 function setWonAmount() {
-  console.log('Won Selected');
+  // console.log('Won Selected');
   
-  if (
-      getDealStatus(document.doc.status).type !== 'Won' 
-      || (document.doc.custom_paid_amount !== null && document.doc.custom_paid_amount > 0)
-    ) {
-      document.save.submit()
-      return
+  if (getDealStatus(document.doc.status).type !== 'Won'
+    || (document.doc.custom_paid_amount !== null && document.doc.custom_paid_amount > 0)) {
+    document.save.submit()
+    return
   }
   
 // reload the document to get the latest data
   document.reload()
-  showWonAmountModal.value = true
+  toast.error(__('Please add payment entry against this deal to set the won status.'))
+
 }
 
 
