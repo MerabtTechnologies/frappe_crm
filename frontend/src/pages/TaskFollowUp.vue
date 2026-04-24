@@ -95,6 +95,12 @@
     v-model:reloadTasks="tasks"
     :task="task"
   />
+  <IssueModal
+    v-if="showTaskCreateModal"
+    v-model="showTaskCreateModal"
+    v-model:reloadIssues="tasks"
+    :defaults="ticket"
+  />
 </template>
 
 <script setup>
@@ -104,6 +110,7 @@ import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import TaskModal from '@/components/Modals/TaskModal.vue'
 import TaskItem from '@/components/TaskItem.vue'
+import IssueModal from '@/components/Modals/IssueModal.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
@@ -126,6 +133,26 @@ const loadMore = ref(1)
 const triggerResize = ref(1)
 const updatedPageCount = ref(20)
 const viewControls = ref(null)
+
+// show issue model
+const showTaskCreateModal = ref(false)
+
+const ticket = ref({
+  name: '',
+  subject: '',
+  title: '',
+  description: '',
+  custom_task: '',
+  custom_assigned_to: '',
+  opening_date: '',
+  opening_time: '',
+  status: 'Backlog',
+  priority: 'Low',
+  issue_type: '',
+  resolution_details: '',
+  reference_doctype: 'CRM Lead',
+  reference_docname: '',
+})
 
 function getRow(name, field) {
   function getValue(value) {
@@ -397,6 +424,16 @@ function createTask(column) {
   showTaskModal.value = true
 }
 
+
+function createTicket(name) {
+  ticket.value = {
+    status: 'Open',
+    priority: 'Low',
+    custom_task: name,
+  }
+    showTaskCreateModal.value = true
+}
+
 function actions(name) {
   return [
     {
@@ -405,6 +442,13 @@ function actions(name) {
       onClick: () => {
         deletetask(name)
         tasks.value.reload()
+      },
+    },
+    {
+      label: __('Create Ticket'),
+      icon: 'plus',
+      onClick: () => {
+        createTicket(name)
       },
     },
   ]
