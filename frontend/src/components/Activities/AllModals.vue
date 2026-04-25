@@ -41,9 +41,9 @@
    <QuotationModal
     v-model="showQuotationModal"
     v-model:reloadQuotations="activities"
-    :quotation="quotation"
+    :defaults="quotation"
     :doctype="doctype"
-    :doc="doc?.name"
+  
     @after="redirect('quotations')"
   />
 </template>
@@ -55,8 +55,8 @@ import { call } from 'frappe-ui'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ProjectTaskModal from '@/components/Modals/ProjectTaskModal.vue'
-import GammaModal from '../Modals/GammaModal.vue'
-import QuotationModal from '../Modals/QuotationModal.vue'
+import GammaModal from '@/components/Modals/GammaModal.vue'
+import QuotationModal from '@/components/Modals/QuotationModal.vue'
 
 const props = defineProps({
   doctype: String,
@@ -144,12 +144,18 @@ function showGammaProposal(t) {
 const showQuotationModal = ref(false)
 const quotation = ref({})
 function showQuotation(q) {
-  quotation.value = q || {
+  const today = new Date().toISOString().split('T')[0];  quotation.value = q || {
     title: '',
     description: '',
     customer: '',
     valid_till: '',
     status: 'Draft',
+    naming_series: 'SAL-QTN-.YYYY.-',
+    transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
+    order_type: "Sales",
+    quotation_to: "Customer",
+    crm_deal: props.doc.name
+
   }
   showQuotationModal.value = true
 }

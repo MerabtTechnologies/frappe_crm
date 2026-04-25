@@ -89,7 +89,6 @@ import { useRouter } from 'vue-router'
 
 const props = defineProps({
   defaults: Object,
-  doc: String,      // This will receive doc?.name from the parent
   doctype: String,  // This will receive "CRM Deal"
   quotation: Object
 })
@@ -150,6 +149,9 @@ watch(
     if (!newItems) return;
 
     newItems.forEach((row, index) => {
+      // 🔥 FIX: Assign correct sequence number (1-based index)
+      row.idx = index + 1;
+
       // 1. Existing Fetch Logic (Select Item)
       const rowKey = `row-${index}`;
       const previousCode = rowItemTracker.get(rowKey);
@@ -159,12 +161,9 @@ watch(
         fetchItemDetails(row, previousCode);
       }
 
-      // 2. 🔥 NEW: Sync Amount (Qty * Rate)
-      // This runs every time the user types in the Qty or Rate fields
+      // 2. Sync Amount (Qty * Rate)
       const qty = parseFloat(row.qty) || 0;
       const rate = parseFloat(row.rate) || 0;
-      
-      // Update the row amount dynamically
       row.amount = qty * rate;
     });
   },
@@ -219,8 +218,14 @@ async function fetchItemDetails(row) {
       console.log(`📦 New Item Data Received for ${row.item_code}:`, itemDoc);
 
       // 3. Dynamic Overwrite
+      const itemData = { ...itemDoc };
+      // 2. STRIP THE DANGEROUS FIELDS
+      delete itemData.name; // Prevents Duplicate Entry Error
+      delete itemData.idx;  // Prevents the "28" Index Issue
+      delete itemData.owner; // Prevents permission conflicts
+      delete itemData.creation; // Prevents read-only field errors
       Object.assign(row, {
-        ...itemDoc,
+        ...itemData,
         uom: itemDoc.stock_uom,
         description: itemDoc.description,
         custom__is_recurring_item: itemDoc.custom_is_recurring_item,
@@ -329,47 +334,47 @@ const tabs = createResource({
     
     // We use Object.assign so we don't destroy the existing deal.doc object
       // ✅ Only set defaults for NEW quotations, not existing ones
-  if (!props.quotation || Object.keys(props.quotation).length === 0) {
-    Object.assign(deal.doc, {
-      naming_series: 'SAL-QTN-.YYYY.-',
-      transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
-      order_type: "Sales",
-      quotation_to: "Customer",
-      crm_deal: props.doc // Map the Deal ID from props
-    });
-  }
-    if (props.doc && data) {
-  data.forEach((tab) => {
-    tab.sections.forEach((section) => {
-      section.columns.forEach((column) => {
-        column.fields.forEach((field) => {
+  // if (!props.quotation || Object.keys(props.quotation).length === 0) {
+  //   Object.assign(deal.doc, {
+  //     // naming_series: 'SAL-QTN-.YYYY.-',
+  //     // transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
+  //     // order_type: "Sales",
+  //     // quotation_to: "Customer",
+  //     crm_deal: props.doc // Map the Deal ID from props
+  //   });
+  // }
+//     if (props.doc && data) {
+//   data.forEach((tab) => {
+//     tab.sections.forEach((section) => {
+//       section.columns.forEach((column) => {
+//         column.fields.forEach((field) => {
 
-          if (field.fieldname === 'party_name') {
+//           if (field.fieldname === 'party_name') {
 
-            console.log("Filtering party_name field...");
-            console.log("CRM Deal:", props.doc.name);
+//             console.log("Filtering party_name field...");
+//             console.log("CRM Deal:", props.doc.name);
 
-            field.get_query = () => {
+//             field.get_query = () => {
 
-              const doctype = deal.doc.quotation_to || "Customer";
+//               const doctype = deal.doc.quotation_to || "Customer";
 
-              console.log("Dynamic Link Doctype:", doctype);
+//               console.log("Dynamic Link Doctype:", doctype);
 
-              return {
-                doctype: doctype,
-                filters: {
-                  crm_deal: props.doc.name
-                }
-              };
-            };
+//               return {
+//                 doctype: doctype,
+//                 filters: {
+//                   crm_deal: props.doc.name
+//                 }
+//               };
+//             };
 
-          }
+//           }
 
-        });
-      });
-    });
-  });
-}
+//         });
+//       });
+//     });
+//   });
+// }
   },
   transform: (_tabs) => {
     hasOrganizationSections.value = false
@@ -419,6 +424,16 @@ const tabs = createResource({
 
 async function createDeal() {
 
+  // Logic to clean items before sending to backend
+  if (deal.doc.items && deal.doc.items.length > 0) {
+    deal.doc.items.forEach((item) => {
+      // If the item is new (it doesn't have a proper Frappe hash name 
+      // or the name is the same as the item_code), delete the name.
+      if (item.name === item.item_code || !item.name) {
+        delete item.name; 
+      }
+    });
+  }
   await triggerOnBeforeCreate?.()
 
   createResource({
@@ -455,43 +470,56 @@ function openQuickEntryModal() {
 }
 // Replace your onMounted quotation loading with this watcher
 // Replace your existing props.quotation watcher with this
-watch(
-  () => props.doc,
-  async (docName) => {
-    if (docName) {
-      console.log('🔄 Fetching quotation doc:', docName)
-      try {
-        const result = await createResource({
-          url: 'frappe.client.get',
-          params: { doctype: 'Quotation', name: docName },
-        }).submit()
+// watch(
+//   () => props.doc,
+//   async (docName) => {
+//     if (docName) {
+//       console.log('🔄 Fetching quotation doc:', docName)
+//       try {
+//         const result = await createResource({
+//           url: 'frappe.client.get',
+//           params: { doctype: 'Quotation', name: docName },
+//         }).submit()
 
-        console.log('✅ Fetched doc:', result.name, '| docstatus:', result.docstatus)
-        Object.assign(deal.doc, result)
-      } catch (err) {
-        console.error('❌ Failed to fetch quotation:', err)
-      }
+//         console.log('✅ Fetched doc:', result.name, '| docstatus:', result.docstatus)
+//         Object.assign(deal.doc, result)
+//       } catch (err) {
+//         console.error('❌ Failed to fetch quotation:', err)
+//       }
+//     }
+//   },
+//   { immediate: true }
+// )
+// This forces the background data into the visible form fields
+watch(
+  () => props.defaults,
+  (newValues) => {
+    if (newValues && show.value) { 
+      // Object.assign ensures we don't break Vue's connection to the UI
+      Object.assign(deal.doc, newValues);
     }
   },
-  { immediate: true }
-)
+  { immediate: true, deep: true }
+);
 onMounted(() => {
-
-  // deal.doc = { naming_series: 'SAL-QTN-.YYYY.-' }
-  // deal.doc.order_type = "Sales"
-  // deal.doc.quotation_to = "Customer"
-  // 🔥 Mapping the Deal ID
-  if (!props.doc) {
-    deal.doc.order_type = "Sales"
-    deal.doc.quotation_to = "Customer"
-    // This assigns the Deal ID to the 'crm_deal' field automatically
-    // deal.doc.crm_deal = props.doc 
-  }
+console.log('📄 Quotation Modal Mounted with props:', props)
+  // // deal.doc = { naming_series: 'SAL-QTN-.YYYY.-' }
+  // // deal.doc.order_type = "Sales"
+  // // deal.doc.quotation_to = "Customer"
+  // // 🔥 Mapping the Deal ID
+  // // if (!props.doc) {
+  // //   deal.doc.order_type = "Sales"
+  // //   deal.doc.quotation_to = "Customer"
+  // //   // This assigns the Deal ID to the 'crm_deal' field automatically
+  //   deal.doc.crm_deal = props.doc 
+  // // }
 
   // If there are other defaults passed in
   if (props.defaults) {
     Object.assign(deal.doc, props.defaults)
   }
+
+  console.log('📄 Quotation Modal Mounted with doc:', deal.doc)
   // Object.assign(deal.doc, props.defaults)
 
   // if (!deal.doc.owner) {
