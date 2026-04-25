@@ -196,7 +196,7 @@ const amendResource = createResource({
   onSuccess(newDoc) {
    
     toast.success(__(`New draft ${newDoc.name} created from ${props.docname}`))
-     console.log('Amended doc:', newDoc)
+    //  console.log('Amended doc:', newDoc)
     // Navigate to the new amended doc
     router.push({
           name: 'Quotation',
@@ -296,13 +296,13 @@ function amendDocument() {
 const itemDetailsResource = createResource({
   url: 'frappe.client.get_value',
   onBeforeSubmit() {
-    console.log('--- [Item Fetch] Starting to fetch item data from server ---');
+    // console.log('--- [Item Fetch] Starting to fetch item data from server ---');
   },
   onSuccess(data) {
-    console.log('--- [Item Fetch] Success! Received data:', data);
+    // console.log('--- [Item Fetch] Success! Received data:', data);
   },
   onError(err) {
-    console.error('--- [Item Fetch] Error fetching item:', err);
+    // console.error('--- [Item Fetch] Error fetching item:', err);
   }
 })
 
@@ -343,18 +343,18 @@ const itemDetailsResource = createResource({
 // }
 function saveChanges() {
   if (!document.isDirty) {
-    console.log('--- [Save] No changes detected. ---');
+    // console.log('--- [Save] No changes detected. ---');
     return;
   }
 
-  console.log('--- [Save] Initiating document save... ---');
+  // console.log('--- [Save] Initiating document save... ---');
 
   // 1. Lock the watchers immediately
   isSaving.value = true; 
 
   document.save.submit(null, {
     onSuccess: async (savedDoc) => {
-      console.log('--- [Save] Success ---');
+      // console.log('--- [Save] Success ---');
       
       try {
         // 2. Clear the dirty flag manually so the badge disappears
@@ -369,13 +369,13 @@ function saveChanges() {
         toast.success(__('Saved successfully'));
 
       } catch (err) {
-        console.error('Error during post-save reload:', err);
+        // console.error('Error during post-save reload:', err);
       } finally {
         // 5. IMPORTANT: Wait for the DOM and Vue state to settle 
         // before allowing the watcher to run again.
         setTimeout(() => {
           isSaving.value = false;
-          console.log('--- Watchers re-enabled ---');
+          // console.log('--- Watchers re-enabled ---');
         }, 500);
       }
     },
@@ -389,18 +389,18 @@ function saveChanges() {
 async function handleAutoItemAddition() {
   const targetItemCode = 'YOUR_ITEM_CODE_HERE'; // Replace with your actual Item Code
   
-  console.log(`--- [Logic] Checking if ${targetItemCode} already exists in items table... ---`);
+  // console.log(`--- [Logic] Checking if ${targetItemCode} already exists in items table... ---`);
 
   // Check if item already exists
   const exists = document.doc.items.find(row => row.item_code === targetItemCode);
   
   if (exists) {
-    console.warn(`--- [Logic] Item ${targetItemCode} already exists. Aborting to prevent duplicates. ---`);
+    // console.warn(`--- [Logic] Item ${targetItemCode} already exists. Aborting to prevent duplicates. ---`);
     return;
   }
 
   try {
-    console.log(`--- [Logic] Item not found. Fetching details for: ${targetItemCode} ---`);
+    // console.log(`--- [Logic] Item not found. Fetching details for: ${targetItemCode} ---`);
     
     const itemData = await itemDetailsResource.submit({
       doctype: 'Item',
@@ -409,7 +409,7 @@ async function handleAutoItemAddition() {
     });
 
     if (itemData) {
-      console.log('--- [Logic] Preparing to push new row to child table... ---');
+      // console.log('--- [Logic] Preparing to push new row to child table... ---');
       
       const newRow = { // New item to be added without index
         doctype: 'Quotation Item',
@@ -425,16 +425,16 @@ async function handleAutoItemAddition() {
       delete newRow.name;
       document.doc.items.push(newRow);
       
-      console.log('--- [Logic] New row added to document.doc.items:', newRow);
+      // console.log('--- [Logic] New row added to document.doc.items:', newRow);
       
       // Force UI to show "Save" button again
       document.isDirty = true;
-      console.log('--- [Logic] document.isDirty set to true. User can now save the new item. ---');
+      // console.log('--- [Logic] document.isDirty set to true. User can now save the new item. ---');
     } else {
-      console.error('--- [Logic] No data returned for this Item Code. Check if the Item exists in Item Master. ---');
+      // console.error('--- [Logic] No data returned for this Item Code. Check if the Item exists in Item Master. ---');
     }
   } catch (error) {
-    console.error('--- [Logic] Critical Error in handleAutoItemAddition:', error);
+    // console.error('--- [Logic] Critical Error in handleAutoItemAddition:', error);
   }
 }
 
@@ -628,7 +628,7 @@ watch(
             document.isDirty = true; // Only mark dirty when we actually fetch new data
           }
         } catch (error) {
-          console.error("Dynamic Fetch Failed:", error);
+          // console.error("Dynamic Fetch Failed:", error);
         }
       }
 
