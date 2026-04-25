@@ -574,55 +574,6 @@ function getParams() {
   }
 }
 
-// -----------Added pagination/load more filter function----------------
-function mergeDefaultsPreservingState() {
-  if (!defaultParams.value) {
-    defaultParams.value = getParams()
-  }
-
-  const current = list.value?.params || {}
-
-  // Keep filters, pagination and ordering from current params if present.
-  const preserved = {
-    filters:
-      current.filters !== undefined
-        ? current.filters
-        : defaultParams.value.filters,
-    page_length:
-      current.page_length !== undefined
-        ? current.page_length
-        : defaultParams.value.page_length,
-    page_length_count:
-      current.page_length_count !== undefined
-        ? current.page_length_count
-        : defaultParams.value.page_length_count,
-    order_by:
-      current.order_by !== undefined
-        ? current.order_by
-        : defaultParams.value.order_by,
-    column_field:
-      current.column_field !== undefined
-        ? current.column_field
-        : defaultParams.value.column_field,
-    title_field:
-      current.title_field !== undefined
-        ? current.title_field
-        : defaultParams.value.title_field,
-    kanban_columns:
-      current.kanban_columns !== undefined
-        ? current.kanban_columns
-        : defaultParams.value.kanban_columns,
-    kanban_fields:
-      current.kanban_fields !== undefined
-        ? current.kanban_fields
-        : defaultParams.value.kanban_fields,
-    columns: current.columns !== undefined ? current.columns : defaultParams.value.columns,
-    rows: current.rows !== undefined ? current.rows : defaultParams.value.rows,
-  }
-
-  list.value.params = { ...defaultParams.value, ...preserved }
-}
-// ----------------------------------------------------------------------------------------
 list.value = createResource({
   url: 'crm.api.doc.get_data',
   params: getParams(),
@@ -1002,8 +953,7 @@ function updateFilter(filters) {
   if (!defaultParams.value) {  // <-- THIS MIGHT BE NULL!
     defaultParams.value = getParams()
   }
-  // addedd pagination/load more filter function
-  mergeDefaultsPreservingState()
+  list.value.params = defaultParams.value
   list.value.params.filters = filters
   view.value.filters = filters
   list.value.reload()
@@ -1017,8 +967,7 @@ function updateSort(order_by) {
   if (!defaultParams.value) {
     defaultParams.value = getParams()
   }
-  // addedd pagination/load more filter function
-  mergeDefaultsPreservingState()
+  list.value.params = defaultParams.value
   list.value.params.order_by = order_by
   view.value.order_by = order_by
   list.value.reload()
@@ -1033,8 +982,7 @@ function updateGroupBy(group_by_field) {
   if (!defaultParams.value) {
     defaultParams.value = getParams()
   }
-  // addedd pagination/load more filter function
-  mergeDefaultsPreservingState()
+  list.value.params = defaultParams.value
   list.value.params.view.group_by_field = group_by_field
   view.value.group_by_field = group_by_field
   list.value.reload()
@@ -1068,8 +1016,7 @@ function updateColumns(obj) {
   }
 
   if (obj.reload) {
-    // addedd pagination/load more filter function
-    mergeDefaultsPreservingState()
+    list.value.params = defaultParams.value
     list.value.reload()
   }
   viewUpdated.value = true
@@ -1094,8 +1041,7 @@ async function updateKanbanSettings(data) {
   if (!defaultParams.value) {
     defaultParams.value = getParams()
   }
-  // addedd pagination/load more filter function
-  mergeDefaultsPreservingState()
+  list.value.params = defaultParams.value
   if (data.kanban_columns) {
     list.value.params.kanban_columns = data.kanban_columns
     view.value.kanban_columns = data.kanban_columns
@@ -1178,8 +1124,7 @@ function updatePageLength(value, loadMore = false) {
   if (!defaultParams.value) {
     defaultParams.value = getParams()
   }
-  // addedd pagination/load more filter function
-  mergeDefaultsPreservingState()
+  list.value.params = defaultParams.value
   if (loadMore) {
     list.value.params.page_length += list.value.params.page_length_count
   } else {
