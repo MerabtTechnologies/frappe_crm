@@ -29,6 +29,35 @@
           </template>
         </SidebarLink>
       </div>
+
+      <div v-if="!isSidebarCollapsed && currentMonth" class="mx-2 my-2 p-3 bg-white rounded-md shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-ink-gray-7 font-medium">{{ __('Targets') }} — {{ currentMonth.label }}</div>
+          <div class="flex items-center gap-2">
+            <!-- <div class="text-xs text-ink-gray-5">{{ currentCurrency }}</div> -->
+            <button @click="refreshCurrentMonth" :disabled="currentLoading" class="p-1 rounded hover:bg-gray-100" aria-label="Refresh targets">
+              <RefreshIcon class="h-4 w-4 text-ink-gray-6" :class="{ 'animate-spin': currentLoading }" />
+            </button>
+          </div>
+        </div>
+        <div class="mt-2 text-sm text-ink-gray-8">
+          <div class="flex justify-between">
+            <span class="text-xs text-ink-gray-5">{{ __('Target') }}</span>
+            <span class="font-semibold">{{ formatCurrency(currentMonth.target_amount) }}</span>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-xs text-ink-gray-5">{{ __('Achieved') }}</span>
+            <span class="font-semibold">{{ formatCurrency(currentMonth.achieved_amount) }}</span>
+          </div>
+          <div class="mt-2">
+            <div class="w-full bg-surface-gray-2 rounded h-2 overflow-hidden">
+              <div class="bg-green-500 h-2" :style="{ width: (currentMonth.completion_percentage || 0) + '%' }"></div>
+            </div>
+            <div class="text-right text-xs text-ink-gray-5 mt-1">{{ (currentMonth.completion_percentage || 0).toFixed(2) }}%</div>
+          </div>
+        </div>
+      </div>
+
       <div v-for="view in allViews" :key="view.label">
         <div class="mx-2 my-1.5" />
         <Section
@@ -169,6 +198,7 @@ import CollapseSidebar from '@/components/Icons/CollapseSidebar.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import HelpIcon from '@/components/Icons/HelpIcon.vue'
 import ChartLineIcon from '@/components/Icons/ChartLineIcon.vue'
+import RefreshIcon from '@/components/Icons/RefreshIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
 import Notifications from '@/components/Notifications.vue'
 import Settings from '@/components/Settings/Settings.vue'
@@ -181,7 +211,7 @@ import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
 import { showSettings, activeSettingsPage } from '@/composables/settings'
 import { showChangePasswordModal } from '@/composables/modals'
-import { FeatherIcon, call } from 'frappe-ui'
+import { FeatherIcon, call, createResource } from 'frappe-ui'
 import {
   SignupBanner,
   TrialBanner,
@@ -203,6 +233,33 @@ const { toggle: toggleNotificationPanel } = notificationsStore()
 const { capture } = useTelemetry()
 
 const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
+
+const currentMonthResource = createResource({
+  url: 'merabt_crm.portal_api.sales_target.get_current_month_info',
+  auto: true,
+  onError(error) {
+    console.error('Error fetching current month info:', error)
+  },
+})
+
+const currentMonth = computed(() => (currentMonthResource.data ? currentMonthResource.data.month : null))
+const currentCurrency = computed(() => (currentMonthResource.data ? currentMonthResource.data.currency : 'INR'))
+const currentTotals = computed(() => (currentMonthResource.data ? currentMonthResource.data.totals : {}))
+const currentLoading = computed(() => !!currentMonthResource.loading)
+
+function refreshCurrentMonth() {
+  try {
+    if (currentMonthResource.reload) {
+      currentMonthResource.reload()
+    } else if (currentMonthResource.submit) {
+      currentMonthResource.submit()
+    } else if (currentMonthResource.fetch) {
+      currentMonthResource.fetch()
+    }
+  } catch (e) {
+    console.error('Error refreshing current month resource', e)
+  }
+}
 
 const isFCSite = ref(window.is_fc_site)
 const isDemoSite = ref(window.is_demo_site)
@@ -408,6 +465,15 @@ function getIcon(routeName, icon) {
   }
 }
 
+  function formatCurrency(amount, currency) {
+    if (amount === undefined || amount === null) return '-'
+    try {
+      const curr = currency || (currentCurrency && currentCurrency.value) || 'INR'
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: curr }).format(amount)
+    } catch (e) {
+      return amount
+    }
+  }
 
 async function getFirstLead() {
   let firstLead = localStorage.getItem('firstLead' + user)
