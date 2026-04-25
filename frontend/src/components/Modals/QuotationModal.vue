@@ -174,7 +174,7 @@ watch(
   () => deal.doc.taxes_and_charges,
   async (newTemplate, oldTemplate) => {
     if (newTemplate) {
-      console.log(`🧾 Tax Template Changed: [${oldTemplate || 'None'}] -> [${newTemplate}]`);
+      // console.log(`🧾 Tax Template Changed: [${oldTemplate || 'None'}] -> [${newTemplate}]`);
       // Use 'await' here so taxes are fully loaded before we calculate
       await fetchTaxTemplateDetails(newTemplate);
     } else {
@@ -193,7 +193,7 @@ async function fetchItemDetails(row) {
   const oldItemCode = row._previous_item_code || 'None';
 
   try {
-    console.log(`🔄 Item Change Detected: Changing from [${oldItemCode}] to [${row.item_code}]`);
+    // console.log(`🔄 Item Change Detected: Changing from [${oldItemCode}] to [${row.item_code}]`);
 
     // 1. Fetch the Item Document
     const itemDoc = await createResource({
@@ -215,7 +215,7 @@ async function fetchItemDetails(row) {
     }).submit();
 
     if (itemDoc) {
-      console.log(`📦 New Item Data Received for ${row.item_code}:`, itemDoc);
+      // console.log(`📦 New Item Data Received for ${row.item_code}:`, itemDoc);
 
       // 3. Dynamic Overwrite
       const itemData = { ...itemDoc };
@@ -238,10 +238,10 @@ async function fetchItemDetails(row) {
 
       row.amount = row.qty * row.rate;
 
-      console.log(`✅ Row Successfully Updated. Current Row State:`, JSON.parse(JSON.stringify(row)));
+      // console.log(`✅ Row Successfully Updated. Current Row State:`, JSON.parse(JSON.stringify(row)));
     }
   } catch (err) {
-    console.error("❌ Error during item re-selection:", err);
+    // console.error("❌ Error during item re-selection:", err);
   }
 }
 async function fetchTaxTemplateDetails(templateName) {
@@ -271,10 +271,10 @@ async function fetchTaxTemplateDetails(templateName) {
         };
       });
 
-      console.log(`✅ Taxes Child Table populated with ${deal.doc.taxes.length} rows.`);
+      // console.log(`✅ Taxes Child Table populated with ${deal.doc.taxes.length} rows.`);
     }
   } catch (err) {
-    console.error("❌ Error fetching Tax Template:", err);
+    // console.error("❌ Error fetching Tax Template:", err);
   }
 }
 function calculateTaxes() {
@@ -453,7 +453,7 @@ async function createDeal() {
     },
     onError(err) {
       isDealCreating.value = false
-      console.log(err)
+      // console.log(err)
       if (!err.messages) {
         error.value = err.message
         return
@@ -502,7 +502,7 @@ watch(
   { immediate: true, deep: true }
 );
 onMounted(() => {
-console.log('📄 Quotation Modal Mounted with props:', props)
+// console.log('📄 Quotation Modal Mounted with props:', props)
   // // deal.doc = { naming_series: 'SAL-QTN-.YYYY.-' }
   // // deal.doc.order_type = "Sales"
   // // deal.doc.quotation_to = "Customer"
@@ -519,7 +519,7 @@ console.log('📄 Quotation Modal Mounted with props:', props)
     Object.assign(deal.doc, props.defaults)
   }
 
-  console.log('📄 Quotation Modal Mounted with doc:', deal.doc)
+  // console.log('📄 Quotation Modal Mounted with doc:', deal.doc)
   // Object.assign(deal.doc, props.defaults)
 
   // if (!deal.doc.owner) {

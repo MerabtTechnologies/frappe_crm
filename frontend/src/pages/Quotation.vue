@@ -538,7 +538,7 @@ const showFilesUploader = ref(false)
 const _organization = ref({})
 const handlePrintClick = () => {
   // Try adding 'props.' before the variable name
-  console.log("Target Doc:", props.quotationId); 
+  // console.log("Target Doc:", props.quotationId); 
   
   const url = `/printview?doctype=Quotation&name=${props.quotationId}&format=Standard`;
   window.open(url, '_blank');
