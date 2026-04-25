@@ -112,7 +112,7 @@ function convertToEChartsConfig(config) {
         color: '#374151'
       }
     },
-    legend: {
+      legend: {
       data: config.series.map(s => s.name),
       orient: 'horizontal',
       left: 'left',
@@ -123,11 +123,18 @@ function convertToEChartsConfig(config) {
         fontSize: 12,
         color: '#4b5563'
       },
+      // show series.label (fallback to series.name), remove underscores and capitalize first letter
+      formatter: function(name) {
+        const s = (config.series || []).find(ss => ss.name === name) || {}
+        const raw = s.label || name || ''
+        // remove underscores and collapse multiple spaces, then trim
+        const cleaned = String(raw).replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+        return cleaned.length ? (cleaned.charAt(0).toUpperCase() + cleaned.slice(1)) : ''
+      },
       lineStyle: {
         width: 2
       }
-    },
-    grid: {
+    },   grid: {
       left: '8%',
       right: '8%',
       bottom: bottomMargin,
@@ -141,7 +148,7 @@ function convertToEChartsConfig(config) {
       data: categories,
       name: config.xAxis?.title || '',
       nameLocation: 'middle',
-      nameGap: categoryCount > 8 ? 45 : 35,
+      nameGap: categoryCount > 10 ? 70 : categoryCount > 6 ? 60 : 50,
       nameTextStyle: {
         fontSize: 12,
         fontWeight: '500',
