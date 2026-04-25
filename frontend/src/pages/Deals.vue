@@ -566,7 +566,71 @@ function showTask(name) {
 }
 
 // ============ ADD FILTER FUNCTION FROM URL ============
-
+// In Deals view component
+// const applyFiltersFromURL = () => {
+//   const filtersParam = route.query.filters
+  
+//   if (!filtersParam) {
+//     return
+//   }
+  
+//   try {
+//     let filters = []
+    
+//     if (typeof filtersParam === 'string') {
+//       // Parse the JSON string
+//       filters = JSON.parse(filtersParam)
+//     } else if (Array.isArray(filtersParam)) {
+//       filters = filtersParam
+//     }
+    
+//     if (Array.isArray(filters) && filters.length > 0) {
+//       // Wait for ViewControls to be initialized
+//       const checkAndApply = () => {
+//         if (!viewControls.value || !deals.value.params) {
+//           setTimeout(checkAndApply, 100)
+//           return
+//         }
+        
+        
+//         // Method 1: Directly update the list params
+//         if (deals.value.params) {
+//           // Create a new filters object
+//           const filterObj = {}
+//           filters.forEach(filter => {
+//             if (filter.fieldname && filter.value !== undefined) {
+//               // Handle different conditions
+//               if (filter.condition === 'equals') {
+//                 filterObj[filter.fieldname] = filter.value
+//               } else {
+//                 // For other conditions, you might need different format
+//                 filterObj[filter.fieldname] = filter.value
+//               }
+//             }
+//           })
+          
+          
+//           // Update the list params
+//           deals.value.params.filters = filterObj
+          
+//           // Reload the list
+//           if (deals.value.reload) {
+//             deals.value.reload()
+//           } else {
+//             // Force reload by incrementing loadMore
+//             loadMore.value++
+//           }
+//         }
+//       }
+      
+//       // Start checking
+//       setTimeout(checkAndApply, 300)
+//     }
+//   } catch (error) {
+//     console.error('Error in applyFiltersFromURL:', error)
+//     console.error('Filters param was:', filtersParam)
+//   }
+// }
 const applyFiltersFromURL = () => {
   const filtersParam = route.query.filters
   
@@ -578,12 +642,14 @@ const applyFiltersFromURL = () => {
     let filters = []
     
     if (typeof filtersParam === 'string') {
+      // Parse the JSON string
       filters = JSON.parse(filtersParam)
     } else if (Array.isArray(filtersParam)) {
       filters = filtersParam
     }
     
     if (Array.isArray(filters) && filters.length > 0) {
+      // Wait for ViewControls to be initialized
       const checkAndApply = () => {
         if (!viewControls.value || !deals.value.params) {
           setTimeout(checkAndApply, 100)
@@ -597,12 +663,14 @@ const applyFiltersFromURL = () => {
           if (filter.fieldname && filter.value !== undefined) {
             // Handle different conditions
             if (filter.condition === 'between') {
+              // For "between" condition, Frappe expects ['between', [from, to]]
               if (Array.isArray(filter.value)) {
                 filterObj[filter.fieldname] = ['between', filter.value]
               } else {
                 filterObj[filter.fieldname] = filter.value
               }
             } else if (filter.condition === 'equals') {
+              // For "equals", just use the value
               filterObj[filter.fieldname] = filter.value
             } else if (filter.condition === '>=') {
               filterObj[filter.fieldname] = ['>=', filter.value]
@@ -617,40 +685,57 @@ const applyFiltersFromURL = () => {
             }else if (filter.condition === 'In') {
               filterObj[filter.fieldname] = ['in', filter.value]
             } 
-            else if (filter.condition === '!=') {
+            else if (filter.condition === '!=') {  // ✅ ADD THIS HANDLER
               filterObj[filter.fieldname] = ['!=', filter.value]
             }
+            // else if (filter.condition === 'is') {
+            //   // Handle 'is' condition properly for empty fields
+            //   if (filter.value === 'not set') {
+            //     // This is the correct format for "field is not set" in Frappe
+            //     filterObj[filter.fieldname] = ['is', 'not set']
+            //   } else {
+            //     filterObj[filter.fieldname] = ['is', filter.value]
+            //   }
+            // }
+
             else if (filter.condition === 'is') {
               if (filter.value === 'not set') {
+                // Field is empty or null
                 filterObj[filter.fieldname] = ['in', ['', null]]
               } else if (filter.value === 'set') {
+                // ✅ FIX: Field is set (not empty)
                 filterObj[filter.fieldname] = ['!=', '']
               } else {
                 filterObj[filter.fieldname] = ['is', filter.value]
               }
             }
             else {
+              // Default: just use the value
               filterObj[filter.fieldname] = filter.value
             }
           }
         })
         
-        console.log('Deals: Applying filters:', filterObj)
+        console.log('Deals: Applying filters:', filterObj) // Debug log
         
-        // ✅ PRESERVE existing filters if any (merge instead of replace)
-        const existingFilters = deals.value.params.filters || {}
-        deals.value.params.filters = { ...existingFilters, ...filterObj }
+        // Update the list params
+        deals.value.params.filters = filterObj
         
-        // Force a reload with the preserved filters
+        // Reload the list
         if (deals.value.reload) {
           deals.value.reload()
+        } else {
+          // Force reload by incrementing loadMore
+          loadMore.value++
         }
       }
       
+      // Start checking
       setTimeout(checkAndApply, 300)
     }
   } catch (error) {
     console.error('Error in applyFiltersFromURL:', error)
+    console.error('Filters param was:', filtersParam)
   }
 }
 onMounted(() => {
@@ -665,17 +750,6 @@ watch(() => route.query.filters, () => {
   setTimeout(() => {
     applyFiltersFromURL()
   }, 100)
-})
-
-
-// Add this to your deal.vue script section
-watch([loadMore, updatedPageCount], () => {
-  // Reapply filters from URL when pagination or load more changes
-  if (route.query.filters) {
-    setTimeout(() => {
-      applyFiltersFromURL()
-    }, 100)
-  }
 })
 
 </script>
