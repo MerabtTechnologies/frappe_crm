@@ -647,4 +647,23 @@ watch(
   },
   { deep: true }
 );
+// Add this to your watchers
+watch(
+  () => document.doc,
+  (newValue) => {
+    if (!newValue || isSaving.value) return;
+
+    // Compare current doc with the original one from the server
+    const isDirty = JSON.stringify(newValue) !== JSON.stringify(document.originalDoc);
+    
+    // Update the resource state
+    document.isDirty = isDirty;
+
+    // If it's dirty, ensure the save button loading state is reset
+    if (isDirty) {
+      document.save.loading = false;
+    }
+  },
+  { deep: true, immediate: true } // immediate: true is key for tab switching
+);
 </script>
