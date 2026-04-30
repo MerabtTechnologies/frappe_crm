@@ -23,20 +23,21 @@
                       <p class="text-sm text-gray-600">Monthly target vs achieved for the sales person</p>
                     </div>
                     <div class="flex items-center gap-3">
-                      <div v-if="isManager()" class="">
-                        <select
-                          v-model="selectedUser"
-                          class="w-56 px-3 py-1.5 border border-gray-200 rounded-md shadow-sm text-sm bg-white"
-                        >
-                          <option v-for="u in crmUsers" :key="u.name" :value="u.email || u.name">
-                            {{ u.full_name || u.name }}
-                          </option>
-                        </select>
-                      </div>
-                      <div class="text-sm text-gray-600">
-                        <button @click="applyFilters" class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition">Refresh</button>
-                      </div>
-                    </div>
+                                    <div v-if="isManager()" class="">
+                                      <select
+                                        v-model="selectedUser"
+                                        class="w-56 px-3 py-1.5 border border-gray-200 rounded-md shadow-sm text-sm bg-white"
+                                      >
+                                        <option v-for="u in crmUsers" :key="u.name" :value="u.email || u.name">
+                                          {{ u.full_name || u.name }}
+                                        </option>
+                                      </select>
+                                    </div>
+                                    
+                                    <div class="text-sm text-gray-600">
+                                      <button @click="applyFilters" class="px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition">Refresh</button>
+                                    </div>
+                                  </div>
                   </div>
               <!-- Cumulative numbers (current user) -->
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -184,6 +185,18 @@
         >
           Custom Range
         </button>
+        <!-- Performance-only selector (managers only): includes an All Users option -->
+        <div v-if="isManager()" class="">
+          <select
+            v-model="selectedPerformanceUser"
+            class="w-40 px-3 py-1.5 border border-gray-200 rounded-md shadow-sm text-sm bg-white"
+          >
+            <option :value="null">All Users</option>
+            <option v-for="u in crmUsers" :key="u.name + '_perf'" :value="u.email || u.name">
+              {{ u.full_name || u.name }}
+            </option>
+          </select>
+        </div>
       </div>
 
       
@@ -760,6 +773,8 @@ const fromDate = ref('')
 const toDate = ref('')
 const dateRange = ref('30days')
 const selectedUser = ref(getUser().email || getUser().name)
+// Performance selector defaults to All (null) so managers see aggregated performance by default
+const selectedPerformanceUser = ref(null)
 
 // Ensure managers default to the current user once crmUsers are loaded;
 // if current user is not in the list, fall back to the first CRM user.
@@ -772,8 +787,15 @@ watch(crmUsers, (list) => {
   const found = usersList.find(u => (u.email === me || u.name === me))
   if (found) {
     selectedUser.value = found.email || found.name
+    // Do not override performance selection when it's explicitly All (null).
+    if (selectedPerformanceUser.value !== null && !usersList.find(u => (u.email === selectedPerformanceUser.value || u.name === selectedPerformanceUser.value))) {
+      selectedPerformanceUser.value = found.email || found.name
+    }
   } else if (!selectedUser.value || !usersList.find(u => (u.email === selectedUser.value || u.name === selectedUser.value))) {
     selectedUser.value = usersList[0].email || usersList[0].name
+    if (selectedPerformanceUser.value !== null && (!selectedPerformanceUser.value || !usersList.find(u => (u.email === selectedPerformanceUser.value || u.name === selectedPerformanceUser.value)))) {
+      selectedPerformanceUser.value = usersList[0].email || usersList[0].name
+    }
   }
 }, { immediate: true })
 
@@ -1193,47 +1215,65 @@ const renderDailyPaymentsChart = (payload) => {
 const applyFilters = () => {
   loading.value = true
   error.value = null
-  
-  const requestBody = {}
-  
-  // Only include dates if they have values
+  // Build performance request (separate user selection)
+  const perfReq = {}
   if (fromDate.value && fromDate.value !== '') {
-    requestBody.from_date = fromDate.value
+    perfReq.from_date = fromDate.value
   }
-  
   if (toDate.value && toDate.value !== '') {
-    requestBody.to_date = toDate.value
+    perfReq.to_date = toDate.value
   }
-
-  // User selection handling (visible only to managers).
-  // User selection handling (visible only to managers):
-  if (selectedUser.value) {
-    // If non-manager somehow set a different user, restrict to current user
-    if (!isManager() && selectedUser.value !== (getUser().email || getUser().name)) {
-      requestBody.user = getUser().email || getUser().name
+  if (selectedPerformanceUser.value) {
+    if (!isManager() && selectedPerformanceUser.value !== (getUser().email || getUser().name)) {
+      perfReq.user = getUser().email || getUser().name
     } else {
-      requestBody.user = selectedUser.value
+      perfReq.user = selectedPerformanceUser.value
     }
   } else {
-    // No selection -> if manager show all (null), else restrict to current user
     if (isManager()) {
-      requestBody.user = null
+      perfReq.user = null
     } else {
-      requestBody.user = getUser().email || getUser().name
+      perfReq.user = getUser().email || getUser().name
     }
   }
-  
-  // Submit the request
-  performanceData.submit(requestBody)
-  // Also submit chart data for Targets vs Achieved
+
+  // Submit performance data and report (cumulative numbers) using perfReq
   try {
-    chartResource.submit(requestBody)
+    performanceData.submit(perfReq)
   } catch (e) {
     // ignore
   }
-  // Submit full report to get cumulative values for current user
   try {
-    reportResource.submit(requestBody)
+    reportResource.submit(perfReq)
+  } catch (e) {
+    // ignore
+  }
+
+  // Build chart request (keeps the existing chart/user behavior)
+  const chartReq = {}
+  if (fromDate.value && fromDate.value !== '') {
+    chartReq.from_date = fromDate.value
+  }
+  if (toDate.value && toDate.value !== '') {
+    chartReq.to_date = toDate.value
+  }
+  if (selectedUser.value) {
+    if (!isManager() && selectedUser.value !== (getUser().email || getUser().name)) {
+      chartReq.user = getUser().email || getUser().name
+    } else {
+      chartReq.user = selectedUser.value
+    }
+  } else {
+    if (isManager()) {
+      chartReq.user = null
+    } else {
+      chartReq.user = getUser().email || getUser().name
+    }
+  }
+
+  // Submit chart data for Targets vs Achieved
+  try {
+    chartResource.submit(chartReq)
   } catch (e) {
     // ignore
   }
@@ -1715,6 +1755,41 @@ watch(selectedUser, (newVal, oldVal) => {
   clearTimeout(window.filterTimeout)
   window.filterTimeout = setTimeout(() => {
     applyFilters()
+  }, 300)
+})
+
+// Auto-apply performance filters when manager changes performance user (debounced)
+watch(selectedPerformanceUser, (newVal, oldVal) => {
+  if (!isManager()) return
+  clearTimeout(window.perfFilterTimeout)
+  window.perfFilterTimeout = setTimeout(() => {
+    try {
+      // Build perf-only request and submit
+      const perfReq = {}
+      if (fromDate.value && fromDate.value !== '') {
+        perfReq.from_date = fromDate.value
+      }
+      if (toDate.value && toDate.value !== '') {
+        perfReq.to_date = toDate.value
+      }
+      if (selectedPerformanceUser.value) {
+        if (!isManager() && selectedPerformanceUser.value !== (getUser().email || getUser().name)) {
+          perfReq.user = getUser().email || getUser().name
+        } else {
+          perfReq.user = selectedPerformanceUser.value
+        }
+      } else {
+        if (isManager()) {
+          perfReq.user = null
+        } else {
+          perfReq.user = getUser().email || getUser().name
+        }
+      }
+      performanceData.submit(perfReq)
+      reportResource.submit(perfReq)
+    } catch (e) {
+      // ignore
+    }
   }, 300)
 })
 
