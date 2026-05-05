@@ -30,6 +30,7 @@ class CRMTelephonyAgent(Document):
 		user: DF.Link
 		user_name: DF.Data | None
 	# end: auto-generated types
+
 	def validate(self):
 		self.set_primary()
 

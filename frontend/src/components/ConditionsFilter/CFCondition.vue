@@ -32,9 +32,9 @@
       </div>
       <div v-if="!props.isGroup" class="flex items-center gap-2 w-full">
         <div id="fieldname" class="w-full">
-          <Combobox
+          <Autocomplete
             :options="filterableFields.data"
-            v-model="props.condition[0]"
+            :modelValue="props.condition[0]"
             :placeholder="__('Field')"
             @update:modelValue="updateField"
           />
@@ -44,7 +44,7 @@
             v-if="!props.condition[0]"
             disabled
             type="text"
-            :placeholder="__('operator')"
+            :placeholder="__('Operator')"
             class="w-[100px]"
           />
           <FormControl
@@ -52,7 +52,7 @@
             :disabled="!props.condition[0]"
             type="select"
             v-model="props.condition[1]"
-            @change="updateOperator"
+            @update:modelValue="updateOperator"
             :options="getOperators()"
             class="w-max min-w-[100px]"
           />
@@ -62,7 +62,7 @@
             v-if="!props.condition[0]"
             disabled
             type="text"
-            :placeholder="__('condition')"
+            :placeholder="__('Condition')"
             class="w-full"
           />
           <component
@@ -70,7 +70,7 @@
             :is="getValueControl()"
             v-model="props.condition[2]"
             @change="updateValue"
-            :placeholder="__('condition')"
+            :placeholder="__('Condition')"
           />
         </div>
       </div>
@@ -85,7 +85,7 @@
         variant="outline"
         v-if="props.isGroup && (props.level == 2 || props.level == 4)"
         @click="show = true"
-        :label="__('Open nested conditions')"
+        :label="__('Open Nested Conditions')"
       />
     </div>
     <div :class="'w-max'">
@@ -96,7 +96,7 @@
   </div>
   <Dialog
     v-model="show"
-    :options="{ size: '3xl', title: __('Nested conditions') }"
+    :options="{ size: '3xl', title: __('Nested Conditions') }"
   >
     <template #body-content>
       <CFConditions
@@ -111,8 +111,8 @@
 
 <script setup>
 import {
+  Autocomplete,
   Button,
-  Combobox,
   DatePicker,
   DateRangePicker,
   DateTimePicker,
@@ -170,7 +170,7 @@ const dropdownOptions = computed(() => {
 
   if (!props.isGroup && props.level < 4) {
     options.push({
-      label: __('Turn into a group'),
+      label: __('Turn into a Group'),
       icon: () => h(GroupIcon),
       onClick: () => {
         emit('turnIntoGroup')
@@ -180,7 +180,7 @@ const dropdownOptions = computed(() => {
 
   if (props.isGroup) {
     options.push({
-      label: __('Ungroup conditions'),
+      label: __('Ungroup Conditions'),
       icon: () => h(UnGroupIcon),
       onClick: () => {
         emit('unGroupConditions')
@@ -197,7 +197,7 @@ const dropdownOptions = computed(() => {
   })
 
   options.push({
-    label: __('Remove group'),
+    label: __('Remove Group'),
     icon: 'trash-2',
     variant: 'red',
     onClick: () => emit('remove'),
@@ -219,7 +219,8 @@ function toggleConjunction() {
   emit('toggleConjunction', props.conjunction)
 }
 
-const updateField = () => {
+const updateField = (field) => {
+  props.condition[0] = field?.fieldname
   resetConditionValue()
 }
 
@@ -301,13 +302,8 @@ function getSelectOptions(options) {
   return options.split('\n')
 }
 
-function updateOperator(event) {
-  let oldOperatorValue = event.target._value
-  let newOperatorValue = event.target.value
-  props.condition[1] = event.target.value
-  if (!isSameTypeOperator(oldOperatorValue, newOperatorValue)) {
-    props.condition[2] = getDefaultValue(props.condition[0])
-  }
+function updateOperator() {
+  props.condition[2] = getDefaultValue(props.condition[0])
   resetConditionValue()
 }
 
@@ -439,15 +435,5 @@ function getDefaultValue(field) {
     return 0
   }
   return ''
-}
-
-function isSameTypeOperator(oldOperator, newOperator) {
-  let textOperators = ['==', '!=', 'in', 'not in', '>', '<', '>=', '<=']
-  if (
-    textOperators.includes(oldOperator) &&
-    textOperators.includes(newOperator)
-  )
-    return true
-  return false
 }
 </script>

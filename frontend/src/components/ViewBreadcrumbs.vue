@@ -9,7 +9,7 @@
           : 'text-ink-gray-7',
       ]"
     >
-      {{ __(routeName) }}
+      {{ label ? __(label) : __(routeName) }}
     </router-link>
     <span
       v-if="viewControls"
@@ -18,10 +18,7 @@
     >
       /
     </span>
-    <Dropdown
-      v-if="viewControls"
-      :options="viewControls.viewsDropdownOptions"
-    >
+    <Dropdown v-if="viewControls" :options="viewControls.viewsDropdownOptions">
       <template #default="{ open }">
         <Button
           variant="ghost"
@@ -66,7 +63,7 @@
               <template #default>
                 <Button
                   variant="ghost"
-                  class="!size-5 hidden group-hover:block"
+                  class="group-hover:!w-auto !w-0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
                   icon="more-horizontal"
                   @click.stop
                 />
@@ -91,6 +88,10 @@ const props = defineProps({
   routeName: {
     type: String,
     required: true,
+  },
+  label: {
+    type: String,
+    required: false,
   },
 })
 

@@ -12,6 +12,24 @@ from frappe.utils import get_url_to_form, get_url_to_list
 
 
 class ERPNextCRMSettings(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		api_key: DF.Data | None
+		api_secret: DF.Password | None
+		create_customer_on_status_change: DF.Check
+		deal_status: DF.Link | None
+		enabled: DF.Check
+		erpnext_company: DF.Data | None
+		erpnext_site_url: DF.Data | None
+		is_erpnext_in_different_site: DF.Check
+	# end: auto-generated types
+
 	def validate(self):
 		if self.enabled:
 			self.validate_if_erpnext_installed()
@@ -53,7 +71,7 @@ class ERPNextCRMSettings(Document):
 				frappe.get_traceback(),
 				f"Error while creating custom field in the remote erpnext site: {self.erpnext_site_url}",
 			)
-			frappe.throw("Error while creating custom field in ERPNext, check error log for more details")
+			frappe.throw(_("Error while creating custom field in ERPNext, check error log for more details"))
 
 	def create_crm_form_script(self):
 		if not frappe.db.exists("CRM Form Script", "Create Quotation from CRM Deal"):
@@ -92,7 +110,7 @@ def get_erpnext_site_client(erpnext_crm_settings):
 
 
 @frappe.whitelist()
-def get_customer_link(crm_deal):
+def get_customer_link(crm_deal: str):
 	erpnext_crm_settings = frappe.get_single("ERPNext CRM Settings")
 	if not erpnext_crm_settings.enabled:
 		frappe.throw(_("ERPNext is not integrated with the CRM"))
@@ -118,7 +136,7 @@ def get_customer_link(crm_deal):
 
 
 @frappe.whitelist()
-def get_quotation_url(crm_deal, organization):
+def get_quotation_url(crm_deal: str, organization: str):
 	erpnext_crm_settings = frappe.get_single("ERPNext CRM Settings")
 	if not erpnext_crm_settings.enabled:
 		frappe.throw(_("ERPNext is not integrated with the CRM"))
@@ -135,7 +153,7 @@ def get_quotation_url(crm_deal, organization):
 			"party_name": crm_deal,
 			"company": erpnext_crm_settings.erpnext_company,
 			"contact_person": contact,
-			"customer_address": address
+			"customer_address": address,
 		}
 	else:
 		site_url = erpnext_crm_settings.get("erpnext_site_url")
@@ -147,14 +165,11 @@ def get_quotation_url(crm_deal, organization):
 			"party_name": prospect,
 			"company": erpnext_crm_settings.erpnext_company,
 			"contact_person": contact,
-			"customer_address": address
+			"customer_address": address,
 		}
-	
+
 	# Filter out None values and build query string
-	query_string = "&".join(
-		f"{key}={value}" for key, value in params.items() 
-		if value is not None
-	)
+	query_string = "&".join(f"{key}={value}" for key, value in params.items() if value is not None)
 
 	return f"{base_url}?{query_string}"
 
@@ -249,6 +264,9 @@ def create_customer_in_erpnext(doc, method):
 	):
 		return
 
+	if not doc.organization:
+		frappe.throw(_("Organization is required to create a customer"))
+
 	contacts = get_contacts(doc)
 	address = get_organization_address(doc.organization)
 	customer = {
@@ -293,7 +311,7 @@ async function setupForm({ doc, call, $dialog, updateField, toast }) {
 			label: __("Create Quotation"),
 			onClick: async () => {
 				let quotation_url = await call(
-					"crm.fcrm.doctype.erpnext_crm_settings.erpnext_crm_settings.get_quotation_url", 
+					"crm.fcrm.doctype.erpnext_crm_settings.erpnext_crm_settings.get_quotation_url",
 					{
 						crm_deal: doc.name,
 						organization: doc.organization

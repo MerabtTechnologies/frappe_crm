@@ -64,7 +64,7 @@
         {{ __(dealId) }}
       </div>
       <div class="flex items-center justify-start gap-5 border-b p-5">
-        <Tooltip :text="__('Organization logo')">
+        <Tooltip :text="__('Organization Logo')">
           <div class="group relative size-12">
             <Avatar
               size="3xl"
@@ -75,7 +75,7 @@
           </div>
         </Tooltip>
         <div class="flex flex-col gap-2.5 truncate text-ink-gray-9">
-          <Tooltip :text="organization?.name || __('Set an organization')">
+          <Tooltip :text="organization?.name || __('Set an Organization')">
             <div class="truncate text-2xl font-medium">
               {{ title }}
             </div>
@@ -83,7 +83,7 @@
           <div class="flex gap-1.5">
             <Button
               v-if="callEnabled"
-              :tooltip="__('Make a call')"
+              :tooltip="__('Make a Call')"
               :icon="PhoneIcon"
               @click="triggerCall"
             />
@@ -98,25 +98,29 @@
                 />
 
             <Button
-              :tooltip="__('Send an email')"
+              :tooltip="__('Send an Email')"
               :icon="Email2Icon"
               @click="
-                doc.email ? openEmailBox() : toast.error(__('No email set'))
+                doc.email
+                  ? openEmailBox()
+                  : toast.error(
+                      __('Please set an email address to send emails'),
+                    )
               "
             />
 
             <Button
-              :tooltip="__('Go to website')"
+              :tooltip="__('Go to Website')"
               :icon="LinkIcon"
               @click="
                 doc.website
                   ? openWebsite(doc.website)
-                  : toast.error(__('No website set'))
+                  : toast.error(__('Please set a website to visit'))
               "
             />
 
             <Button
-              :tooltip="__('Attach a file')"
+              :tooltip="__('Attach a File')"
               :icon="AttachmentIcon"
               @click="showFilesUploader = true"
             />
@@ -231,7 +235,7 @@
                           </Dropdown>
                           <Button
                             variant="ghost"
-                            :tooltip="__('View contact')"
+                            :tooltip="__('View Contact')"
                             :icon="ArrowUpRightIcon"
                             @click="
                               router.push({
@@ -269,7 +273,7 @@
                         v-if="!contact.email && !contact.mobile_no"
                         class="flex items-center justify-center py-4 text-sm text-ink-gray-4"
                       >
-                        {{ __('No details added') }}
+                        {{ __('No Details Added') }}
                       </div>
                     </div>
                   </Section>
@@ -283,7 +287,7 @@
                 v-else
                 class="flex h-20 items-center justify-center text-base text-ink-gray-5"
               >
-                {{ __('No contacts added') }}
+                {{ __('No Contacts Added') }}
               </div>
             </div>
           </template>
@@ -335,13 +339,14 @@
   <LostReasonModal
     v-if="showLostReasonModal"
     v-model="showLostReasonModal"
-    :deal="document"
+    doctype="CRM Deal"
+    :document="document"
   />
-  <WonAmountModal
+  <!-- <WonAmountModal
     v-if="showWonAmountModal"
     v-model="showWonAmountModal"
     :deal="document"
-  />
+  /> -->
   <!-- <Dialog
   :options="{
     title: 'Add Payments',
@@ -434,6 +439,7 @@ import {
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useActiveTabManager } from '@/composables/useActiveTabManager'
+import QuotationIcon from '../components/Icons/QuotationIcon.vue'
 
 const { brand } = getSettings()
 const { $dialog, $socket, makeCall } = globalStore()
@@ -470,10 +476,10 @@ watch(error, (err) => {
   if (err) {
     errorTitle.value = __(
       err.exc_type == 'DoesNotExistError'
-        ? 'Document not found'
-        : 'Error occurred',
+        ? 'Document Not Found'
+        : 'Error Occurred',
     )
-    errorMessage.value = __(err.messages?.[0] || 'An error occurred')
+    errorMessage.value = __(err.messages?.[0] || 'An Error Occurred')
   } else {
     errorTitle.value = ''
     errorMessage.value = ''
@@ -522,7 +528,7 @@ const organization = computed(() => organizationDocument.value?.doc || {})
 
 onMounted(() => {
   $socket.on('crm_customer_created', () => {
-    toast.success(__('Customer created successfully'))
+    toast.success(__('Customer Created Successfully'))
   })
 })
 
@@ -622,6 +628,11 @@ const tabs = computed(() => {
       icon: AttachmentIcon,
     },
     {
+      name: 'Quotations',
+      label: __('Quotations'),
+      icon: QuotationIcon,
+    },
+    {
       name: 'WhatsApp',
       label: __('WhatsApp'),
       icon: WhatsAppIcon,
@@ -635,7 +646,6 @@ const { tabIndex } = useActiveTabManager(tabs, 'lastDealTab')
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
-  cache: ['sidePanelSections', 'CRM Deal'],
   params: { doctype: 'CRM Deal' },
   transform: (data) => getParsedSections(data),
 })
@@ -688,7 +698,7 @@ function contactOptions(contact) {
 
 async function addContact(contact) {
   if (dealContacts.data?.find((c) => c.name === contact)) {
-    toast.error(__('Contact already added'))
+    toast.error(__('Contact Already Added'))
     return
   }
 
@@ -698,7 +708,7 @@ async function addContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Contact added'))
+    toast.success(__('Contact Added'))
   }
 }
 
@@ -709,7 +719,7 @@ async function removeContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Contact removed'))
+    toast.success(__('Contact Removed'))
   }
 }
 
@@ -720,7 +730,7 @@ async function setPrimaryContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Primary contact set'))
+    toast.success(__('Primary Contact Set'))
   }
 }
 
@@ -743,12 +753,12 @@ function triggerCall() {
   let mobile_no = primaryContact.mobile_no || null
 
   if (!primaryContact) {
-    toast.error(__('No primary contact set'))
+    toast.error(__('No Primary Contact Set'))
     return
   }
 
   if (!mobile_no) {
-    toast.error(__('No mobile number set'))
+    toast.error(__('No Mobile Number Set'))
     return
   }
 
@@ -855,19 +865,18 @@ function setLostReason() {
 const showWonAmountModal = ref(false)
 
 function setWonAmount() {
-  console.log('Won Selected');
+  // console.log('Won Selected');
   
-  if (
-      getDealStatus(document.doc.status).type !== 'Won' 
-      || (document.doc.custom_paid_amount !== null && document.doc.custom_paid_amount > 0)
-    ) {
-      document.save.submit()
-      return
+  if (getDealStatus(document.doc.status).type !== 'Won'
+    || (document.doc.custom_paid_amount !== null && document.doc.custom_paid_amount > 0)) {
+    document.save.submit()
+    return
   }
   
 // reload the document to get the latest data
   document.reload()
-  showWonAmountModal.value = true
+  toast.error(__('Please add payment entry against this deal to set the won status.'))
+
 }
 
 

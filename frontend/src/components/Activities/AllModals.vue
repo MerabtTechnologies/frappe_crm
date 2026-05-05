@@ -38,6 +38,14 @@
     :referenceDoc="referenceDoc"
     :options="{ afterInsert: () => activities.reload() }"
   />
+   <QuotationModal
+    v-model="showQuotationModal"
+    v-model:reloadQuotations="activities"
+    :defaults="quotation"
+    :doctype="doctype"
+  
+    @after="redirect('quotations')"
+  />
 </template>
 <script setup>
 import TaskModal from '@/components/Modals/TaskModal.vue'
@@ -47,7 +55,8 @@ import { call } from 'frappe-ui'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ProjectTaskModal from '@/components/Modals/ProjectTaskModal.vue'
-import GammaModal from '../Modals/GammaModal.vue'
+import GammaModal from '@/components/Modals/GammaModal.vue'
+import QuotationModal from '@/components/Modals/QuotationModal.vue'
 
 const props = defineProps({
   doctype: String,
@@ -132,7 +141,24 @@ function showGammaProposal(t) {
   }
   showGammaProposalModal.value = true
 }
+const showQuotationModal = ref(false)
+const quotation = ref({})
+function showQuotation(q) {
+  const today = new Date().toISOString().split('T')[0];  quotation.value = q || {
+    title: '',
+    description: '',
+    customer: '',
+    valid_till: '',
+    status: 'Draft',
+    naming_series: 'SAL-QTN-.YYYY.-',
+    transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
+    order_type: "Sales",
+    quotation_to: "Customer",
+    crm_deal: props.doc.name
 
+  }
+  showQuotationModal.value = true
+}
 async function deleteProjectTask(name) {
   await call('frappe.client.delete', {
     doctype: 'Task',
@@ -213,6 +239,7 @@ defineExpose({
   deleteProjectTask,
   updateProjectTaskStatus,
   showGammaProposal,
+  showQuotation,
   
 })
 </script>

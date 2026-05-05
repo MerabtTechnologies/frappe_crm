@@ -41,7 +41,7 @@
             :options="taskStatusOptions(modalRef.updateTaskStatus, task)"
           >
             <Button
-              :tooltip="__('Change status')"
+              :tooltip="__('Change Status')"
               variant="ghosted"
               class="hover:bg-surface-gray-4"
               @click.stop.prevent

@@ -54,13 +54,13 @@
         </Button> -->
           <Button
             class="cursor-pointer rounded-full"
-            :tooltip="__('Add a note')"
+            :tooltip="__('Add a Note')"
             :icon="NoteIcon"
             @click="showNoteModal = true"
           />
           <Button
             class="rounded-full bg-surface-red-5 hover:bg-surface-red-6 rotate-[135deg] text-ink-white"
-            :tooltip="__('Hang up')"
+            :tooltip="__('Hang Up')"
             :icon="PhoneIcon"
             @click="hangUpCall"
           />
@@ -152,7 +152,7 @@
         variant="solid"
         theme="green"
         class="pulse relative !h-6 !w-6 rounded-full animate-pulse text-ink-white"
-        :tooltip="__('Accept call')"
+        :tooltip="__('Accept Call')"
         :icon="PhoneIcon"
         @click.stop="acceptIncomingCall"
       />
@@ -160,7 +160,7 @@
         variant="solid"
         theme="red"
         class="!h-6 !w-6 rounded-full rotate-[135deg] text-ink-white"
-        :tooltip="__('Reject call')"
+        :tooltip="__('Reject Call')"
         :icon="PhoneIcon"
         @click.stop="rejectIncomingCall"
       />
@@ -182,9 +182,11 @@ import CountUpTimer from '@/components/CountUpTimer.vue'
 import NoteModal from '@/components/Modals/NoteModal.vue'
 import { Device } from '@twilio/voice-sdk'
 import { useDraggable, useWindowSize } from '@vueuse/core'
-import { capture } from '@/telemetry'
+import { useTelemetry } from 'frappe-ui/frappe'
 import { Avatar, call, createResource } from 'frappe-ui'
 import { ref, watch } from 'vue'
+
+const { capture } = useTelemetry()
 
 let device = ''
 let log = ref('Connecting...')

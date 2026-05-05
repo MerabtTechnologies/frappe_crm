@@ -10,7 +10,10 @@
       as="div"
       v-model="tabIndex"
       :tabs="tabsUsed"
-      :class="!hasTabs ? `[&_[role='tablist']]:hidden` : ''"
+      :class="[
+        !hasTabs ? `[&_[role='tablist']]:hidden` : '',
+        `[&_[role='tabpanel']]:overflow-visible !overflow-visible`,
+      ]"
     >
       <template #tab-panel="{ tab }">
         <div

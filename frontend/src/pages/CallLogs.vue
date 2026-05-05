@@ -30,7 +30,7 @@
     v-model="callLogs.data.page_length_count"
     v-model:list="callLogs"
     :rows="rows"
-    :columns="callLogs.data.columns"
+    :columns="columns"
     :options="{
       showTooltip: false,
       resizeColumn: true,
@@ -48,17 +48,11 @@
       (selections) => viewControls.updateSelections(selections)
     "
   />
-  <div
-    v-else-if="callLogs.data"
-    class="flex h-full items-center justify-center"
-  >
-    <div
-      class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
-    >
-      <PhoneIcon class="h-10 w-10" />
-      <span>{{ __('No {0} Found', [__('Logs')]) }}</span>
-    </div>
-  </div>
+  <EmptyState
+    v-else-if="callLogs.data && !rows.length"
+    name="Call Logs"
+    :icon="PhoneIcon"
+  />
   <CallLogDetailModal
     v-model="showCallLogDetailModal"
     v-model:callLogModal="showCallLogModal"
@@ -79,11 +73,13 @@ import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import CallLogsListView from '@/components/ListViews/CallLogsListView.vue'
+import EmptyState from '@/components/ListViews/EmptyState.vue'
 import CallLogDetailModal from '@/components/Modals/CallLogDetailModal.vue'
 import CallLogModal from '@/components/Modals/CallLogModal.vue'
 import { getCallLogDetail } from '@/utils/callLog'
 import { createResource } from 'frappe-ui'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 const callLogsListView = ref(null)
 const showCallLogModal = ref(false)
@@ -94,6 +90,7 @@ const loadMore = ref(1)
 const triggerResize = ref(1)
 const updatedPageCount = ref(20)
 const viewControls = ref(null)
+const route = useRoute()
 
 const rows = computed(() => {
   if (
@@ -108,6 +105,22 @@ const rows = computed(() => {
     })
     return _rows
   })
+})
+
+const columns = computed(() => {
+  let _columns = callLogs.value?.data?.columns || []
+
+  // Set align right for last column
+  if (_columns.length) {
+    _columns = _columns.map((col, index) => {
+      if (index === _columns.length - 1) {
+        return { ...col, align: 'right' }
+      }
+      return col
+    })
+  }
+
+  return _columns
 })
 
 const showCallLogDetailModal = ref(false)
@@ -141,5 +154,91 @@ const openCallLogFromURL = () => {
 
 onMounted(() => {
   openCallLogFromURL()
+})
+
+// Apply filters passed via URL (from Dashboard / other pages)
+const applyFiltersFromURL = () => {
+  const filtersParam = route.query.filters
+
+  if (!filtersParam) return
+
+  try {
+    let filters = []
+
+    if (typeof filtersParam === 'string') {
+      filters = JSON.parse(filtersParam)
+    } else if (Array.isArray(filtersParam)) {
+      filters = filtersParam
+    }
+
+    if (Array.isArray(filters) && filters.length > 0) {
+      const checkAndApply = () => {
+        if (!viewControls.value || !callLogs.value.params) {
+          setTimeout(checkAndApply, 100)
+          return
+        }
+
+        const filterObj = {}
+
+        filters.forEach((filter) => {
+          if (filter.fieldname && filter.value !== undefined) {
+            if (filter.condition === 'between') {
+              if (Array.isArray(filter.value)) {
+                filterObj[filter.fieldname] = ['between', filter.value]
+              } else {
+                filterObj[filter.fieldname] = filter.value
+              }
+            } else if (filter.condition === 'equals') {
+              filterObj[filter.fieldname] = filter.value
+            } else if (filter.condition === '>=') {
+              filterObj[filter.fieldname] = ['>=', filter.value]
+            } else if (filter.condition === '<=') {
+              filterObj[filter.fieldname] = ['<=', filter.value]
+            } else if (filter.condition === 'like' || filter.condition === 'LIKE') {
+              filterObj[filter.fieldname] = ['like', `%${filter.value}%`]
+            } else if (filter.condition === 'Not in') {
+              filterObj[filter.fieldname] = ['not in', filter.value]
+            } else if (filter.condition === 'In') {
+              filterObj[filter.fieldname] = ['in', filter.value]
+            } else if (filter.condition === 'is') {
+              if (filter.value === 'not set') {
+                filterObj[filter.fieldname] = ['is', 'not set']
+              } else {
+                filterObj[filter.fieldname] = ['is', filter.value]
+              }
+            } else {
+              filterObj[filter.fieldname] = filter.value
+            }
+          }
+        })
+
+        // Apply filters to the list resource and reload
+        callLogs.value.params.filters = filterObj
+        if (callLogs.value.reload) {
+          callLogs.value.reload()
+        } else {
+          loadMore.value++
+        }
+      }
+
+      setTimeout(checkAndApply, 300)
+    }
+  } catch (error) {
+    console.error('Error in applyFiltersFromURL:', error)
+    console.error('Filters param was:', filtersParam)
+  }
+}
+
+onMounted(() => {
+  // Run after a short delay so ViewControls can initialize
+  setTimeout(() => {
+    applyFiltersFromURL()
+  }, 500)
+})
+
+watch(() => route.query.filters, () => {
+  setTimeout(() => {
+    applyFiltersFromURL()
+  }, 100)
 })
 </script>

@@ -104,7 +104,7 @@
             <Button
               class="whitespace-nowrap mr-2"
               variant="ghost"
-              :label="__('Add filter')"
+              :label="__('Add Filter')"
               iconLeft="plus"
               @click="togglePopover()"
             />
@@ -131,7 +131,7 @@
   </div>
   <div v-else class="flex items-center justify-between gap-2 px-5 py-4">
     <FadedScrollableDiv
-      class="flex flex-1 items-center overflow-x-auto -ml-1"
+      class="flex flex-1 items-center overflow-x-auto -ml-1 h-9"
       orientation="horizontal"
     >
       <div
@@ -220,7 +220,7 @@
                     route.params.viewType !== 'kanban',
                 },
                 {
-                  label: __('Customize quick filters'),
+                  label: __('Customize Quick Filters'),
                   icon: () => h(QuickFilterIcon, { class: 'h-4 w-4' }),
                   onClick: () => showCustomizeQuickFilter(),
                   condition: () => isManager(),
@@ -243,6 +243,7 @@
     :options="{
       afterCreate: async (v) => {
         await reloadView()
+        clearUnsaved()
         viewUpdated = false
         router.push({
           name: route.name,
@@ -252,6 +253,7 @@
       },
       afterUpdate: () => {
         viewUpdated = false
+        clearUnsaved()
         reloadView()
         list.reload()
       },
@@ -291,7 +293,7 @@
       <div class="mt-3">
         <FormControl
           type="checkbox"
-          :label="__('Export All {0} Record(s)', [list.data.total_count])"
+          :label="__('Export all {0} record(s)', [list.data.total_count])"
           v-model="export_all"
         />
       </div>
@@ -379,6 +381,35 @@ const defaultParams = ref('')
 const viewUpdated = ref(false)
 const showViewModal = ref(false)
 
+function unsavedKey() {
+  try {
+    return `_unsaved_view:${route.name}:${props.doctype}`
+  } catch (e) {
+    return `_unsaved_view:${props.doctype}`
+  }
+}
+
+function readUnsaved() {
+  try {
+    const raw = localStorage.getItem(unsavedKey())
+    return raw ? JSON.parse(raw) : null
+  } catch (e) {
+    return null
+  }
+}
+
+function saveUnsaved(state) {
+  try {
+    localStorage.setItem(unsavedKey(), JSON.stringify(state))
+  } catch (e) {}
+}
+
+function clearUnsaved() {
+  try {
+    localStorage.removeItem(unsavedKey())
+  } catch (e) {}
+}
+
 function getViewType() {
   let viewType = route.params.viewType || 'list'
   let types = {
@@ -462,11 +493,37 @@ watch(updatedPageCount, (value) => {
   updatePageLength(value)
 })
 
+// Persist unsaved view params (filters, ordering, group_by, kanban settings)
+// from a single centralized watcher instead of many scattered calls.
+watch(
+  () => list.value?.params,
+  (val) => {
+    if (!val) return
+    if (viewUpdated.value) {
+      try {
+        const state = {}
+        if (val.filters !== undefined) state.filters = val.filters
+        if (val.order_by !== undefined) state.order_by = val.order_by
+        if (val.view && val.view.group_by_field !== undefined)
+          state.group_by_field = val.view.group_by_field
+        if (val.kanban_columns !== undefined) state.kanban_columns = val.kanban_columns
+        if (val.kanban_fields !== undefined) state.kanban_fields = val.kanban_fields
+        if (val.column_field !== undefined) state.column_field = val.column_field
+        saveUnsaved(state)
+      } catch (e) {}
+    }
+  },
+  { deep: true },
+)
+
 function getParams() {
   let _view = getView(route.query.view, route.params.viewType, props.doctype)
   const view_name = _view?.name || ''
   const view_type = _view?.type || route.params.viewType || 'list'
-  const filters = (_view?.filters && JSON.parse(_view.filters)) || {}
+  // Prefer any unsaved filters stored in localStorage (so a hard reload
+  // restores the user's unsaved changes) over the saved view filters.
+  let filters = (_view?.filters && JSON.parse(_view.filters)) || {}
+  // unsaved state is restored on mount; keep getParams simple
   const order_by = _view?.order_by || 'modified desc'
   const group_by_field = _view?.group_by_field || 'owner'
   const columns = _view?.columns || ''
@@ -546,13 +603,37 @@ list.value = createResource({
   },
 })
 
-onMounted(() => useDebounceFn(reload, 100)())
+onMounted(() => {
+  try {
+    const unsaved = readUnsaved()
+    if (unsaved) {
+      if (!list.value.params) list.value.params = getParams()
+      Object.assign(list.value.params, unsaved)
+      // mark view as updated so UI shows unsaved state
+      viewUpdated.value = true
+    }
+  } catch (e) {}
+
+  useDebounceFn(reload, 100)()
+})
 
 const isLoading = computed(() => list.value?.loading)
 
 function reload() {
   if (isLoading.value) return
-  list.value.params = getParams()
+  // Don't overwrite unsaved filter changes when refreshing.
+  // If the view has pending updates (viewUpdated), preserve the
+  // current `list.value.params` so user's filters remain in the UI.
+  // Allow forcing a full reload by passing `true` to `reload(true)`.
+  const args = Array.from(arguments)
+  const force = args[0] === true
+  if (!viewUpdated.value || force) {
+    list.value.params = getParams()
+  } else {
+    if (!list.value.params) {
+      list.value.params = getParams()
+    }
+  }
   list.value.reload()
 }
 
@@ -603,7 +684,7 @@ if (allowedViews.includes('list')) {
     icon: markRaw(ListIcon),
     onClick() {
       viewUpdated.value = false
-      router.push({ name: route.name })
+      router.push({ name: route.name, params: { viewType: 'list' } })
     },
   })
 }
@@ -741,7 +822,7 @@ const updateQuickFilters = createResource({
 
     quickFilters.update({ params: { doctype: props.doctype, cached: false } })
     quickFilters.reload()
-    toast.success(__('Quick Filters updated successfully'))
+    toast.success(__('Quick filters updated successfully'))
   },
 })
 
@@ -806,14 +887,17 @@ const quickFilterList = computed(() => {
     if (list.value.params?.filters[filter.fieldname]) {
       let value = list.value.params.filters[filter.fieldname]
       if (Array.isArray(value)) {
+        // Only extract the LIKE value for non-special fieldtypes.
+        // If the operator is not LIKE or the fieldtype is one of the
+        // special types, skip assigning a string value here.
         if (
-          (['Check', 'Select', 'Link', 'Date', 'Datetime'].includes(
+          ['Check', 'Select', 'Link', 'Date', 'Datetime'].includes(
             filter.fieldtype,
-          ) &&
-            value[0]?.toLowerCase() == 'like') ||
+          ) ||
           value[0]?.toLowerCase() != 'like'
-        )
+        ) {
           return
+        }
         filter['value'] = value[1]?.replace(/%/g, '')
       } else if (typeof value == 'boolean') {
         filter['value'] = value
@@ -976,7 +1060,6 @@ async function updateKanbanSettings(data) {
     list.value.params.title_field = data.title_field
     view.value.title_field = data.title_field
   }
-
   list.value.reload()
 
   if (!route.query.view) {
@@ -1030,6 +1113,8 @@ function createOrUpdateStandardView() {
       route_name: route.name,
       load_default_columns: view.value.load_default_columns,
     }
+    // saved to server — clear any persisted unsaved changes
+    clearUnsaved()
     viewUpdated.value = false
   })
 }
@@ -1039,7 +1124,10 @@ function updatePageLength(value, loadMore = false) {
   if (!defaultParams.value) {
     defaultParams.value = getParams()
   }
-  list.value.params = defaultParams.value
+  // pagination/load more filters code.
+  const currentParams = list.value.params || {}
+  list.value.params = { ...defaultParams.value, ...currentParams }
+  // list.value.params = defaultParams.value
   if (loadMore) {
     list.value.params.page_length += list.value.params.page_length_count
   } else {
@@ -1085,9 +1173,9 @@ const viewActions = (view, close) => {
     },
   ]
 
-  if (!isDefaultView(_view, isStandard)) {
+  if (isStandard && !isDefaultView(_view)) {
     actions[0].items.unshift({
-      label: __('Set as default'),
+      label: __('Set As Default'),
       icon: () => h(CheckIcon, { class: 'h-4 w-4' }),
       onClick: () => setAsDefault(_view),
     })
@@ -1150,10 +1238,10 @@ const viewActions = (view, close) => {
   return actions
 }
 
-function isDefaultView(v, isStandard) {
+function isDefaultView(v) {
   let defaultView = getDefaultView()
 
-  if (!defaultView || (isStandard && !v.name)) return false
+  if (!defaultView || !v.name) return false
 
   return defaultView.name == v.name
 }
@@ -1221,7 +1309,7 @@ function deleteView(v, close) {
   call('crm.fcrm.doctype.crm_view_settings.crm_view_settings.delete', {
     name: v.name,
   }).then(() => {
-    router.push({ name: route.name })
+    router.push({ name: route.name, params: { viewType: 'list' } })
     reloadView()
     list.value.reload()
   })
@@ -1229,6 +1317,8 @@ function deleteView(v, close) {
 }
 
 function cancelChanges() {
+  // discard persisted unsaved changes and reload
+  clearUnsaved()
   reload()
   viewUpdated.value = false
 }

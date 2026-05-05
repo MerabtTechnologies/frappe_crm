@@ -7,14 +7,14 @@
       <UserDropdown :isCollapsed="isSidebarCollapsed" />
     </div>
     <div class="flex-1 overflow-y-auto">
-      <div class="mb-3 flex flex-col">
+      <div class="flex flex-col">
         <SidebarLink
           id="notifications-btn"
           :label="__('Notifications')"
           :icon="NotificationsIcon"
           :isCollapsed="isSidebarCollapsed"
           @click="() => toggleNotificationPanel()"
-          class="relative mx-2 my-0.5"
+          class="relative mx-2 my-[1.5px]"
         >
           <template #right>
             <Badge
@@ -29,11 +29,37 @@
           </template>
         </SidebarLink>
       </div>
+
+      <div v-if="!isSidebarCollapsed && currentMonth" class="mx-2 my-2 p-3 bg-white rounded-md shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-ink-gray-7 font-medium">{{ __('Targets') }} — {{ currentMonth.label }}</div>
+          <div class="flex items-center gap-2">
+            <!-- <div class="text-xs text-ink-gray-5">{{ currentCurrency }}</div> -->
+            <button @click="refreshCurrentMonth" :disabled="currentLoading" class="p-1 rounded hover:bg-gray-100" aria-label="Refresh targets">
+              <RefreshIcon class="h-4 w-4 text-ink-gray-6" :class="{ 'animate-spin': currentLoading }" />
+            </button>
+          </div>
+        </div>
+        <div class="mt-2 text-sm text-ink-gray-8">
+          <div class="flex justify-between">
+            <span class="text-xs text-ink-gray-5">{{ __('Target') }}</span>
+            <span class="font-semibold">{{ formatCurrency(currentMonth.target_amount) }}</span>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-xs text-ink-gray-5">{{ __('Achieved') }}</span>
+            <span class="font-semibold">{{ formatCurrency(currentMonth.achieved_amount) }}</span>
+          </div>
+          <div class="mt-2">
+            <div class="w-full bg-surface-gray-2 rounded h-2 overflow-hidden">
+              <div class="bg-green-500 h-2" :style="{ width: (currentMonth.completion_percentage || 0) + '%' }"></div>
+            </div>
+            <div class="text-right text-xs text-ink-gray-5 mt-1">{{ (currentMonth.completion_percentage || 0).toFixed(2) }}%</div>
+          </div>
+        </div>
+      </div>
+
       <div v-for="view in allViews" :key="view.label">
-        <div
-          v-if="!view.hideLabel && isSidebarCollapsed && view.views?.length"
-          class="mx-2 my-2 h-1 border-b"
-        />
+        <div class="mx-2 my-1.5" />
         <Section
           :label="view.name"
           :hideLabel="view.hideLabel"
@@ -42,11 +68,11 @@
           <template #header="{ opened, hide, toggle }">
             <div
               v-if="!hide"
-              class="flex cursor-pointer gap-1.5 px-1 text-base font-medium text-ink-gray-5 transition-all duration-300 ease-in-out"
+              class="flex items-center cursor-pointer gap-1.5 text-base text-ink-gray-5 transition-all duration-300 ease-in-out"
               :class="
                 isSidebarCollapsed
-                  ? 'ml-0 h-0 overflow-hidden opacity-0'
-                  : 'ml-2 mt-4 h-7 w-auto opacity-100'
+                  ? 'h-0 overflow-hidden opacity-0'
+                  : 'px-4 pt-[11px] pb-2.5 w-auto opacity-100'
               "
               @click="toggle()"
             >
@@ -65,7 +91,7 @@
               :label="__(link.label)"
               :to="link.to"
               :isCollapsed="isSidebarCollapsed"
-              class="mx-2 my-0.5"
+              class="mx-2 my-[1.5px]"
             />
           </nav>
         </Section>
@@ -164,12 +190,15 @@ import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
 import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
+import ListChecks from '@/components/Icons/ListChecks.vue'
+import IssueIcon from '@/components/Icons/IssueIcon.vue'
 import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CollapseSidebar from '@/components/Icons/CollapseSidebar.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import HelpIcon from '@/components/Icons/HelpIcon.vue'
 import ChartLineIcon from '@/components/Icons/ChartLineIcon.vue'
+import RefreshIcon from '@/components/Icons/RefreshIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
 import Notifications from '@/components/Notifications.vue'
 import Settings from '@/components/Settings/Settings.vue'
@@ -182,7 +211,7 @@ import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
 import { showSettings, activeSettingsPage } from '@/composables/settings'
 import { showChangePasswordModal } from '@/composables/modals'
-import { FeatherIcon, call } from 'frappe-ui'
+import { FeatherIcon, call, createResource } from 'frappe-ui'
 import {
   SignupBanner,
   TrialBanner,
@@ -192,8 +221,8 @@ import {
   showHelpModal,
   minimize,
   IntermediateStepModal,
+  useTelemetry,
 } from 'frappe-ui/frappe'
-import { capture } from '@/telemetry'
 import router from '@/router'
 import { useStorage } from '@vueuse/core'
 import { ref, reactive, computed, h, markRaw, onMounted } from 'vue'
@@ -201,8 +230,36 @@ import DotIcon from '../Icons/DotIcon.vue'
 
 const { getPinnedViews, getPublicViews } = viewsStore()
 const { toggle: toggleNotificationPanel } = notificationsStore()
+const { capture } = useTelemetry()
 
 const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
+
+const currentMonthResource = createResource({
+  url: 'merabt_crm.portal_api.sales_target.get_current_month_info',
+  auto: true,
+  onError(error) {
+    console.error('Error fetching current month info:', error)
+  },
+})
+
+const currentMonth = computed(() => (currentMonthResource.data ? currentMonthResource.data.month : null))
+const currentCurrency = computed(() => (currentMonthResource.data ? currentMonthResource.data.currency : 'INR'))
+const currentTotals = computed(() => (currentMonthResource.data ? currentMonthResource.data.totals : {}))
+const currentLoading = computed(() => !!currentMonthResource.loading)
+
+function refreshCurrentMonth() {
+  try {
+    if (currentMonthResource.reload) {
+      currentMonthResource.reload()
+    } else if (currentMonthResource.submit) {
+      currentMonthResource.submit()
+    } else if (currentMonthResource.fetch) {
+      currentMonthResource.fetch()
+    }
+  } catch (e) {
+    console.error('Error refreshing current month resource', e)
+  }
+}
 
 const isFCSite = ref(window.is_fc_site)
 const isDemoSite = ref(window.is_demo_site)
@@ -255,6 +312,16 @@ const links = [
     label: 'Tasks',
     icon: TaskIcon,
     to: 'Tasks',
+  },
+  {
+    label: 'Task Follow Up',
+    icon: ListChecks,
+    to: 'TaskFollowUp',
+  },
+  {
+    label: 'Task Tickets',
+    icon: IssueIcon,
+    to: 'Issues',
   },
   {
     label: 'Call Logs',
@@ -337,7 +404,7 @@ const allViews = computed(() => {
   ]
   if (getPublicViews().length) {
     _views.push({
-      name: 'Public views',
+      name: 'Public Views',
       opened: true,
       views: parseView(getPublicViews()),
     })
@@ -345,7 +412,7 @@ const allViews = computed(() => {
 
   if (getPinnedViews().length) {
     _views.push({
-      name: 'Pinned views',
+      name: 'Pinned Views',
       opened: true,
       views: parseView(getPinnedViews()),
     })
@@ -368,7 +435,7 @@ function parseView(views) {
 }
 
 function getIcon(routeName, icon) {
-  if (icon) return h('div', { class: 'size-auto' }, icon)
+  if (icon) return icon
 
   switch (routeName) {
     case 'Leads':
@@ -398,6 +465,15 @@ function getIcon(routeName, icon) {
   }
 }
 
+  function formatCurrency(amount, currency) {
+    if (amount === undefined || amount === null) return '-'
+    try {
+      const curr = currency || (currentCurrency && currentCurrency.value) || 'INR'
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: curr }).format(amount)
+    } catch (e) {
+      return amount
+    }
+  }
 
 async function getFirstLead() {
   let firstLead = localStorage.getItem('firstLead' + user)
@@ -423,6 +499,7 @@ const steps = reactive([
     onClick: () => {
       minimize.value = true
       showChangePasswordModal.value = true
+      capture('onboarding_step_clicked_setup_password')
     },
   },
   {
@@ -433,6 +510,7 @@ const steps = reactive([
     onClick: () => {
       minimize.value = true
       router.push({ name: 'Leads' })
+      capture('onboarding_step_clicked_create_first_lead')
     },
   },
   {
@@ -444,6 +522,7 @@ const steps = reactive([
       minimize.value = true
       showSettings.value = true
       activeSettingsPage.value = 'Invite User'
+      capture('onboarding_step_clicked_invite_your_team')
     },
     condition: () => isManager(),
   },
@@ -455,7 +534,7 @@ const steps = reactive([
     dependsOn: 'create_first_lead',
     onClick: async () => {
       minimize.value = true
-
+      capture('onboarding_step_clicked_convert_lead_to_deal')
       currentStep.value = {
         title: __('Convert lead to deal'),
         buttonLabel: __('Convert'),
@@ -483,6 +562,7 @@ const steps = reactive([
     onClick: async () => {
       minimize.value = true
       let deal = await getFirstDeal()
+      capture('onboarding_step_clicked_create_first_task')
 
       if (deal) {
         router.push({
@@ -503,6 +583,7 @@ const steps = reactive([
     onClick: async () => {
       minimize.value = true
       let deal = await getFirstDeal()
+      capture('onboarding_step_clicked_create_first_note')
 
       if (deal) {
         router.push({
@@ -524,6 +605,7 @@ const steps = reactive([
     onClick: async () => {
       minimize.value = true
       let deal = await getFirstDeal()
+      capture('onboarding_step_clicked_add_first_comment')
 
       if (deal) {
         router.push({
@@ -545,6 +627,7 @@ const steps = reactive([
     onClick: async () => {
       minimize.value = true
       let deal = await getFirstDeal()
+      capture('onboarding_step_clicked_send_first_email')
 
       if (deal) {
         router.push({
@@ -565,6 +648,7 @@ const steps = reactive([
     dependsOn: 'convert_lead_to_deal',
     onClick: async () => {
       minimize.value = true
+      capture('onboarding_step_clicked_change_deal_status')
 
       currentStep.value = {
         title: __('Change deal status'),
@@ -611,7 +695,7 @@ const articles = ref([
     opened: false,
     subArticles: [
       { name: 'introduction', title: __('Introduction') },
-      { name: 'setting-up', title: __('Setting up') },
+      { name: 'setting-up', title: __('Setting Up') },
     ],
   },
   {
@@ -619,9 +703,9 @@ const articles = ref([
     opened: false,
     subArticles: [
       { name: 'profile', title: __('Profile') },
-      { name: 'custom-branding', title: __('Custom branding') },
-      { name: 'home-actions', title: __('Home actions') },
-      { name: 'invite-users', title: __('Invite users') },
+      { name: 'custom-branding', title: __('Custom Branding') },
+      { name: 'home-actions', title: __('Home Actions') },
+      { name: 'invite-users', title: __('Invite Users') },
     ],
   },
   {
@@ -634,33 +718,33 @@ const articles = ref([
       { name: 'organization', title: __('Organization') },
       { name: 'note', title: __('Note') },
       { name: 'task', title: __('Task') },
-      { name: 'call-log', title: __('Call log') },
-      { name: 'email-template', title: __('Email template') },
+      { name: 'call-log', title: __('Call Log') },
+      { name: 'email-template', title: __('Email Template') },
     ],
   },
   {
-    title: __('Capturing leads'),
+    title: __('Capturing Leads'),
     opened: false,
-    subArticles: [{ name: 'web-form', title: __('Web form') }],
+    subArticles: [{ name: 'web-form', title: __('Web Form') }],
   },
   {
     title: __('Views'),
     opened: false,
     subArticles: [
-      { name: 'view', title: __('Saved view') },
-      { name: 'public-view', title: __('Public view') },
-      { name: 'pinned-view', title: __('Pinned view') },
+      { name: 'view', title: __('Saved View') },
+      { name: 'public-view', title: __('Public View') },
+      { name: 'pinned-view', title: __('Pinned View') },
     ],
   },
   {
-    title: __('Other features'),
+    title: __('Other Features'),
     opened: false,
     subArticles: [
-      { name: 'email-communication', title: __('Email communication') },
+      { name: 'email-communication', title: __('Email Communication') },
       { name: 'comment', title: __('Comment') },
       { name: 'data', title: __('Data') },
-      { name: 'service-level-agreement', title: __('Service level agreement') },
-      { name: 'assignment-rule', title: __('Assignment rule') },
+      { name: 'service-level-agreement', title: __('Service Level Agreement') },
+      { name: 'assignment-rule', title: __('Assignment Rule') },
       { name: 'notification', title: __('Notification') },
     ],
   },
@@ -668,11 +752,11 @@ const articles = ref([
     title: __('Customization'),
     opened: false,
     subArticles: [
-      { name: 'custom-fields', title: __('Custom fields') },
-      { name: 'custom-actions', title: __('Custom actions') },
-      { name: 'custom-statuses', title: __('Custom statuses') },
-      { name: 'custom-list-actions', title: __('Custom list actions') },
-      { name: 'quick-entry-layout', title: __('Quick entry layout') },
+      { name: 'custom-fields', title: __('Custom Fields') },
+      { name: 'custom-actions', title: __('Custom Actions') },
+      { name: 'custom-statuses', title: __('Custom Statuses') },
+      { name: 'custom-list-actions', title: __('Custom List Actions') },
+      { name: 'quick-entry-layout', title: __('Quick Entry Layout') },
     ],
   },
   {
@@ -689,7 +773,7 @@ const articles = ref([
     title: __('Frappe CRM mobile'),
     opened: false,
     subArticles: [
-      { name: 'mobile-app-installation', title: __('Mobile app installation') },
+      { name: 'mobile-app-installation', title: __('Mobile App Installation') },
     ],
   },
 ])

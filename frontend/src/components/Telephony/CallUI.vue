@@ -4,7 +4,7 @@
   <Dialog
     v-model="show"
     :options="{
-      title: __('Make call'),
+      title: __('Make Call'),
       actions: [
         {
           label: __('Call using {0}', [callMedium]),

@@ -81,7 +81,7 @@ import { statusesStore } from '@/stores/statuses'
 import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
-import { capture } from '@/telemetry'
+import { useTelemetry } from 'frappe-ui/frappe'
 import { Switch, createResource } from 'frappe-ui'
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -98,6 +98,7 @@ const router = useRouter()
 const error = ref(null)
 
 const { document: deal, triggerOnBeforeCreate } = useDocument('Employee Date Request')
+const { capture } = useTelemetry()
 
 const hasOrganizationSections = ref(true)
 const hasContactSections = ref(true)

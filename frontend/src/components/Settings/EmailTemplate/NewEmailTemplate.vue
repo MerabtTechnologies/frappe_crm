@@ -7,7 +7,7 @@
           variant="ghost"
           icon-left="chevron-left"
           :label="
-            templateData?.name ? __('Duplicate template') : __('New template')
+            templateData?.name ? __('Duplicate Template') : __('New Template')
           "
           size="md"
           @click="() => emit('updateStep', 'template-list')"

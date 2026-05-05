@@ -50,7 +50,7 @@
    "link_fieldname": "note"
   }
  ],
- "modified": "2026-01-24 12:32:04.171044",
+ "modified": "2026-02-23 12:22:56.394635",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "FCRM Note",
@@ -65,7 +65,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "Sales User",
+   "role": "System Manager",
    "share": 1,
    "write": 1
   },
@@ -79,6 +79,18 @@
    "read": 1,
    "report": 1,
    "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
    "share": 1,
    "write": 1
   }
