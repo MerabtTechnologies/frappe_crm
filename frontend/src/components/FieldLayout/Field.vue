@@ -75,9 +75,10 @@
       class="flex gap-1"
       v-else-if="['Link', 'Dynamic Link'].includes(field.fieldtype)"
     >
+    <!-- Fix the Link Field that not displaying correctly if the value is not a string -->
       <Link
         class="form-control flex-1 truncate"
-        :value="data[field.fieldname]"
+        :value="typeof data[field.fieldname] === 'number' ? String(data[field.fieldname]) : data[field.fieldname]"
         :doctype="
           field.fieldtype == 'Link' ? field.options : data[field.options]
         "
