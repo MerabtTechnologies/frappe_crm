@@ -35,6 +35,21 @@ function showTask(taskData) {
   })
 }
 
+function showProjectTask(taskData) {
+  showModal({
+    name: taskData?.name,
+    doctype: 'Smart Task',
+    title: 'Project Task',
+    defaults: {
+      project: props.doc?.name,
+    },
+    callbacks: {
+      afterInsert: (d) => afterDoctype(d, true),
+      afterUpdate: afterDoctype,
+    },
+  })
+}
+
 async function deleteTask(name) {
   await call('frappe.client.delete', {
     doctype: 'CRM Task',
@@ -43,9 +58,28 @@ async function deleteTask(name) {
   activities.value.reload()
 }
 
+async function deleteProjectTask(name) {
+  await call('frappe.client.delete', {
+    doctype: 'Smart Task',
+    name,
+  })
+  activities.value.reload()
+}
+
 function updateTaskStatus(status, task) {
   call('frappe.client.set_value', {
     doctype: 'CRM Task',
+    name: task.name,
+    fieldname: 'status',
+    value: status,
+  }).then(() => {
+    activities.value.reload()
+  })
+}
+
+function updateProjectTaskStatus(status, task) {
+  call('frappe.client.set_value', {
+    doctype: 'Smart Task',
     name: task.name,
     fieldname: 'status',
     value: status,
@@ -74,15 +108,26 @@ function showNote(noteData) {
 function afterDoctype(d, isInsert = false) {
   activities.value.reload()
 
-  let name =
-    d.doctype == 'FCRM Note'
-      ? 'note'
-      : d.doctype == 'CRM Task'
-        ? 'task'
-        : 'call_log'
+  let name = 'call_log'
+  let redirectHash = 'calls'
 
-  let redirectHash = name + 's'
-  if (d.doctype == 'CRM Call Log') {
+  if (d.doctype == 'FCRM Note') {
+    name = 'note'
+    redirectHash = 'notes'
+  } else if (d.doctype == 'CRM Task') {
+    name = 'task'
+    redirectHash = 'tasks'
+  } else if (d.doctype == 'Smart Task') {
+    name = 'project_task'
+    redirectHash = 'project_tasks'
+  } else if (d.doctype == 'Gamma Proposal') {
+    name = 'gamma_proposal'
+    redirectHash = 'gamma'
+  } else if (d.doctype == 'Quotation') {
+    name = 'quotation'
+    redirectHash = 'quotations'
+  } else if (d.doctype == 'CRM Call Log') {
+    name = 'call_log'
     redirectHash = 'calls'
   }
 
@@ -97,6 +142,57 @@ function afterDoctype(d, isInsert = false) {
 }
 
 // Call Logs
+function showGammaProposal(proposalData) {
+  showModal({
+    name: proposalData?.name,
+    doctype: 'Gamma Proposal',
+    title: 'Gamma Proposal',
+    defaults: {
+      reference_doctype: props.doctype,
+      reference_docname: props.doc?.name,
+    },
+    callbacks: {
+      afterInsert: (d) => afterDoctype(d, true),
+      afterUpdate: afterDoctype,
+    },
+  })
+}
+
+async function deleteGammaProposal(name) {
+  await call('frappe.client.delete', {
+    doctype: 'Gamma Proposal',
+    name,
+  })
+  activities.value.reload()
+}
+
+function updateGammaProposalStatus(status, proposal) {
+  call('frappe.client.set_value', {
+    doctype: 'Gamma Proposal',
+    name: proposal.name,
+    fieldname: 'status',
+    value: status,
+  }).then(() => {
+    activities.value.reload()
+  })
+}
+
+function showQuotation(quotationData) {
+  showModal({
+    name: quotationData?.name,
+    doctype: 'Quotation',
+    title: 'Quotation',
+    defaults: {
+      reference_doctype: props.doctype,
+      reference_docname: props.doc?.name,
+    },
+    callbacks: {
+      afterInsert: (d) => afterDoctype(d, true),
+      afterUpdate: afterDoctype,
+    },
+  })
+}
+
 function createCallLog() {
   showModal({
     doctype: 'CRM Call Log',
@@ -130,6 +226,13 @@ defineExpose({
   showTask,
   deleteTask,
   updateTaskStatus,
+  showProjectTask,
+  deleteProjectTask,
+  updateProjectTaskStatus,
+  showGammaProposal,
+  deleteGammaProposal,
+  updateGammaProposalStatus,
+  showQuotation,
   showNote,
   createCallLog,
 })

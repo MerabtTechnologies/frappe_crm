@@ -214,7 +214,6 @@ const formattedCustomFields = computed(() => {
 
   return items
 })
-provide('fieldLayoutContext', props.context)
 </script>
 <style scoped>
 .section:not(:has(.field)) {
