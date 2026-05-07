@@ -6,9 +6,9 @@
     >
       <Tooltip :text="__(item.data.tooltip)">
         <NumberChart
-          class="!items-start"
           v-if="item.data"
           :key="index"
+          class="!items-start"
           :config="item.data"
           @click="handleChartClick"
         />
@@ -981,18 +981,9 @@ else if (chartName === 'deals_by_stage_axis') {
   })
 }
 
-const props = defineProps({
-  index: {
-    type: Number,
-    required: true,
-  },
-  item: {
-    type: Object,
-    required: true,
-  },
-  editing: {
-    type: Boolean,
-    default: false,
-  }
+ const props = defineProps({
+  index: { type: Number, required: true },
+  item: { type: Object, required: true },
+  editing: { type: Boolean, default: false }
 })
 </script>

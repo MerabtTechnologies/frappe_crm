@@ -118,7 +118,7 @@
         >
           {{ getRow(itemName, titleField).label }}
         </div>
-        <div class="text-ink-gray-4" v-else>{{ __('No Title') }}</div>
+        <div v-else class="text-ink-gray-4">{{ __('No Title') }}</div>
       </div>
     </template>
     <template #fields="{ fieldName, itemName }">
@@ -184,7 +184,10 @@
             :label="getRow(itemName, fieldName).value"
           />
         </div>
-        <div v-else-if="fieldName === '_assign'" class="flex items-center truncate">
+        <div
+          v-else-if="fieldName === '_assign'"
+          class="flex items-center truncate"
+        >
           <MultipleAvatar
             :avatars="getRow(itemName, fieldName).label"
             size="xs"
@@ -230,8 +233,8 @@
     </template>
   </KanbanView>
   <LeadsListView
-    ref="leadsListView"
     v-else-if="leads.data && rows.length"
+    ref="leadsListView"
     v-model="leads.data.page_length_count"
     v-model:list="leads"
     :rows="rows"
@@ -262,20 +265,6 @@
     v-model="showLeadModal"
     :defaults="defaults"
   />
-  <NoteModal
-    v-if="showNoteModal"
-    v-model="showNoteModal"
-    :note="note"
-    doctype="CRM Lead"
-    :doc="docname"
-  />
-  <TaskModal
-    v-if="showTaskModal"
-    v-model="showTaskModal"
-    :task="task"
-    doctype="CRM Lead"
-    :doc="docname"
-  />
 </template>
 
 <script setup>
@@ -294,15 +283,16 @@ import LeadsListView from '@/components/ListViews/LeadsListView.vue'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
 import LeadModal from '@/components/Modals/LeadModal.vue'
-import NoteModal from '@/components/Modals/NoteModal.vue'
-import TaskModal from '@/components/Modals/TaskModal.vue'
 import ViewControls from '@/components/ViewControls.vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { getMeta } from '@/stores/meta'
 import { globalStore } from '@/stores/global'
 import { usersStore } from '@/stores/users'
 import { statusesStore } from '@/stores/statuses'
 import { callEnabled } from '@/composables/settings'
+import { useBroadcast } from '@/composables/useBroadcast'
 import { formatDate, timeAgo, website, formatTime } from '@/utils'
+import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { Avatar, Tooltip, Dropdown } from 'frappe-ui'
 import { useRoute } from 'vue-router'
 import { ref, computed, reactive, h, onMounted, watch } from 'vue'
@@ -312,11 +302,19 @@ const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
 const { makeCall } = globalStore()
 const { getUser } = usersStore()
 const { getLeadStatus } = statusesStore()
+const { on } = useBroadcast()
+const { updateOnboardingStep } = useOnboarding('frappecrm')
+const { capture } = useTelemetry()
+const { showModal } = useDoctypeModal()
 
 const route = useRoute()
 
 const leadsListView = ref(null)
 const showLeadModal = ref(false)
+
+on('trigger_lead_create', (data) => {
+  showLeadModal.value = Boolean(data)
+})
 
 const defaults = reactive({})
 
@@ -374,7 +372,7 @@ function getGroupedByRows(listRows, groupByField, columns) {
   let groupedRows = []
 
   groupByField.options?.forEach((option) => {
-    let filteredRows = []
+    let filteredRows
 
     if (!option) {
       filteredRows = listRows.filter((row) => !row[groupByField.fieldname])
@@ -558,31 +556,44 @@ function actions(itemName) {
   )
 }
 
-const docname = ref('')
-const showNoteModal = ref(false)
-const note = ref({
-  title: '',
-  content: '',
-})
-
 function showNote(name) {
-  docname.value = name
-  showNoteModal.value = true
+  showModal({
+    doctype: 'FCRM Note',
+    title: 'Note',
+    defaults: {
+      reference_doctype: 'CRM Lead',
+      reference_docname: name,
+    },
+    callbacks: {
+      afterInsert: (d) => after(d, true),
+      afterUpdate: after,
+    },
+  })
 }
 
-const showTaskModal = ref(false)
-const task = ref({
-  title: '',
-  description: '',
-  assigned_to: '',
-  due_date: '',
-  priority: 'Low',
-  status: 'Backlog',
-})
-
 function showTask(name) {
-  docname.value = name
-  showTaskModal.value = true
+  showModal({
+    doctype: 'CRM Task',
+    title: 'Task',
+    defaults: {
+      reference_doctype: 'CRM Lead',
+      reference_docname: name,
+    },
+    callbacks: {
+      afterInsert: (d) => after(d, true),
+      afterUpdate: after,
+    },
+  })
+}
+
+function after(d, isNew = false) {
+  let a = d.doctype == 'FCRM Note' ? 'note' : 'task'
+  if (isNew) {
+    updateOnboardingStep('create_first_' + a)
+    capture(a + '_created')
+  } else {
+    capture(a + '_updated')
+  }
 }
 
 // const applyFiltersFromURL = () => {

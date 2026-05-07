@@ -20,8 +20,8 @@
             <Button
               variant="ghost"
               class="w-7"
-              @click="show = false"
               icon="x"
+              @click="show = false"
             />
           </div>
         </div>
@@ -31,7 +31,7 @@
           :data="_contact.doc"
           doctype="Contact"
         />
-        <ErrorMessage class="mt-6" v-if="error" :message="__(error)" />
+        <ErrorMessage v-if="error" class="mt-6" :message="__(error)" />
       </div>
       <div class="px-4 pb-7 pt-4 sm:px-6">
         <div class="space-y-2">
@@ -53,30 +53,20 @@ import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import { usersStore } from '@/stores/users'
 import { isMobileView } from '@/composables/settings'
-import {
-  showQuickEntryModal,
-  quickEntryProps,
-  showAddressModal,
-  addressProps,
-} from '@/composables/modals'
+import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
 import { evaluateDependsOnValue } from '@/utils'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { useTelemetry } from 'frappe-ui/frappe'
 import { createResource } from 'frappe-ui'
 import { ref, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
-  contact: {
-    type: Object,
-    default: {},
-  },
+  contact: { type: Object, default: () => {} },
   options: {
     type: Object,
-    default: {
-      redirect: true,
-      afterInsert: () => {},
-    },
+    default: () => ({ redirect: true, afterInsert: () => {} }),
   },
 })
 
@@ -84,7 +74,7 @@ const { isManager } = usersStore()
 const { capture } = useTelemetry()
 
 const router = useRouter()
-const show = defineModel()
+const show = defineModel({ type: Boolean })
 
 const error = ref(null)
 
@@ -135,6 +125,7 @@ const insertContact = createResource({
   onSuccess: (doc) => {
     capture('contact_created')
     handleContactUpdate(doc)
+    _contact.doc = {}
   },
   onError: (err) => {
     error.value = err.error?.messages?.[0]
@@ -183,7 +174,7 @@ function handleContactUpdate(doc) {
     })
   }
   show.value = false
-  props.options.afterInsert && props.options.afterInsert(doc)
+  props.options.afterInsert?.(doc)
 }
 
 const tabs = createResource({
@@ -203,10 +194,10 @@ const tabs = createResource({
             } else if (field.fieldname == 'address') {
               field.create = (value, close) => {
                 _contact.doc.address = value
-                openAddressModal()
+                showAddressModal()
                 close()
               }
-              field.edit = (address) => openAddressModal(address)
+              field.edit = (address) => showAddressModal(address)
             } else if (field.fieldtype === 'Table') {
               _contact.doc[field.fieldname] = []
             }
@@ -231,13 +222,19 @@ function openQuickEntryModal() {
   nextTick(() => (show.value = false))
 }
 
-function openAddressModal(_address) {
-  showAddressModal.value = true
-  addressProps.value = {
+const { showModal } = useDoctypeModal()
+
+function showAddressModal(_address) {
+  showModal({
+    name: _address || null,
     doctype: 'Address',
-    address: _address,
-  }
-  nextTick(() => (show.value = false))
+    callbacks: {
+      afterInsert: (d) => {
+        capture('address_created')
+        _contact.doc.address = d.name
+      },
+    },
+  })
 }
 </script>
 

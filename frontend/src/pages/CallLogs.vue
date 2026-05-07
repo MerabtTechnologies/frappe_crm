@@ -25,8 +25,8 @@
     doctype="CRM Call Log"
   />
   <CallLogsListView
-    ref="callLogsListView"
     v-if="callLogs.data && rows.length"
+    ref="callLogsListView"
     v-model="callLogs.data.page_length_count"
     v-model:list="callLogs"
     :rows="rows"
@@ -55,14 +55,7 @@
   />
   <CallLogDetailModal
     v-model="showCallLogDetailModal"
-    v-model:callLogModal="showCallLogModal"
     v-model:callLog="callLog"
-  />
-  <CallLogModal
-    v-if="showCallLogModal"
-    v-model="showCallLogModal"
-    :data="callLog.data"
-    :options="{ afterInsert: () => callLogs.reload() }"
   />
 </template>
 
@@ -75,14 +68,14 @@ import ViewControls from '@/components/ViewControls.vue'
 import CallLogsListView from '@/components/ListViews/CallLogsListView.vue'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import CallLogDetailModal from '@/components/Modals/CallLogDetailModal.vue'
-import CallLogModal from '@/components/Modals/CallLogModal.vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { getCallLogDetail } from '@/utils/callLog'
+import { useTelemetry } from 'frappe-ui/frappe'
 import { createResource } from 'frappe-ui'
 import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const callLogsListView = ref(null)
-const showCallLogModal = ref(false)
 
 // callLogs data is loaded in the ViewControls component
 const callLogs = ref({})
@@ -136,9 +129,20 @@ function showCallLog(name) {
   })
 }
 
+const { showModal } = useDoctypeModal()
+const { capture } = useTelemetry()
+
 function createCallLog() {
-  callLog.value = {}
-  showCallLogModal.value = true
+  showModal({
+    doctype: 'CRM Call Log',
+    title: 'Call Log',
+    callbacks: {
+      afterInsert: () => {
+        capture('call_log_created')
+        callLogs.value.reload()
+      },
+    },
+  })
 }
 
 const openCallLogFromURL = () => {

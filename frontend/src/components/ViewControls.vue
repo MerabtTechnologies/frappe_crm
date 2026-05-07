@@ -32,8 +32,8 @@
             v-if="route.params.viewType !== 'kanban'"
             v-model="list"
             :doctype="doctype"
-            @update="updateSort"
             :hideLabel="isMobileView"
+            @update="updateSort"
           />
           <KanbanSettings
             v-if="route.params.viewType === 'kanban'"
@@ -274,6 +274,7 @@
   >
     <template #body-content>
       <FormControl
+        v-model="export_type"
         variant="outline"
         :label="__('Export Type')"
         type="select"
@@ -287,14 +288,13 @@
             value: 'CSV',
           },
         ]"
-        v-model="export_type"
         :placeholder="__('Excel')"
       />
       <div class="mt-3">
         <FormControl
+          v-model="export_all"
           type="checkbox"
           :label="__('Export all {0} record(s)', [list.data.total_count])"
-          v-model="export_all"
         />
       </div>
     </template>
@@ -345,21 +345,15 @@ import _ from 'lodash'
 import ImportIcon from '~icons/lucide/import'
 
 const props = defineProps({
-  doctype: {
-    type: String,
-    required: true,
-  },
-  filters: {
-    type: Object,
-    default: {},
-  },
+  doctype: { type: String, required: true },
+  filters: { type: Object, default: () => ({}) },
   options: {
     type: Object,
-    default: {
+    default: () => ({
       hideColumnsButton: false,
       defaultViewName: '',
       allowedViews: ['list'],
-    },
+    }),
   },
 })
 
@@ -368,10 +362,10 @@ const { $dialog } = globalStore()
 const { reload: reloadView, getDefaultView, getView } = viewsStore()
 const { isManager } = usersStore()
 
-const list = defineModel()
-const loadMore = defineModel('loadMore')
-const resizeColumn = defineModel('resizeColumn')
-const updatedPageCount = defineModel('updatedPageCount')
+const list = defineModel({ type: Object, default: () => ({}) })
+const loadMore = defineModel('loadMore', { type: Boolean })
+const resizeColumn = defineModel('resizeColumn', { type: Boolean })
+const updatedPageCount = defineModel('updatedPageCount', { type: Boolean })
 
 const route = useRoute()
 const router = useRouter()
@@ -733,7 +727,6 @@ const viewsDropdownOptions = computed(() => {
 
   if (list.value?.data?.views) {
     list.value.data.views.forEach((view) => {
-      view.name = view.name
       view.label = __(view.label)
       view.type = view.type || 'list'
       view.icon = getIcon(view.icon, view.type)
@@ -756,21 +749,24 @@ const viewsDropdownOptions = computed(() => {
     )
     let pinnedViews = list.value.data.views.filter((v) => v.pinned)
 
-    savedViews.length &&
+    if (savedViews.length) {
       _views.push({
         group: __('Saved Views'),
         items: savedViews,
       })
-    publicViews.length &&
+    }
+    if (publicViews.length) {
       _views.push({
         group: __('Public Views'),
         items: publicViews,
       })
-    pinnedViews.length &&
+    }
+    if (pinnedViews.length) {
       _views.push({
         group: __('Pinned Views'),
         items: pinnedViews,
       })
+    }
   }
 
   _views.push({
@@ -847,20 +843,8 @@ const quickFilterOptions = computed(() => {
   if (!fields) return []
 
   let existingQuickFilters = newQuickFilters.value.map((f) => f.fieldname)
-  let restrictedFieldtypes = [
-    'Tab Break',
-    'Section Break',
-    'Column Break',
-    'Table',
-    'Table MultiSelect',
-    'HTML',
-    'Button',
-    'Image',
-    'Fold',
-    'Heading',
-  ]
   let options = fields
-    .filter((f) => f.label && !restrictedFieldtypes.includes(f.fieldtype))
+    .filter((f) => f.label)
     .filter((f) => !existingQuickFilters.includes(f.fieldname))
     .map((field) => ({
       label: field.label,
@@ -1026,14 +1010,20 @@ function updateColumns(obj) {
   }
 }
 
-async function updateKanbanSettings(data) {
+function updateKanbanSettings(data) {
   if (data.item && data.to) {
-    await call('frappe.client.set_value', {
+    call('frappe.client.set_value', {
       doctype: props.doctype,
       name: data.item,
       fieldname: view.value.column_field,
       value: data.to,
     })
+    return
+  }
+
+  if (data.fetchNewColumns) {
+    fetchAndUpdateKanbanColumns(view.value)
+    return
   }
 
   viewUpdated.value = true
@@ -1316,6 +1306,19 @@ function deleteView(v, close) {
   close()
 }
 
+function fetchAndUpdateKanbanColumns(v) {
+  call(
+    'crm.fcrm.doctype.crm_view_settings.crm_view_settings.fetch_and_update_kanban_columns',
+    {
+      name: v.name,
+    },
+  ).then((columns) => {
+    list.value.params.kanban_columns = columns
+    view.value.kanban_columns = columns
+    list.value.reload()
+  })
+}
+
 function cancelChanges() {
   // discard persisted unsaved changes and reload
   clearUnsaved()
@@ -1347,7 +1350,7 @@ function saveView() {
 }
 
 function applyFilter({ event, idx, column, item, firstColumn }) {
-  let restrictedFieldtypes = ['Duration', 'Datetime', 'Time']
+  let restrictedFieldtypes = ['Datetime', 'Time']
   if (restrictedFieldtypes.includes(column.type) || idx === 0) return
   if (idx === 1 && firstColumn.key == '_liked_by') return
 
@@ -1356,9 +1359,9 @@ function applyFilter({ event, idx, column, item, firstColumn }) {
 
   let filters = { ...list.value.params.filters }
 
-  let value = item.name || item.label || item
+  let value = item.name ?? item.label ?? item
 
-  if (value) {
+  if (value !== null && value !== undefined && value !== '') {
     filters[column.key] = value
   } else {
     delete filters[column.key]
@@ -1402,6 +1405,7 @@ defineExpose({
   applyLikeFilter,
   likeDoc,
   updateKanbanSettings,
+  fetchAndUpdateKanbanColumns,
   loadMoreKanban,
   viewActions,
   viewsDropdownOptions,

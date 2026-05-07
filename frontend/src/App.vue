@@ -8,7 +8,7 @@
       </div>
 
       <NotPermitted v-if="$route.name === 'Not Permitted'" />
-      <Layout class="isolate" v-else-if="session().isLoggedIn">
+      <Layout v-else-if="session.isLoggedIn" class="isolate">
         <router-view :key="$route.fullPath" />
       </Layout>
       <Dialogs />
@@ -52,17 +52,18 @@
         </template>
       </Dialog>
     </template>
+    <DoctypeModals />
   </FrappeUIProvider>
 </template>
 
 <script setup>
 import NotPermitted from '@/pages/NotPermitted.vue'
 import SplashScreen from '@/components/SplashScreen.vue'
+import DoctypeModals from '@/components/Modals/DoctypeModals.vue'
 import { Dialogs } from '@/utils/dialogs'
-import { sessionStore as session } from '@/stores/session'
-import { setTheme } from '@/stores/theme'
-import { FrappeUIProvider, setConfig } from 'frappe-ui'
-import { computed, defineAsyncComponent, onErrorCaptured, onMounted, onBeforeUnmount, ref, onUnmounted } from 'vue'
+import { sessionStore } from '@/stores/session'
+import { FrappeUIProvider, setConfig, useTheme } from 'frappe-ui'
+import { computed, defineAsyncComponent, onErrorCaptured, onMounted, onBeforeUnmount, ref, onUnmounted, provide } from 'vue'
 import { bannerStore } from '@/stores/banner'
 import { useRouter } from 'vue-router'
 
@@ -73,6 +74,15 @@ import LucideBadge from '~icons/lucide/badge-info'
 import LucideFrown from '~icons/lucide/frown'
 import LucideSmile from '~icons/lucide/smile'
 import { usersStore } from '@/stores/users'
+
+const session = sessionStore()
+provide('session', session)
+
+const { setTheme } = useTheme()
+if (!localStorage.getItem('theme')) {
+  setTheme('light')
+}
+
 
 const _merabtSettingsResource = createResource({
   url: 'merabt_crm.portal_api.api.get_merabt_settings',
@@ -207,6 +217,12 @@ onMessage(messaging, (payload) => {
   )
 
 });
+// import { sessionStore } from '@/stores/session'
+// import { FrappeUIProvider, setConfig, useTheme } from 'frappe-ui'
+// import { computed, defineAsyncComponent, provide } from 'vue'
+
+// const session = sessionStore()
+// provide('session', session)
 
 const MobileLayout = defineAsyncComponent(
   () => import('./components/Layouts/MobileLayout.vue'),
@@ -419,4 +435,5 @@ onUnmounted(() => {
 
 setConfig('systemTimezone', window.timezone?.system || null)
 setConfig('localTimezone', window.timezone?.user || null)
+setConfig('translatedMessages', window.translated_messages || {})
 </script>
