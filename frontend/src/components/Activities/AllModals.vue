@@ -53,6 +53,7 @@ import NoteModal from '@/components/Modals/NoteModal.vue'
 import CallLogModal from '@/components/Modals/CallLogModal.vue'
 import { call } from 'frappe-ui'
 import { ref } from 'vue'
+import { toServerDatetime } from '@/utils'
 import { useRoute, useRouter } from 'vue-router'
 import ProjectTaskModal from '@/components/Modals/ProjectTaskModal.vue'
 import GammaModal from '../Modals/GammaModal.vue'
@@ -74,7 +75,7 @@ function showTask(t) {
     title: '',
     description: '',
     assigned_to: '',
-    due_date: '',
+    due_date: toServerDatetime(new Date()),
     priority: 'Low',
     status: 'Backlog',
   }

@@ -88,6 +88,7 @@
               class="datepicker"
               v-model="_task.due_date"
               :placeholder="__('01/04/2024 11:30 PM')"
+
               :format="getFormat('', '', true, true, false)"
               input-class="border-none"
             />
@@ -177,10 +178,24 @@ const _task = ref({
 })
 
 const validateTask = () => {
+  if ( _task.value.due_date === '' || _task.value.due_date === null){
+    _task.value.due_date = toServerDatetime(new Date())
+  }
+  
   if (!_task.value.title) {
     toast.error(__('Title is required'))
     return false
   }
+
+  // Not working this due validation
+  const date_diff = (new Date(_task.value.due_date) - new Date()) / (1000 * 60 * 60 * 24)
+  console.log('Date diff:', date_diff)
+  if ( Number(date_diff) < 0) {
+    console.log('Due date cannnot be past date')
+    toast.error(__('Due date cannot be in the past or empty'))
+    return false
+  }
+
   return true
 }
 

@@ -202,6 +202,7 @@ import TasksListView from '@/components/ListViews/TasksListView.vue'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
 import TaskModal from '@/components/Modals/TaskModal.vue'
+import { toServerDatetime } from '@/utils'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
@@ -365,7 +366,7 @@ function createTask(column) {
     title: '',
     description: '',
     assigned_to: '',
-    due_date: '',
+    due_date: toServerDatetime(new Date()),
     status: 'Backlog',
     priority: 'Low',
     reference_doctype: 'CRM Lead',
