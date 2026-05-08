@@ -189,9 +189,9 @@ const validateTask = () => {
 
   // Not working this due validation
   const date_diff = (new Date(_task.value.due_date) - new Date()) / (1000 * 60 * 60 * 24)
-  console.log('Date diff:', date_diff)
+  // console.log('Date diff:', date_diff)
   if ( Number(date_diff) < 0) {
-    console.log('Due date cannnot be past date')
+    // console.log('Due date cannnot be past date')
     toast.error(__('Due date cannot be in the past or empty'))
     return false
   }
