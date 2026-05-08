@@ -11,8 +11,7 @@
       <Layout class="isolate" v-else-if="session().isLoggedIn">
         <router-view :key="$route.fullPath" />
       </Layout>
-      <Dialogs />
-      <Dialog v-model="showModal" :options="{ size: 'sm' }" :disable-outside-click-to-close="true">
+      <Dialog v-model="showModal" :options="{ size: 'sm', title: 'app-root-modal' }" :disable-outside-click-to-close="true">
         <template #body>
           <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
             <div class="mb-2 items-start gap-3 place-items-center">
@@ -51,6 +50,7 @@
           </div>
         </template>
       </Dialog>
+      <Dialogs />
     </template>
   </FrappeUIProvider>
 </template>
@@ -420,3 +420,9 @@ onUnmounted(() => {
 setConfig('systemTimezone', window.timezone?.system || null)
 setConfig('localTimezone', window.timezone?.user || null)
 </script>
+
+<style scoped>
+:global(.dialog-overlay[data-dialog='app-root-modal']) {
+  z-index: 9999;
+}
+</style>
