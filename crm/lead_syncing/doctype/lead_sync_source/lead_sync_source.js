@@ -8,9 +8,9 @@ frappe.ui.form.on("Lead Sync Source", {
         frappe.msgprint(__("Lead sync initiated."));
       });
     });
-    frm.add_custom_button(__("Reset"), () => {
+    frm.add_custom_button(__("Reset Last Sync"), () => {
       frm.call("reset_sync_date").then(() => {
-        frappe.msgprint(__("Date reset you can resync now."));
+        frappe.msgprint(__("Date reset you can sync now."));
       });
     });
   },

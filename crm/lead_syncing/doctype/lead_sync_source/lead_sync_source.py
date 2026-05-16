@@ -56,7 +56,7 @@ class LeadSyncSource(Document):
 	@frappe.whitelist()
 	def reset_sync_date(self):
 		self.last_synced_at = None
-		self.sync_leads()
+		self.save()
 		
 	@frappe.whitelist()
 	def sync_leads(self):
