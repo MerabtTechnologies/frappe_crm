@@ -89,6 +89,8 @@ import { useRouter } from 'vue-router'
 
 const props = defineProps({
   defaults: Object,
+  doctype: String,  // This will receive "CRM Deal"
+  quotation: Object
 })
 
 const { getUser, isManager } = usersStore()
@@ -135,12 +137,245 @@ watch(
     })
   },
 )
+// ... your existing imports and setup
 
+// 🔥 NEW: Watcher for Child Table (Items)
+// Add this variable outside the watch to track previous values
+const rowItemTracker = new Map();
+
+watch(
+  () => deal.doc.items,
+  (newItems) => {
+    if (!newItems) return;
+
+    newItems.forEach((row, index) => {
+      // 🔥 FIX: Assign correct sequence number (1-based index)
+      row.idx = index + 1;
+
+      // 1. Existing Fetch Logic (Select Item)
+      const rowKey = `row-${index}`;
+      const previousCode = rowItemTracker.get(rowKey);
+
+      if (row.item_code && row.item_code !== previousCode) {
+        rowItemTracker.set(rowKey, row.item_code);
+        fetchItemDetails(row, previousCode);
+      }
+
+      // 2. Sync Amount (Qty * Rate)
+      const qty = parseFloat(row.qty) || 0;
+      const rate = parseFloat(row.rate) || 0;
+      row.amount = qty * rate;
+    });
+  },
+  { deep: true }
+);
+
+watch(
+  () => deal.doc.taxes_and_charges,
+  async (newTemplate, oldTemplate) => {
+    if (newTemplate) {
+      // console.log(`🧾 Tax Template Changed: [${oldTemplate || 'None'}] -> [${newTemplate}]`);
+      // Use 'await' here so taxes are fully loaded before we calculate
+      await fetchTaxTemplateDetails(newTemplate);
+    } else {
+      // If the user clears the template, clear the taxes table
+      deal.doc.taxes = [];
+    }
+    
+    // 🔥 Now this runs AFTER the template logic is finished
+    calculateTaxes();
+  }
+);
+
+// Function to fetch Item details from the backend
+async function fetchItemDetails(row) {
+  // Capture the old state before we do anything (optional, for the log)
+  const oldItemCode = row._previous_item_code || 'None';
+
+  try {
+    // console.log(`🔄 Item Change Detected: Changing from [${oldItemCode}] to [${row.item_code}]`);
+
+    // 1. Fetch the Item Document
+    const itemDoc = await createResource({
+      url: 'frappe.client.get',
+      params: { doctype: 'Item', name: row.item_code },
+    }).submit();
+
+    // 2. Fetch the Price
+    const priceData = await createResource({
+      url: 'frappe.client.get_value',
+      params: {
+        doctype: 'Item Price',
+        filters: { 
+          item_code: row.item_code, 
+          price_list: deal.doc.selling_price_list || 'Standard Selling' 
+        },
+        fieldname: 'price_list_rate'
+      },
+    }).submit();
+
+    if (itemDoc) {
+      // console.log(`📦 New Item Data Received for ${row.item_code}:`, itemDoc);
+
+      // 3. Dynamic Overwrite
+      const itemData = { ...itemDoc };
+      // 2. STRIP THE DANGEROUS FIELDS
+      delete itemData.name; // Prevents Duplicate Entry Error
+      delete itemData.idx;  // Prevents the "28" Index Issue
+      delete itemData.owner; // Prevents permission conflicts
+      delete itemData.creation; // Prevents read-only field errors
+      Object.assign(row, {
+        ...itemData,
+        uom: itemDoc.stock_uom,
+        description: itemDoc.description,
+        custom__is_recurring_item: itemDoc.custom_is_recurring_item,
+        warehouse: itemDoc.default_warehouse || '',
+        rate: priceData?.price_list_rate || itemDoc.standard_rate || 0,
+        qty: 1,
+        // Store the new code as the "previous" for the next time you change it
+        _previous_item_code: row.item_code 
+      });
+
+      row.amount = row.qty * row.rate;
+
+      // console.log(`✅ Row Successfully Updated. Current Row State:`, JSON.parse(JSON.stringify(row)));
+    }
+  } catch (err) {
+    // console.error("❌ Error during item re-selection:", err);
+  }
+}
+async function fetchTaxTemplateDetails(templateName) {
+  try {
+    const templateDoc = await createResource({
+      url: 'frappe.client.get',
+      params: {
+        doctype: 'Sales Taxes and Charges Template',
+        name: templateName,
+      },
+    }).submit();
+
+    if (templateDoc && templateDoc.taxes) {
+      // Map the taxes from the template to the Quotation taxes table
+      // We use .map to ensure we create fresh objects for each row
+      deal.doc.taxes = templateDoc.taxes.map((tax) => {
+        return {
+          ...tax,
+          // Ensure specific fields required by Quotation are present
+          charge_type: tax.charge_type,
+          account_head: tax.account_head,
+          description: tax.description,
+          rate: tax.rate,
+          // Reset amount/base_amount so the system can re-calculate them based on items
+          tax_amount: 0,
+          total: 0,
+        };
+      });
+
+      // console.log(`✅ Taxes Child Table populated with ${deal.doc.taxes.length} rows.`);
+    }
+  } catch (err) {
+    // console.error("❌ Error fetching Tax Template:", err);
+  }
+}
+function calculateTaxes() {
+  const itemTotal = deal.doc.items.reduce((sum, item) => sum + (item.amount || 0), 0);
+  let cumulativeTotal = itemTotal;
+
+  deal.doc.taxes.forEach((tax) => {
+    let taxAmount = 0;
+
+    // 1. Calculate based on Charge Type
+    if (tax.charge_type === 'On Net Total') {
+      taxAmount = (itemTotal * (tax.rate || 0)) / 100;
+    } else if (tax.charge_type === 'On Previous Row Amount') {
+      // Logic for tiered taxes (like Cess on GST)
+      const prevTax = deal.doc.taxes[deal.doc.taxes.indexOf(tax) - 1];
+      taxAmount = ((prevTax?.tax_amount || 0) * (tax.rate || 0)) / 100;
+    } else if (tax.charge_type === 'Actual') {
+      taxAmount = tax.tax_amount || 0; // Manual entry
+    } else if (tax.charge_type === 'On Previous Row Total') {
+      taxAmount = (cumulativeTotal * (tax.rate || 0)) / 100;
+    }
+
+    // 2. Update the row values
+    tax.tax_amount = taxAmount;
+    cumulativeTotal += taxAmount;
+    tax.total = cumulativeTotal; // This is the running total including this tax
+  });
+
+  // 3. Update main Quotation totals
+  deal.doc.total_taxes_and_charges = deal.doc.taxes.reduce((sum, t) => sum + (t.tax_amount || 0), 0);
+  deal.doc.grand_total = itemTotal + deal.doc.total_taxes_and_charges;
+}
+// const printQuotation = (printFormat = 'Standard') => {
+//   const baseUrl = window.location.origin;
+//   const doctype = 'Quotation';
+//   const docname = deal.doc.name; // Ensure the doc is saved first!
+  
+//   if (!docname) {
+//     console.error("Save the Quotation before printing.");
+//     return;
+//   }
+
+//   // Construct the Frappe Print URL
+//   const printUrl = `${baseUrl}/printview?doctype=${doctype}&name=${docname}&format=${printFormat}&no_letterhead=0`;
+  
+//   // Open in a new tab
+//   window.open(printUrl, '_blank');
+// };
 const tabs = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_fields_layout',
   cache: ['QuickEntry', 'Quotation'],
   params: { doctype: 'Quotation', type: 'Quick Entry' },
   auto: true,
+  onSuccess: () => {
+    // 🔥 Set defaults ONLY after the layout is ready
+    const today = new Date().toISOString().split('T')[0];
+    
+    // We use Object.assign so we don't destroy the existing deal.doc object
+      // ✅ Only set defaults for NEW quotations, not existing ones
+  // if (!props.quotation || Object.keys(props.quotation).length === 0) {
+  //   Object.assign(deal.doc, {
+  //     // naming_series: 'SAL-QTN-.YYYY.-',
+  //     // transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
+  //     // order_type: "Sales",
+  //     // quotation_to: "Customer",
+  //     crm_deal: props.doc // Map the Deal ID from props
+  //   });
+  // }
+//     if (props.doc && data) {
+//   data.forEach((tab) => {
+//     tab.sections.forEach((section) => {
+//       section.columns.forEach((column) => {
+//         column.fields.forEach((field) => {
+
+//           if (field.fieldname === 'party_name') {
+
+//             console.log("Filtering party_name field...");
+//             console.log("CRM Deal:", props.doc.name);
+
+//             field.get_query = () => {
+
+//               const doctype = deal.doc.quotation_to || "Customer";
+
+//               console.log("Dynamic Link Doctype:", doctype);
+
+//               return {
+//                 doctype: doctype,
+//                 filters: {
+//                   crm_deal: props.doc.name
+//                 }
+//               };
+//             };
+
+//           }
+
+//         });
+//       });
+//     });
+//   });
+// }
+  },
   transform: (_tabs) => {
     hasOrganizationSections.value = false
     return _tabs.forEach((tab) => {
@@ -167,8 +402,11 @@ const tabs = createResource({
   //           }
 
             if (field.fieldtype === 'Table') {
-              deal.doc[field.fieldname] = []
-            }
+              if (!props.quotation || Object.keys(props.quotation).length === 0) {
+
+                deal.doc[field.fieldname] = []
+              }
+            }  
           })
         })
       })
@@ -186,6 +424,16 @@ const tabs = createResource({
 
 async function createDeal() {
 
+  // Logic to clean items before sending to backend
+  if (deal.doc.items && deal.doc.items.length > 0) {
+    deal.doc.items.forEach((item) => {
+      // If the item is new (it doesn't have a proper Frappe hash name 
+      // or the name is the same as the item_code), delete the name.
+      if (item.name === item.item_code || !item.name) {
+        delete item.name; 
+      }
+    });
+  }
   await triggerOnBeforeCreate?.()
 
   createResource({
@@ -205,7 +453,7 @@ async function createDeal() {
     },
     onError(err) {
       isDealCreating.value = false
-      console.log(err)
+      // console.log(err)
       if (!err.messages) {
         error.value = err.message
         return
@@ -220,9 +468,58 @@ function openQuickEntryModal() {
   quickEntryProps.value = { doctype: 'Quotation' }
   nextTick(() => (show.value = false))
 }
+// Replace your onMounted quotation loading with this watcher
+// Replace your existing props.quotation watcher with this
+// watch(
+//   () => props.doc,
+//   async (docName) => {
+//     if (docName) {
+//       console.log('🔄 Fetching quotation doc:', docName)
+//       try {
+//         const result = await createResource({
+//           url: 'frappe.client.get',
+//           params: { doctype: 'Quotation', name: docName },
+//         }).submit()
 
+//         console.log('✅ Fetched doc:', result.name, '| docstatus:', result.docstatus)
+//         Object.assign(deal.doc, result)
+//       } catch (err) {
+//         console.error('❌ Failed to fetch quotation:', err)
+//       }
+//     }
+//   },
+//   { immediate: true }
+// )
+// This forces the background data into the visible form fields
+watch(
+  () => props.defaults,
+  (newValues) => {
+    if (newValues && show.value) { 
+      // Object.assign ensures we don't break Vue's connection to the UI
+      Object.assign(deal.doc, newValues);
+    }
+  },
+  { immediate: true, deep: true }
+);
 onMounted(() => {
-  // deal.doc = { no_of_employees: '1-10' }
+// console.log('📄 Quotation Modal Mounted with props:', props)
+  // // deal.doc = { naming_series: 'SAL-QTN-.YYYY.-' }
+  // // deal.doc.order_type = "Sales"
+  // // deal.doc.quotation_to = "Customer"
+  // // 🔥 Mapping the Deal ID
+  // // if (!props.doc) {
+  // //   deal.doc.order_type = "Sales"
+  // //   deal.doc.quotation_to = "Customer"
+  // //   // This assigns the Deal ID to the 'crm_deal' field automatically
+  //   deal.doc.crm_deal = props.doc 
+  // // }
+
+  // If there are other defaults passed in
+  if (props.defaults) {
+    Object.assign(deal.doc, props.defaults)
+  }
+
+  // console.log('📄 Quotation Modal Mounted with doc:', deal.doc)
   // Object.assign(deal.doc, props.defaults)
 
   // if (!deal.doc.owner) {

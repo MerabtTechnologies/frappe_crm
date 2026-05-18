@@ -680,7 +680,36 @@ const applyFiltersFromURL = () => {
               filterObj[filter.fieldname] = ['=', filter.value]
             } else if (filter.condition === 'like') {
               filterObj[filter.fieldname] = ['like', `%${filter.value}%`]
-            } else {
+            } else if (filter.condition === 'Not in') {
+              filterObj[filter.fieldname] = ['not in', filter.value]
+            }else if (filter.condition === 'In') {
+              filterObj[filter.fieldname] = ['in', filter.value]
+            } 
+            else if (filter.condition === '!=') {  // ✅ ADD THIS HANDLER
+              filterObj[filter.fieldname] = ['!=', filter.value]
+            }
+            // else if (filter.condition === 'is') {
+            //   // Handle 'is' condition properly for empty fields
+            //   if (filter.value === 'not set') {
+            //     // This is the correct format for "field is not set" in Frappe
+            //     filterObj[filter.fieldname] = ['is', 'not set']
+            //   } else {
+            //     filterObj[filter.fieldname] = ['is', filter.value]
+            //   }
+            // }
+
+            else if (filter.condition === 'is') {
+              if (filter.value === 'not set') {
+                // Field is empty or null
+                filterObj[filter.fieldname] = ['in', ['', null]]
+              } else if (filter.value === 'set') {
+                // ✅ FIX: Field is set (not empty)
+                filterObj[filter.fieldname] = ['!=', '']
+              } else {
+                filterObj[filter.fieldname] = ['is', filter.value]
+              }
+            }
+            else {
               // Default: just use the value
               filterObj[filter.fieldname] = filter.value
             }

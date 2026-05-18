@@ -116,6 +116,11 @@
               :icon="AttachmentIcon"
               @click="showFilesUploader = true"
             />
+            <Button
+              :tooltip="__('Print')"
+              :icon="PrintIcon"
+              @click="handlePrintClick"            
+              />
 
             <Button
               v-if="canDelete"
@@ -384,7 +389,7 @@ import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SLASection from '@/components/SLASection.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import GammaModal from '../components/Modals/GammaModal.vue'
-import QuotationModal from '../components/Modals/QuotationModal.vue'  
+import QuotationModal from '@/components/Modals/QuotationModal.vue'  
 import { openWebsite, setupCustomizations, copyToClipboard } from '@/utils'
 import { getView } from '@/utils/view'
 import { getSettings } from '@/stores/settings'
@@ -416,6 +421,7 @@ import {
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useActiveTabManager } from '@/composables/useActiveTabManager'
+import PrintIcon from '@/components/Icons/PrintIcon.vue'
 
 const { brand } = getSettings()
 const { $dialog, $socket, makeCall } = globalStore()
@@ -530,7 +536,13 @@ const reload = ref(false)
 const showOrganizationModal = ref(false)
 const showFilesUploader = ref(false)
 const _organization = ref({})
-
+const handlePrintClick = () => {
+  // Try adding 'props.' before the variable name
+  // console.log("Target Doc:", props.quotationId); 
+  
+  const url = `/printview?doctype=Quotation&name=${props.quotationId}&format=Standard`;
+  window.open(url, '_blank');
+};
 const breadcrumbs = computed(() => {
   let items = [{ label: __('Quotation'), route: { name: 'Quotations' } }]
 

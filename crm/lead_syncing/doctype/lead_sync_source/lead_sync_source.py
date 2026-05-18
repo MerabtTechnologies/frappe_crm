@@ -54,6 +54,11 @@ class LeadSyncSource(Document):
 		# rest of the source types can be added here
 
 	@frappe.whitelist()
+	def reset_sync_date(self):
+		self.last_synced_at = None
+		self.save()
+		
+	@frappe.whitelist()
 	def sync_leads(self):
 		if frappe.conf.developer_mode:
 			self._sync_leads()

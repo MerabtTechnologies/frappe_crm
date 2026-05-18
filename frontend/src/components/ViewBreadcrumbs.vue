@@ -9,7 +9,7 @@
           : 'text-ink-gray-7',
       ]"
     >
-      {{ __(routeName) }}
+      {{ label ? __(label) : __(routeName) }}
     </router-link>
     <span
       v-if="viewControls"
@@ -88,6 +88,10 @@ const props = defineProps({
   routeName: {
     type: String,
     required: true,
+  },
+  label: {
+    type: String,
+    required: false,
   },
 })
 

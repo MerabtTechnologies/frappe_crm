@@ -75,6 +75,13 @@
           :proposals="activities"
         />
       </div>
+      <div v-else-if="title == 'Quotations'" class="px-3 pb-3 sm:px-10 sm:pb-5">
+        <QuotationArea
+          :doctype="doctype"
+          :docname="docname"
+          :quotations="activities"
+        />
+      </div>
       <div v-else-if="title == 'Calls'" class="activity">
         <div v-for="(call, i) in activities">
           <div
@@ -476,8 +483,8 @@ import InboundCallIcon from '@/components/Icons/InboundCallIcon.vue'
 import OutboundCallIcon from '@/components/Icons/OutboundCallIcon.vue'
 import FadedScrollableDiv from '@/components/FadedScrollableDiv.vue'
 import CommunicationArea from '@/components/CommunicationArea.vue'
-import QuotationIcon from '@/components/Icons/QuotationIcon.vue'
 import GammaTemplates from '@/components/Activities/GammaTemplates.vue'  
+import QuotationArea from '@/components/Activities/QuotationArea.vue'
 
 import WhatsappTemplateSelectorModal from '@/components/Modals/WhatsappTemplateSelectorModal.vue'
 import AllModals from '@/components/Activities/AllModals.vue'
@@ -671,6 +678,9 @@ const activities = computed(() => {
   } else if (title.value == 'Gamma') {
     if (!all_activities.data.proposals) return []    
     return sortByModified(all_activities.data.proposals)
+  } else if (title.value == 'Quotations') {
+    if (!all_activities.data.proposals) return []    
+    return sortByModified(all_activities.data.proposals)
   }
 
   _activities.forEach((activity) => {
@@ -752,6 +762,8 @@ const emptyText = computed(() => {
     text = 'No Project Tasks Found'
   } else if (title.value == 'Gamma') {
     text = 'No Gamma Proposals Found'
+  }else if (title.value == 'Quotations') {
+    text = 'No Quotations Found'
   }
   return text
 })
@@ -782,6 +794,8 @@ const emptyTextDescription = computed(() => {
     description = 'No Project Tasks yet. Start adding project tasks now!'
   } else if (title.value == 'Gamma') {
     description = 'No Gamma Proposals yet. Start creating AI-generated proposals now!'
+  }else if (title.value == 'Quotations') {
+    description = 'No Quotations yet. Start creating quotations now!'
   }
   return description
 })
