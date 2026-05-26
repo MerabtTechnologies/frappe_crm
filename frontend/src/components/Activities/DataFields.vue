@@ -32,7 +32,7 @@
         @click="saveChanges"
       />
       <Button
-        v-if="document.doc.hasOwnProperty('amended_from') && document.doc.docstatus !== 2"
+        v-if="document.doc.hasOwnProperty('amended_from') && document.doc.docstatus !== 2 && !document.isDirty"
         :label="document.doc.docstatus === 1 ? __('Cancel') : __('Submit')"
         variant="solid"
         :loading="document.save.loading"
@@ -167,9 +167,11 @@ const attrs = instance?.vnode?.props ?? {}
 const showDataFieldsModal = ref(false)
 
 const { document } = useDocument(props.doctype, props.docname)
+const { document: newDocument } = useDocument(props.doctype)
 const showConfirmDialogBox = ref(false)
 const showAmendConfirm = ref(false)       // ← new
 const router = useRouter()
+const isSaving = ref(false) // Flag to prevent watch during save
 // Check if this doc has already been amended (a child exists with amended_from = this docname)
 const hasAmendedChild = createResource({
   url: 'frappe.client.get_count',
@@ -177,7 +179,9 @@ const hasAmendedChild = createResource({
     doctype: props.doctype,
     filters: { amended_from: props.docname },
   },
-  auto: true,
+  // auto: true,
+  // 🔥 FIX: Only run automatically if the document supports amending
+  auto: document.doc.hasOwnProperty('amended_from'),
 })
 
 const tabs = createResource({
@@ -192,7 +196,7 @@ const amendResource = createResource({
   onSuccess(newDoc) {
    
     toast.success(__(`New draft ${newDoc.name} created from ${props.docname}`))
-     console.log('Amended doc:', newDoc)
+    //  console.log('Amended doc:', newDoc)
     // Navigate to the new amended doc
     router.push({
           name: 'Quotation',
@@ -204,23 +208,56 @@ const amendResource = createResource({
   },
 })
 
-function amendDocument() {
-  showAmendConfirm.value = false
+// function amendDocument() {
+//   showAmendConfirm.value = false
 
-  // Build a fresh draft copy, stripping submission-related fields
-  const docCopy = { ...document.doc }
+//   // Build a fresh draft copy, stripping submission-related fields
+//   const docCopy = { ...document.doc }
 
-  // Fields to reset for the amended draft
-  delete docCopy.name
-  delete docCopy.creation
-  delete docCopy.modified
-  delete docCopy.modified_by
-  delete docCopy.owner
+//   // Fields to reset for the amended draft
+//   delete docCopy.name
+//   delete docCopy.creation
+//   delete docCopy.modified
+//   delete docCopy.modified_by
+//   delete docCopy.owner
 
-  docCopy.docstatus = 0
-  docCopy.amended_from = props.docname
+
+//   docCopy.docstatus = 0
+//   docCopy.amended_from = props.docname
+//   console.log('Data: ', newDocument);
+
+//   newDocument.doc = { doctype: props.doctype, ...docCopy } 
+
   
-  amendResource.submit({ doc: { doctype: props.doctype, ...docCopy } })
+//   // newDocument.doc.save.submit()
+//   amendResource.submit({ doc: newDocument.doc})
+
+//   // amendResource.submit({ doc: { doctype: props.doctype, ...docCopy } })
+// }
+
+function amendDocument() {
+  showAmendConfirm.value = false;
+  const docCopy = { ...document.doc };
+
+  // 1. Clean the Parent
+  delete docCopy.name;
+  delete docCopy.creation;
+  delete docCopy.modified;
+  // ... rest of your deletes
+
+  // 2. IMPORTANT: Clean the Child Table (Items)
+  if (docCopy.items) {
+    docCopy.items = docCopy.items.map(item => {
+      const newItem = { ...item };
+      delete newItem.name; // This prevents the DuplicateEntryError
+      return newItem;
+    });
+  }
+
+  docCopy.docstatus = 0;
+  docCopy.amended_from = props.docname;
+  
+  amendResource.submit({ doc: { doctype: props.doctype, ...docCopy } });
 }
 // ───────────────────────────────────────────────────────────────
 // function saveChanges() {
@@ -259,68 +296,111 @@ function amendDocument() {
 const itemDetailsResource = createResource({
   url: 'frappe.client.get_value',
   onBeforeSubmit() {
-    console.log('--- [Item Fetch] Starting to fetch item data from server ---');
+    // console.log('--- [Item Fetch] Starting to fetch item data from server ---');
   },
   onSuccess(data) {
-    console.log('--- [Item Fetch] Success! Received data:', data);
+    // console.log('--- [Item Fetch] Success! Received data:', data);
   },
   onError(err) {
-    console.error('--- [Item Fetch] Error fetching item:', err);
+    // console.error('--- [Item Fetch] Error fetching item:', err);
   }
 })
 
 // 2. Updated saveChanges function
+// function saveChanges() {
+//   if (!document.isDirty) {
+//     console.log('--- [Save] No changes detected. Skipping save. ---');
+//     return;
+//   }
+
+//   console.log('--- [Save] Initiating document save... ---');
+
+//   isSaving.value = true; // Disable watch during save
+
+//   const updatedDoc = { ...document.doc };
+//   const oldDoc = { ...document.originalDoc };
+
+//   const changes = Object.keys(updatedDoc).reduce((acc, key) => {
+//     if (JSON.stringify(updatedDoc[key]) !== JSON.stringify(oldDoc[key])) {
+//       acc[key] = updatedDoc[key];
+//     }
+//     return acc;
+//   }, {});
+
+//   document.save.submit(null, {
+//     onSuccess: async () => {
+//       console.log('--- [Save] Document saved successfully to database. ---');
+
+//       document.reload(); 
+//       emit('afterSave', changes);
+//       toast.success(__('Saved successfully'));
+//       isSaving.value = false; // Re-enable watch after save
+//     },
+//     onError: () => {
+//       isSaving.value = false; // Re-enable watch on error
+//     }
+//   });
+// }
 function saveChanges() {
   if (!document.isDirty) {
-    console.log('--- [Save] No changes detected. Skipping save. ---');
+    // console.log('--- [Save] No changes detected. ---');
     return;
   }
 
-  console.log('--- [Save] Initiating document save... ---');
+  // console.log('--- [Save] Initiating document save... ---');
 
-  const updatedDoc = { ...document.doc };
-  const oldDoc = { ...document.originalDoc };
-
-  const changes = Object.keys(updatedDoc).reduce((acc, key) => {
-    if (JSON.stringify(updatedDoc[key]) !== JSON.stringify(oldDoc[key])) {
-      acc[key] = updatedDoc[key];
-    }
-    return acc;
-  }, {});
+  // 1. Lock the watchers immediately
+  isSaving.value = true; 
 
   document.save.submit(null, {
-    onSuccess: async () => {
-      console.log('--- [Save] Document saved successfully to database. ---');
+    onSuccess: async (savedDoc) => {
+      // console.log('--- [Save] Success ---');
+      
+      try {
+        // 2. Clear the dirty flag manually so the badge disappears
+        document.isDirty = false;
 
-      // Trigger the auto-addition logic
-      if (props.doctype === 'Quotation') {
-        console.log('--- [Process] DocType is Quotation. Checking auto-item logic... ---');
-        await handleAutoItemAddition();
+        // 3. Await the reload so the frontend syncs with server-side 
+        // calculations (like Taxes and Totals)
+        await document.reload();
+
+        // 4. Emit and Notify
+        emit('afterSave', savedDoc);
+        toast.success(__('Saved successfully'));
+
+      } catch (err) {
+        // console.error('Error during post-save reload:', err);
+      } finally {
+        // 5. IMPORTANT: Wait for the DOM and Vue state to settle 
+        // before allowing the watcher to run again.
+        setTimeout(() => {
+          isSaving.value = false;
+          // console.log('--- Watchers re-enabled ---');
+        }, 500);
       }
-
-      document.reload(); 
-      emit('afterSave', changes);
-      toast.success(__('Saved successfully'));
     },
+    onError: () => {
+      isSaving.value = false;
+      toast.error(__('Save failed'));
+    }
   });
 }
-
 // 3. Logic with detailed logs for the Child Table
 async function handleAutoItemAddition() {
   const targetItemCode = 'YOUR_ITEM_CODE_HERE'; // Replace with your actual Item Code
   
-  console.log(`--- [Logic] Checking if ${targetItemCode} already exists in items table... ---`);
+  // console.log(`--- [Logic] Checking if ${targetItemCode} already exists in items table... ---`);
 
   // Check if item already exists
   const exists = document.doc.items.find(row => row.item_code === targetItemCode);
   
   if (exists) {
-    console.warn(`--- [Logic] Item ${targetItemCode} already exists. Aborting to prevent duplicates. ---`);
+    // console.warn(`--- [Logic] Item ${targetItemCode} already exists. Aborting to prevent duplicates. ---`);
     return;
   }
 
   try {
-    console.log(`--- [Logic] Item not found. Fetching details for: ${targetItemCode} ---`);
+    // console.log(`--- [Logic] Item not found. Fetching details for: ${targetItemCode} ---`);
     
     const itemData = await itemDetailsResource.submit({
       doctype: 'Item',
@@ -329,9 +409,9 @@ async function handleAutoItemAddition() {
     });
 
     if (itemData) {
-      console.log('--- [Logic] Preparing to push new row to child table... ---');
+      // console.log('--- [Logic] Preparing to push new row to child table... ---');
       
-      const newRow = {
+      const newRow = { // New item to be added without index
         doctype: 'Quotation Item',
         item_code: targetItemCode,
         item_name: itemData.item_name,
@@ -341,19 +421,20 @@ async function handleAutoItemAddition() {
         uom: itemData.stock_uom,
         amount: (itemData.standard_rate || 0) * 1,
       };
-
+      // Ensure 'name' is NOT present so the server generates a new one
+      delete newRow.name;
       document.doc.items.push(newRow);
       
-      console.log('--- [Logic] New row added to document.doc.items:', newRow);
+      // console.log('--- [Logic] New row added to document.doc.items:', newRow);
       
       // Force UI to show "Save" button again
       document.isDirty = true;
-      console.log('--- [Logic] document.isDirty set to true. User can now save the new item. ---');
+      // console.log('--- [Logic] document.isDirty set to true. User can now save the new item. ---');
     } else {
-      console.error('--- [Logic] No data returned for this Item Code. Check if the Item exists in Item Master. ---');
+      // console.error('--- [Logic] No data returned for this Item Code. Check if the Item exists in Item Master. ---');
     }
   } catch (error) {
-    console.error('--- [Logic] Critical Error in handleAutoItemAddition:', error);
+    // console.error('--- [Logic] Critical Error in handleAutoItemAddition:', error);
   }
 }
 
@@ -368,15 +449,19 @@ function submitChanges() {
 
 function cancelSubmission() {
   showConfirmDialogBox.value = false
+  isSaving.value = true;
   document.doc.docstatus = 2
   document.save.submit()
+  isSaving.value = false;
   // console.log("Document Cancelled");
 }
 
 function confirmSubmission() {
   showConfirmDialogBox.value = false
+  isSaving.value = true;
   document.doc.docstatus = 1
   document.save.submit()
+  isSaving.value = false;
   // console.log("Document Submitted");
 }
 
@@ -400,43 +485,131 @@ function showConfirm() {
 //   { deep: true },
 // )
 // 1. Watch the items array for changes in item_code
+// watch(
+//   () => document.doc.items,
+//   (newItems) => {
+//     if (!newItems || isSaving.value || document.doc.docstatus !== 0) return;
+
+//     // 🔥 FIX 1: FORCE SEQUENTIAL INDEXING IMMEDIATELY
+//     // This stops "idx: 28" from happening. It forces 1, 2, 3...
+//     newItems.forEach((item, index) => {
+//       item.idx = index + 1;
+//     });
+
+//     newItems.forEach(async (row) => {
+//       // Trigger: Item is selected, but not yet processed
+//       if (row.item_code && !row.__item_fetched) {
+//         try {
+//           const itemData = await createResource({
+//             url: 'frappe.client.get',
+//             params: { doctype: 'Item', name: row.item_code }
+//           }).submit();
+
+//           const priceData = await createResource({
+//             url: 'frappe.client.get_value',
+//             params: {
+//               doctype: 'Item Price',
+//               filters: { 
+//                 item_code: row.item_code, 
+//                 price_list: document.doc.selling_price_list || 'Standard Selling' 
+//               },
+//               fieldname: 'price_list_rate'
+//             }
+//           }).submit();
+
+//           if (itemData) {
+//             // Store the correct idx before the loop starts
+//             const correctIdx = row.idx;
+
+//             for (const key in row) {
+//               // 🔥 FIX 2: PROTECT 'name' AND 'idx'
+//               // If you don't skip 'idx', itemData might overwrite your row.idx 
+//               // with a value from the Item Master database.
+//               if (key === 'name' || key === 'idx' || key.startsWith('__')) continue;
+              
+//               if (key === 'custom__is_recurring_item') {
+//                 row[key] = itemData.custom_is_recurring_item;
+//                 continue;
+//               }
+
+//               if (key === 'rate') {
+//                 row.rate = priceData?.price_list_rate || itemData.standard_rate || 0;
+//                 continue;
+//               }
+              
+//               if (key === 'uom') {
+//                 row.uom = itemData.stock_uom || row.uom;
+//                 continue;
+//               }
+
+//               if (itemData[key] !== undefined) {
+//                 row[key] = itemData[key];
+//               }
+//             }
+
+//             // Ensure idx stays correct after the loop
+//             row.idx = correctIdx; 
+            
+//             row.qty = row.qty || 1;
+//             row.amount = (row.rate || 0) * (row.qty || 0);
+//             row.__item_fetched = true; 
+//             document.isDirty = true;
+//           }
+//         } catch (error) {
+//           console.error("Dynamic Fetch Failed:", error);
+//         }
+//       }
+
+//       // Live Calculation
+//       if (!isSaving.value) {
+//         row.amount = (parseFloat(row.qty) || 0) * (parseFloat(row.rate) || 0);
+//       }
+//     });
+//   },
+//   { deep: true }
+// );
 watch(
   () => document.doc.items,
   (newItems) => {
-    if (!newItems) return;
+    // 🛑 GUARD 1: If we are saving, or if the document is NOT a Draft (0), STOP.
+    // This prevents the "Not Saved" badge after Submit (docstatus 1).
+    if (!newItems || isSaving.value || document.doc.docstatus !== 0) return;
 
     newItems.forEach(async (row, index) => {
-      // Trigger: Item is selected, but not yet processed
-      if (row.item_code && !row.item_name) {
+      // 1. Force Index Sequence (Silent - don't mark dirty just for this)
+      const correctIdx = index + 1;
+      if (row.idx !== correctIdx) {
+        row.idx = correctIdx;
+      }
+
+      // 2. Fetch Logic (Only for newly added items)
+      if (row.item_code && !row.__item_fetched) {
         try {
-          // 1. Fetch the Item Document (The Source)
           const itemData = await createResource({
             url: 'frappe.client.get',
             params: { doctype: 'Item', name: row.item_code }
           }).submit();
 
-          // 2. Fetch Item Price
           const priceData = await createResource({
             url: 'frappe.client.get_value',
             params: {
               doctype: 'Item Price',
-              filters: { item_code: row.item_code, selling: 1 },
+              filters: { 
+                item_code: row.item_code, 
+                price_list: document.doc.selling_price_list || 'Standard Selling' 
+              },
               fieldname: 'price_list_rate'
             }
           }).submit();
 
           if (itemData) {
-            // --- FULLY DYNAMIC MAPPING ---
-            // We loop through the 'row' object keys. 
-            // If a key in the Row exists in the Item Data, we sync it.
             for (const key in row) {
-              // Handle your specific naming edge case for 'recurring'
-              if (key === 'custom__is_recurring_item' && itemData.custom_is_recurring_item !== undefined) {
+              if (key === 'name' || key === 'idx' || key.startsWith('__')) continue;
+              
+              if (key === 'custom__is_recurring_item') {
                 row[key] = itemData.custom_is_recurring_item;
                 continue;
               }
-
-              // Map standard differences
               if (key === 'rate') {
                 row.rate = priceData?.price_list_rate || itemData.standard_rate || 0;
                 continue;
@@ -445,28 +618,52 @@ watch(
                 row.uom = itemData.stock_uom || row.uom;
                 continue;
               }
-
-              // Generic Match: If 'item_name' exists in both, copy it.
               if (itemData[key] !== undefined) {
                 row[key] = itemData[key];
               }
             }
 
             row.qty = row.qty || 1;
-            row.amount = row.rate * row.qty;
-            document.isDirty = true;
+            row.__item_fetched = true;
+            document.isDirty = true; // Only mark dirty when we actually fetch new data
           }
         } catch (error) {
-          console.error("Dynamic Fetch Failed:", error);
+          // console.error("Dynamic Fetch Failed:", error);
         }
       }
 
-      // Live Calculation
+      // 3. Calculation Logic (The "Anti-Badge" Guard)
       const q = parseFloat(row.qty) || 0;
       const r = parseFloat(row.rate) || 0;
-      row.amount = q * r;
+      const calculatedAmount = q * r;
+
+      // 🔥 FIX: Only update amount and mark dirty IF the value actually changed.
+      // This stops the infinite "Not Saved" loop.
+      if (Math.abs((row.amount || 0) - calculatedAmount) > 0.001) {
+        row.amount = calculatedAmount;
+        document.isDirty = true;
+      }
     });
   },
   { deep: true }
+);
+// Add this to your watchers
+watch(
+  () => document.doc,
+  (newValue) => {
+    if (!newValue || isSaving.value) return;
+
+    // Compare current doc with the original one from the server
+    const isDirty = JSON.stringify(newValue) !== JSON.stringify(document.originalDoc);
+    
+    // Update the resource state
+    document.isDirty = isDirty;
+
+    // If it's dirty, ensure the save button loading state is reset
+    if (isDirty) {
+      document.save.loading = false;
+    }
+  },
+  { deep: true, immediate: true } // immediate: true is key for tab switching
 );
 </script>

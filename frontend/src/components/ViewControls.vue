@@ -1124,7 +1124,10 @@ function updatePageLength(value, loadMore = false) {
   if (!defaultParams.value) {
     defaultParams.value = getParams()
   }
-  list.value.params = defaultParams.value
+  // pagination/load more filters code.
+  const currentParams = list.value.params || {}
+  list.value.params = { ...defaultParams.value, ...currentParams }
+  // list.value.params = defaultParams.value
   if (loadMore) {
     list.value.params.page_length += list.value.params.page_length_count
   } else {
