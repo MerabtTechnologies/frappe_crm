@@ -569,8 +569,8 @@ function getParams() {
     kanban_fields: kanban_fields,
     columns: columns,
     rows: rows,
-    page_length: pageLength.value,
-    page_length_count: pageLengthCount.value,
+    page_length: props.options?.page_length || pageLength.value,
+    page_length_count: props.options?.page_length_count || pageLengthCount.value,
   }
 }
 
