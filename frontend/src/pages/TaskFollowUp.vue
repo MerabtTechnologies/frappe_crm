@@ -29,6 +29,10 @@
     v-model:resizeColumn="triggerResize"
     v-model:updatedPageCount="updatedPageCount"
     doctype="CRM Task"
+    :options="{
+      page_length: 999999,
+      page_length_count: 999999
+    }"
   />
   <div class="mt-4 p-2 bg-gray-50 ">
     <!-- Filters and Create are provided by ViewControls -->
@@ -215,12 +219,12 @@ const rows = computed(() => {
 
   openTaskFromURL()
 
-  // Work with raw rows so we can sort & limit for list view
+  // Work with raw rows
   let raw = Array.isArray(tasks.value.data.data) ? [...tasks.value.data.data] : []
 
-    // If enabled, filter tasks to only those referenced by issues
-    if (filterByIssues.value && issueTaskIds.value && issueTaskIds.value.size) {
-      raw = raw.filter((r) => issueTaskIds.value.has(String(r.name)))
+  // If enabled, filter tasks to only those referenced by issues
+  if (filterByIssues.value && issueTaskIds.value && issueTaskIds.value.size) {
+    raw = raw.filter((r) => issueTaskIds.value.has(String(r.name)))
   }
 
   // Sort by modified or creation (descending)
@@ -230,10 +234,7 @@ const rows = computed(() => {
     return bDate - aDate
   })
 
-  // Limit list view to top 20
-  const limited = raw.slice(0, 20)
-
-  const parsed = parseRows(limited, tasks.value?.data?.columns)
+  const parsed = parseRows(raw, tasks.value?.data?.columns)
 
   // attach ticket counts to parsed rows
   parsed.forEach((t) => {
