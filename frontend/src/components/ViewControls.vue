@@ -57,6 +57,14 @@
         <Button :label="__('Cancel')" @click="cancelChanges" />
         <Button :label="__('Save Changes')" @click="saveView" />
       </div>
+      <div v-if="showMobileQuickSearch" class="mt-2">
+        <input
+          v-model="mobileSearchQuery"
+          @input="onMobileSearch"
+          class="form-input w-full"
+          :placeholder="__('Search')"
+        />
+      </div>
     </div>
   </div>
   <div
@@ -474,6 +482,36 @@ const view = ref({
   pinned: false,
   public: false,
 })
+
+// Mobile search query
+const mobileSearchQuery = ref('')
+
+const showMobileQuickSearch = computed(() => {
+  return ['CRM Lead', 'CRM Deal'].includes(props.doctype)
+})
+
+function applyMobileSearch() {
+  try {
+    const q = (mobileSearchQuery.value || '').trim()
+    let filters = { ...(list.value?.params?.filters || {}) }
+
+    if (q) {
+      filters['first_name'] = ['LIKE', `%${q}%`]
+    } else {
+      delete filters['first_name']
+    }
+
+    updateFilter(filters)
+  } catch (e) {
+    // ignore
+  }
+}
+
+const debouncedMobileSearch = useDebounceFn(applyMobileSearch, 300)
+
+function onMobileSearch() {
+  debouncedMobileSearch()
+}
 
 const pageLength = computed(() => list.value?.data?.page_length)
 const pageLengthCount = computed(() => list.value?.data?.page_length_count)
