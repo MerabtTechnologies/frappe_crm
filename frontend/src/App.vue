@@ -11,8 +11,7 @@
       <Layout class="isolate" v-else-if="session().isLoggedIn">
         <router-view :key="$route.fullPath" />
       </Layout>
-      <Dialogs />
-      <Dialog v-model="showModal" :options="{ size: 'sm' }" :disable-outside-click-to-close="true">
+      <Dialog v-model="showModal" :options="{ size: 'sm', title: 'app-root-modal' }" :disable-outside-click-to-close="true">
         <template #body>
           <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
             <div class="mb-2 items-start gap-3 place-items-center">
@@ -51,6 +50,7 @@
           </div>
         </template>
       </Dialog>
+      <Dialogs />
     </template>
   </FrappeUIProvider>
 </template>
@@ -273,12 +273,120 @@ function closeWarning() {
 //   showModal.value = false
 // }
 
+const SALES_PERFORMANCE_TIMER_KEY = 'merabt_crm.sales_performance_timer'
+let timeoutId = null
+
+function getSavedTimerState() {
+  try {
+    return JSON.parse(localStorage.getItem(SALES_PERFORMANCE_TIMER_KEY)) || null
+  } catch {
+    return null
+  }
+}
+
+function saveTimerState(nextRunAt, intervalMinutes) {
+  localStorage.setItem(
+    SALES_PERFORMANCE_TIMER_KEY,
+    JSON.stringify({ nextRunAt, intervalMinutes }),
+  )
+}
+
+function clearTimerState() {
+  localStorage.removeItem(SALES_PERFORMANCE_TIMER_KEY)
+}
+
+function stopSalesPerformanceTimer() {
+  if (window.__merabtSalesPerformanceTimer) {
+    if (window.__merabtSalesPerformanceTimer.timeoutId) {
+      clearTimeout(window.__merabtSalesPerformanceTimer.timeoutId)
+    }
+    if (window.__merabtSalesPerformanceTimer.intervalId) {
+      clearInterval(window.__merabtSalesPerformanceTimer.intervalId)
+    }
+    window.__merabtSalesPerformanceTimer = null
+  }
+  if (timeoutId) {
+    clearTimeout(timeoutId)
+    timeoutId = null
+  }
+  interval = null
+}
+
+async function refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message) {
+  try {
+    await performance_data.submit()
+  } catch (error) {
+    console.error('Error fetching sales performance:', error)
+  }
+
+  salesPerformance.value = performance_data.data?.status || 'none'
+
+  if (salesPerformance.value === 'poor') {
+    modelData.value = {
+      title: poor_title,
+      message: poor_message,
+      type: 'bad',
+      buttons: [
+        { label: 'Close', action: () => (showModal.value = false) },
+      ],
+    }
+    showModal.value = true
+  } else if (salesPerformance.value === 'good' && merabtSettings.show_good_banner === 1) {
+    modelData.value = {
+      title: good_title,
+      message: good_message,
+      type: 'good',
+      buttons: [
+        { label: 'Close', action: () => (showModal.value = false) },
+      ],
+    }
+    showModal.value = true
+  }
+}
+
+function startSalesPerformanceTimer(intervalMs, callback) {
+  if (window.__merabtSalesPerformanceTimer?.started) {
+    return
+  }
+
+  const saved = getSavedTimerState()
+  const now = Date.now()
+  const nextRunAt = saved?.nextRunAt && saved.intervalMinutes === intervalMs / 60000
+    ? Math.max(saved.nextRunAt, now)
+    : now + intervalMs
+  const delay = Math.max(0, nextRunAt - now)
+
+  window.__merabtSalesPerformanceTimer = {
+    started: true,
+    timeoutId: null,
+    intervalId: null,
+  }
+
+  const scheduleInterval = async () => {
+    await callback()
+    const next = Date.now() + intervalMs
+    saveTimerState(next, intervalMs / 60000)
+
+    window.__merabtSalesPerformanceTimer.intervalId = setInterval(async () => {
+      await callback()
+      saveTimerState(Date.now() + intervalMs, intervalMs / 60000)
+    }, intervalMs)
+  }
+
+  window.__merabtSalesPerformanceTimer.timeoutId = setTimeout(async () => {
+    await scheduleInterval()
+  }, delay)
+
+  timeoutId = window.__merabtSalesPerformanceTimer.timeoutId
+  saveTimerState(now + delay, intervalMs / 60000)
+}
+
 onMounted(async () => {
   // checking sales performance on mount
 
   const {settings: merabtSettings} = await _merabtSettingsResource.submit()
 
-  if (merabtSettings.performance_banner === 0){
+  if (merabtSettings.performance_banner === 0) {
     return
   }
 
@@ -287,7 +395,7 @@ onMounted(async () => {
   const good_message = merabtSettings.good_banner_content || 'Great job! Your sales performance is good. Keep up the good work and continue striving for excellence.'
   const poor_title = merabtSettings.bad_banner_title || 'Your Performance is Below Expectations'
   const poor_message = merabtSettings.bad_banner_content || 'Your sales performance is currently below the expected threshold. Please review your sales activities and take necessary actions to improve your performance.'
-  
+
   const performance_data = await createResource({
     url: 'merabt_crm.portal_api.sales_target.get_sales_user_performance',
     auto: true,
@@ -296,45 +404,25 @@ onMounted(async () => {
     },
   })
 
+  const intervalMs = timeInterval * 1000 * 60
 
-  interval = setInterval(() => {
-
-    salesPerformance.value = performance_data.data.status || 'none'
-    
-    if (salesPerformance.value === 'poor') {
-      modelData.value = {
-        title: poor_title,
-        message: poor_message,
-        type: 'bad',
-        buttons: [
-          { label: 'Close', action: () => (showModal.value = false) },
-        ],
-      }
-      showModal.value = true
-    } else if (salesPerformance.value === 'good' && merabtSettings.show_good_banner === 1) {
-      modelData.value = {
-        title: good_title,
-        message: good_message,
-        type: 'good',
-        buttons: [
-          { label: 'Close', action: () => (showModal.value = false) },
-        ],
-      }
-      showModal.value = true
-    }
-    
-    performance_data.submit() // re-fetch performance data
-    // console.log("intrival: ",salesPerformance.value );
-  
-  }, timeInterval * 1000 * 60)// set interval based on settings, default to 15 minutes
+  await refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message)
+  startSalesPerformanceTimer(intervalMs, async () => {
+    await refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message)
+  })
 })
 
 onUnmounted(() => {
   // Clean up any intervals or listeners if needed
-  clearInterval(interval)
+  stopSalesPerformanceTimer()
 })
-
 
 setConfig('systemTimezone', window.timezone?.system || null)
 setConfig('localTimezone', window.timezone?.user || null)
 </script>
+
+<style scoped>
+:global(.dialog-overlay[data-dialog='app-root-modal']) {
+  z-index: 9999;
+}
+</style>

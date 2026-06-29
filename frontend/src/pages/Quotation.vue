@@ -389,7 +389,7 @@ import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SLASection from '@/components/SLASection.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import GammaModal from '../components/Modals/GammaModal.vue'
-import QuotationModal from '../components/Modals/QuotationModal.vue'  
+import QuotationModal from '@/components/Modals/QuotationModal.vue'  
 import { openWebsite, setupCustomizations, copyToClipboard } from '@/utils'
 import { getView } from '@/utils/view'
 import { getSettings } from '@/stores/settings'
@@ -538,7 +538,7 @@ const showFilesUploader = ref(false)
 const _organization = ref({})
 const handlePrintClick = () => {
   // Try adding 'props.' before the variable name
-  console.log("Target Doc:", props.quotationId); 
+  // console.log("Target Doc:", props.quotationId); 
   
   const url = `/printview?doctype=Quotation&name=${props.quotationId}&format=Standard`;
   window.open(url, '_blank');

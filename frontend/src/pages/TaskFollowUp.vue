@@ -29,6 +29,10 @@
     v-model:resizeColumn="triggerResize"
     v-model:updatedPageCount="updatedPageCount"
     doctype="CRM Task"
+    :options="{
+      page_length: 999999,
+      page_length_count: 999999
+    }"
   />
   <div class="mt-4 p-2 bg-gray-50 ">
     <!-- Filters and Create are provided by ViewControls -->
@@ -95,6 +99,12 @@
     v-model:reloadTasks="tasks"
     :task="task"
   />
+  <IssueModal
+    v-if="showTaskCreateModal"
+    v-model="showTaskCreateModal"
+    v-model:reloadIssues="tasks"
+    :defaults="ticket"
+  />
 </template>
 
 <script setup>
@@ -104,6 +114,7 @@ import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import TaskModal from '@/components/Modals/TaskModal.vue'
 import TaskItem from '@/components/TaskItem.vue'
+import IssueModal from '@/components/Modals/IssueModal.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
@@ -126,6 +137,26 @@ const loadMore = ref(1)
 const triggerResize = ref(1)
 const updatedPageCount = ref(20)
 const viewControls = ref(null)
+
+// show issue model
+const showTaskCreateModal = ref(false)
+
+const ticket = ref({
+  name: '',
+  subject: '',
+  title: '',
+  description: '',
+  custom_task: '',
+  custom_assigned_to: '',
+  opening_date: '',
+  opening_time: '',
+  status: 'Backlog',
+  priority: 'Low',
+  issue_type: '',
+  resolution_details: '',
+  reference_doctype: 'CRM Lead',
+  reference_docname: '',
+})
 
 function getRow(name, field) {
   function getValue(value) {
@@ -188,12 +219,12 @@ const rows = computed(() => {
 
   openTaskFromURL()
 
-  // Work with raw rows so we can sort & limit for list view
+  // Work with raw rows
   let raw = Array.isArray(tasks.value.data.data) ? [...tasks.value.data.data] : []
 
-    // If enabled, filter tasks to only those referenced by issues
-    if (filterByIssues.value && issueTaskIds.value && issueTaskIds.value.size) {
-      raw = raw.filter((r) => issueTaskIds.value.has(String(r.name)))
+  // If enabled, filter tasks to only those referenced by issues
+  if (filterByIssues.value && issueTaskIds.value && issueTaskIds.value.size) {
+    raw = raw.filter((r) => issueTaskIds.value.has(String(r.name)))
   }
 
   // Sort by modified or creation (descending)
@@ -203,10 +234,7 @@ const rows = computed(() => {
     return bDate - aDate
   })
 
-  // Limit list view to top 20
-  const limited = raw.slice(0, 20)
-
-  const parsed = parseRows(limited, tasks.value?.data?.columns)
+  const parsed = parseRows(raw, tasks.value?.data?.columns)
 
   // attach ticket counts to parsed rows
   parsed.forEach((t) => {
@@ -397,6 +425,16 @@ function createTask(column) {
   showTaskModal.value = true
 }
 
+
+function createTicket(name) {
+  ticket.value = {
+    status: 'Open',
+    priority: 'Low',
+    custom_task: name,
+  }
+    showTaskCreateModal.value = true
+}
+
 function actions(name) {
   return [
     {
@@ -405,6 +443,13 @@ function actions(name) {
       onClick: () => {
         deletetask(name)
         tasks.value.reload()
+      },
+    },
+    {
+      label: __('Create Ticket'),
+      icon: 'plus',
+      onClick: () => {
+        createTicket(name)
       },
     },
   ]
