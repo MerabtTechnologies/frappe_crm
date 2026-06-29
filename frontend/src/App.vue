@@ -11,6 +11,45 @@
       <Layout class="isolate" v-else-if="session().isLoggedIn">
         <router-view :key="$route.fullPath" />
       </Layout>
+      <Dialog v-model="showModal" :options="{ size: 'sm', title: 'app-root-modal' }" :disable-outside-click-to-close="true">
+        <template #body>
+          <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
+            <div class="mb-2 items-start gap-3 place-items-center">
+              <div class="pt-1 mb-6">
+                <LucideFrown v-if="modelData.type === 'bad'" class="size-20 text-red-500" />
+                <LucideSmile v-else-if="modelData.type === 'good'" class="size-20 text-green-500" />
+                <LucideBadge v-else class="size-20 text-yellow-500" />
+              </div>
+              <div>
+                <h2 v-if="modelData.type === 'bad'" class="text-1xl font-bold text-red-500 text-center ">{{ modelData.title }}</h2>
+                <h2 v-else-if="modelData.type === 'good'" class="text-1xl font-bold text-green-600 text-center">{{ modelData.title }}</h2>
+                <h2 v-else class="text-1xl font-bold text-ink-gray-8 text-center">{{ modelData.title }}</h2>
+                <div v-if="modelData.type === 'bad'" class="mt-2 text-lg text-red-500 text-center">{{ modelData.message }}</div>
+                <div v-else-if="modelData.type === 'good'" class="mt-2 text-lg text-green-600 text-center">{{ modelData.message }}</div>
+                <div v-else class="mt-2 text-lg text-ink-gray-7 text-center">{{ modelData.message }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-4 pb-7 pt-4 sm:px-6">
+            <div class="flex flex-row-reverse gap-2">
+              <button
+                v-for="(button, index) in modelData.buttons"
+                :key="index"
+                @click="button.action()"
+                :class="[
+                  'inline-flex justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2',
+                  button.variant === 'solid'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-500',
+                ]"
+              >
+                {{ button.label }}
+              </button>
+            </div>
+          </div>
+        </template>
+      </Dialog>
       <Dialogs />
     </template>
   </FrappeUIProvider>
@@ -23,15 +62,25 @@ import { Dialogs } from '@/utils/dialogs'
 import { sessionStore as session } from '@/stores/session'
 import { setTheme } from '@/stores/theme'
 import { FrappeUIProvider, setConfig } from 'frappe-ui'
-import { computed, defineAsyncComponent, onErrorCaptured, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onErrorCaptured, onMounted, onBeforeUnmount, ref, onUnmounted } from 'vue'
 import { bannerStore } from '@/stores/banner'
 import { useRouter } from 'vue-router'
 
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { toast, createResource } from 'frappe-ui'
+import { toast, createResource, Dialog } from 'frappe-ui'
+import LucideBadge from '~icons/lucide/badge-info'
+import LucideFrown from '~icons/lucide/frown'
+import LucideSmile from '~icons/lucide/smile'
 import { usersStore } from '@/stores/users'
 
+const _merabtSettingsResource = createResource({
+  url: 'merabt_crm.portal_api.api.get_merabt_settings',
+  cache: 'Merabt Settings',
+  auto: true,
+})
+
+let interval = null;
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB-qD0A5E4I224NR-LqvSmrCYUC0cQUG-0",
@@ -92,7 +141,6 @@ getToken(messaging,
       }
 
     } else {
-      // TODO: Show permission request UI
 
       // console.log('No registration token available. Request permission to generate one.');
       toast.info(
@@ -175,6 +223,21 @@ const Layout = computed(() => {
 })
 
 const showSplash = ref(true)
+
+// Modal state for sales performance warning
+const salesPerformance = ref('') // This would come from an API in a real app
+const showModal = ref(false)
+const modelData = ref({
+  title: 'Welcome to M Nova CRM',
+  message: 'Welcome to M Nova CRM! We are excited to have you on board. Explore the features and let us know if you have any questions.',
+  type: 'good',
+  buttons: [
+    // { label: 'Update Now', action: updateNow },
+    { label: 'Close', action: () => (showModal.value = false) },
+  ],
+})
+
+
 // Use banner store for global warnings
 const banner = bannerStore()
 const router = useRouter()
@@ -203,6 +266,163 @@ function closeWarning() {
   banner.closeBanner()
 }
 
+// function updateNow() {
+//   // Close modal for now; extend to route to billing/upgrade page if desired
+//   console.log("Clicked Update Now");
+  
+//   showModal.value = false
+// }
+
+const SALES_PERFORMANCE_TIMER_KEY = 'merabt_crm.sales_performance_timer'
+let timeoutId = null
+
+function getSavedTimerState() {
+  try {
+    return JSON.parse(localStorage.getItem(SALES_PERFORMANCE_TIMER_KEY)) || null
+  } catch {
+    return null
+  }
+}
+
+function saveTimerState(nextRunAt, intervalMinutes) {
+  localStorage.setItem(
+    SALES_PERFORMANCE_TIMER_KEY,
+    JSON.stringify({ nextRunAt, intervalMinutes }),
+  )
+}
+
+function clearTimerState() {
+  localStorage.removeItem(SALES_PERFORMANCE_TIMER_KEY)
+}
+
+function stopSalesPerformanceTimer() {
+  if (window.__merabtSalesPerformanceTimer) {
+    if (window.__merabtSalesPerformanceTimer.timeoutId) {
+      clearTimeout(window.__merabtSalesPerformanceTimer.timeoutId)
+    }
+    if (window.__merabtSalesPerformanceTimer.intervalId) {
+      clearInterval(window.__merabtSalesPerformanceTimer.intervalId)
+    }
+    window.__merabtSalesPerformanceTimer = null
+  }
+  if (timeoutId) {
+    clearTimeout(timeoutId)
+    timeoutId = null
+  }
+  interval = null
+}
+
+async function refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message) {
+  try {
+    await performance_data.submit()
+  } catch (error) {
+    console.error('Error fetching sales performance:', error)
+  }
+
+  salesPerformance.value = performance_data.data?.status || 'none'
+
+  if (salesPerformance.value === 'poor') {
+    modelData.value = {
+      title: poor_title,
+      message: poor_message,
+      type: 'bad',
+      buttons: [
+        { label: 'Close', action: () => (showModal.value = false) },
+      ],
+    }
+    showModal.value = true
+  } else if (salesPerformance.value === 'good' && merabtSettings.show_good_banner === 1) {
+    modelData.value = {
+      title: good_title,
+      message: good_message,
+      type: 'good',
+      buttons: [
+        { label: 'Close', action: () => (showModal.value = false) },
+      ],
+    }
+    showModal.value = true
+  }
+}
+
+function startSalesPerformanceTimer(intervalMs, callback) {
+  if (window.__merabtSalesPerformanceTimer?.started) {
+    return
+  }
+
+  const saved = getSavedTimerState()
+  const now = Date.now()
+  const nextRunAt = saved?.nextRunAt && saved.intervalMinutes === intervalMs / 60000
+    ? Math.max(saved.nextRunAt, now)
+    : now + intervalMs
+  const delay = Math.max(0, nextRunAt - now)
+
+  window.__merabtSalesPerformanceTimer = {
+    started: true,
+    timeoutId: null,
+    intervalId: null,
+  }
+
+  const scheduleInterval = async () => {
+    await callback()
+    const next = Date.now() + intervalMs
+    saveTimerState(next, intervalMs / 60000)
+
+    window.__merabtSalesPerformanceTimer.intervalId = setInterval(async () => {
+      await callback()
+      saveTimerState(Date.now() + intervalMs, intervalMs / 60000)
+    }, intervalMs)
+  }
+
+  window.__merabtSalesPerformanceTimer.timeoutId = setTimeout(async () => {
+    await scheduleInterval()
+  }, delay)
+
+  timeoutId = window.__merabtSalesPerformanceTimer.timeoutId
+  saveTimerState(now + delay, intervalMs / 60000)
+}
+
+onMounted(async () => {
+  // checking sales performance on mount
+
+  const {settings: merabtSettings} = await _merabtSettingsResource.submit()
+
+  if (merabtSettings.performance_banner === 0) {
+    return
+  }
+
+  const timeInterval = merabtSettings.performance_interval || 15 // default to 15 minutes if not set
+  const good_title = merabtSettings.good_banner_title || 'Your Performance is Good'
+  const good_message = merabtSettings.good_banner_content || 'Great job! Your sales performance is good. Keep up the good work and continue striving for excellence.'
+  const poor_title = merabtSettings.bad_banner_title || 'Your Performance is Below Expectations'
+  const poor_message = merabtSettings.bad_banner_content || 'Your sales performance is currently below the expected threshold. Please review your sales activities and take necessary actions to improve your performance.'
+
+  const performance_data = await createResource({
+    url: 'merabt_crm.portal_api.sales_target.get_sales_user_performance',
+    auto: true,
+    onError(error) {
+      console.error('Error fetching sales performance:', error)
+    },
+  })
+
+  const intervalMs = timeInterval * 1000 * 60
+
+  await refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message)
+  startSalesPerformanceTimer(intervalMs, async () => {
+    await refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message)
+  })
+})
+
+onUnmounted(() => {
+  // Clean up any intervals or listeners if needed
+  stopSalesPerformanceTimer()
+})
+
 setConfig('systemTimezone', window.timezone?.system || null)
 setConfig('localTimezone', window.timezone?.user || null)
 </script>
+
+<style scoped>
+:global(.dialog-overlay[data-dialog='app-root-modal']) {
+  z-index: 9999;
+}
+</style>
