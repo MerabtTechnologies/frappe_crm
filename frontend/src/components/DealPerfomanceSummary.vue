@@ -196,6 +196,18 @@
               {{ u.full_name || u.name }}
             </option>
           </select>
+
+          <!-- Added a drop down button for last updated and created on  -->
+ <!-- 🔴 This dropdown is already in your template, make sure it has the v-model -->
+<select
+  v-model="selectedPerformanceType"
+  class="w-40 px-3 py-1.5 border border-gray-200 rounded-md shadow-sm text-sm bg-white ml-2"
+>
+  <!-- default filter is last updated -->
+  <option value="last_updated">Last Updated</option>
+  <option value="created_on">Created On</option>
+</select>
+
         </div>
       </div>
 
@@ -231,14 +243,42 @@
         </div>
       </div>
       
-      <!-- Active filters display -->
-      <div v-if="hasActiveFilters" class="mt-4 pt-4 border-t border-gray-200">
-        <div class="text-sm text-gray-600">
-          Showing data from <strong class="font-semibold">{{ formatDateDisplay(fromDate) }}</strong> to <strong class="font-semibold">{{ formatDateDisplay(toDate) }}</strong>
-          <span v-if="dateRange !== 'custom'" class="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">({{ getDateRangeLabel() }})</span>
-        </div>
+<!-- Active filters display -->
+<div v-if="hasActiveFilters" class="mt-4 pt-4 border-t border-gray-200">
+  <div class="flex flex-wrap items-center gap-2 text-sm">
+    <!-- Date range -->
+    <span class="text-gray-600">Showing data from</span>
+    <span class="font-semibold text-gray-800">{{ formatDateDisplay(fromDate) }}</span>
+    <span class="text-gray-400">→</span>
+    <span class="font-semibold text-gray-800">{{ formatDateDisplay(toDate) }}</span>
+    
+    <!-- Date range label badge -->
+    <span v-if="dateRange !== 'custom'" class="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+      {{ getDateRangeLabel() }}
+    </span>
+    
+    <!-- Separator dot -->
+    <span class="text-gray-300">•</span>
+    
+    <!-- Filter type badge -->
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
+      :class="selectedPerformanceType === 'last_updated' 
+        ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
+    >
+      <!-- Icon based on filter type -->
+      <svg v-if="selectedPerformanceType === 'last_updated'" class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+      </svg>
+      <svg v-else class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+      </svg>
+      {{ selectedPerformanceType === 'last_updated' ? 'Last Updated' : 'Created On' }}
+    </span>
+  </div>
+</div>
       </div>
-    </div>
+    
 
     <!-- Loading -->
     <div v-if="loading" class="text-center py-10">
@@ -831,8 +871,10 @@ const performanceData = createResource({
     })
   }
 })
+const selectedPerformanceType = ref('last_updated') // Default to last_updated for managers, can be changed to 'created' for new leads
 
 // Function to set date range
+// 🔴 MODIFIED - Updated setDateRange function
 const setDateRange = (range) => {
   dateRange.value = range
   const today = new Date()
@@ -1223,6 +1265,7 @@ const applyFilters = () => {
   if (toDate.value && toDate.value !== '') {
     perfReq.to_date = toDate.value
   }
+  perfReq.date_filter_type = selectedPerformanceType.value // 'last_updated' or 'created_on'
   if (selectedPerformanceUser.value) {
     if (!isManager() && selectedPerformanceUser.value !== (getUser().email || getUser().name)) {
       perfReq.user = getUser().email || getUser().name
@@ -1257,6 +1300,8 @@ const applyFilters = () => {
   if (toDate.value && toDate.value !== '') {
     chartReq.to_date = toDate.value
   }
+  chartReq.date_filter_type = selectedPerformanceType.value
+
   if (selectedUser.value) {
     if (!isManager() && selectedUser.value !== (getUser().email || getUser().name)) {
       chartReq.user = getUser().email || getUser().name
@@ -1307,12 +1352,14 @@ const applyFilters = () => {
 
 // Reset filters
 const resetFilters = () => {
+  selectedPerformanceType.value = 'last_updated'
+
   setDateRange('30days')
 }
 
 // Computed properties
 const hasActiveFilters = computed(() => {
-  return fromDate.value !== '' || toDate.value !== ''
+  return fromDate.value !== '' || toDate.value !== '' || selectedPerformanceType.value === 'created_on'
 })
 
 const formatDateDisplay = (dateString) => {
@@ -1548,25 +1595,27 @@ const redirectToDealsWithFilter = (status, owner = null) => {
     condition: 'equals',
     value: status
   })
+  const dateField = selectedPerformanceType.value === 'last_updated' ? 'modified' : 'creation'
+
     // Add date filter - use "between" with both dates
   if (fromDate.value && toDate.value) {
     // Use "between" condition with array of two dates
     filters.push({
-      fieldname: 'creation',
+      fieldname: dateField,
       condition: 'between',
       value: [fromDate.value, toDate.value]
     })
   } else if (fromDate.value) {
     // Only from date (>=)
     filters.push({
-      fieldname: 'creation',
+      fieldname: dateField,
       condition: '>=',
       value: fromDate.value
     })
   } else if (toDate.value) {
     // Only to date (<=)
     filters.push({
-      fieldname: 'creation',
+      fieldname: dateField,
       condition: '<=',
       value: toDate.value
     })
@@ -1615,24 +1664,27 @@ const redirectToLeadsWithFilter = (status, owner = null) => {
     condition: 'equals',
     value: status
   })
+
+const dateField = selectedPerformanceType.value === 'last_updated' ? 'modified' : 'creation'
+
   if (fromDate.value && toDate.value) {
     // Use "between" condition with array of two dates
     filters.push({
-      fieldname: 'creation',
+      fieldname: dateField,
       condition: 'between',
       value: [fromDate.value, toDate.value]
     })
   } else if (fromDate.value) {
     // Only from date (>=)
     filters.push({
-      fieldname: 'creation',
+      fieldname: dateField,
       condition: '>=',
       value: fromDate.value
     })
   } else if (toDate.value) {
     // Only to date (<=)
     filters.push({
-      fieldname: 'creation',
+      fieldname: dateField,
       condition: '<=',
       value: toDate.value
     })
@@ -1729,7 +1781,13 @@ watch(() => apiData.value, (newData) => {
    
   }
 }, { deep: true })
-
+// 🔴 NEW - Add this watch after your other watch statements
+watch(selectedPerformanceType, (newVal, oldVal) => {
+  clearTimeout(window.filterTimeout)
+  window.filterTimeout = setTimeout(() => {
+    applyFilters()
+  }, 300)
+})
 // Initialize on mount
 onMounted(() => {
   // Set default date range
