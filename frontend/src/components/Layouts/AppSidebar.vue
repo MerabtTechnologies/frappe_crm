@@ -42,18 +42,22 @@
         </div>
         <div class="mt-2 text-sm text-ink-gray-8">
           <div class="flex justify-between">
-            <span class="text-xs text-ink-gray-5">{{ __('Target') }}</span>
-            <span class="font-semibold">{{ formatCurrency(currentMonth.target_amount) }}</span>
+            <span class="text-xs text-ink-gray-5">{{ __('Total Target') }}</span>
+            <span class="font-semibold">{{currentMonthData.calculation_based_on === "Quantity" ? formatToTwoDecimals(currentMonth.target_qty) : formatCurrency(currentMonth.target_amount) }}</span>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-xs text-ink-gray-5">{{ __('Daily Target') }}</span>
+            <span class="font-semibold">{{ currentMonthData.calculation_based_on === "Quantity" ? formatToTwoDecimals(daily_totals.target_qty) : formatCurrency(daily_totals.target_amount) }}</span>
           </div>
           <div class="flex justify-between mt-1">
             <span class="text-xs text-ink-gray-5">{{ __('Achieved') }}</span>
-            <span class="font-semibold">{{ formatCurrency(currentMonth.achieved_amount) }}</span>
+            <span class="font-semibold">{{ currentMonthData.calculation_based_on === "Quantity" ? formatToTwoDecimals(currentMonth.achieved_qty) :  formatCurrency(currentMonth.achieved_amount) }}</span>
           </div>
           <div class="mt-2">
             <div class="w-full bg-surface-gray-2 rounded h-2 overflow-hidden">
-              <div class="bg-green-500 h-2" :style="{ width: (currentMonth.completion_percentage || 0) + '%' }"></div>
+              <div class="bg-green-500 h-2" :style="{ width: currentMonthData.calculation_based_on === 'Quantity' ? (formatToTwoDecimals(daily_totals.completion_percentage_qty) || 0 ) + '%' : ((daily_totals.completion_percentage || 0) + '%') }"></div>
             </div>
-            <div class="text-right text-xs text-ink-gray-5 mt-1">{{ (currentMonth.completion_percentage || 0).toFixed(2) }}%</div>
+            <div class="text-right text-xs text-ink-gray-5 mt-1">Daily Achieved: {{ currentMonthData.calculation_based_on === "Quantity" ? formatToTwoDecimals(daily_totals.completion_percentage_qty) : (daily_totals.completion_percentage || 0).toFixed(2) }}%</div>
           </div>
         </div>
       </div>
@@ -242,10 +246,12 @@ const currentMonthResource = createResource({
   },
 })
 
+const currentMonthData = computed(() => (currentMonthResource.data ? currentMonthResource.data : {}))
 const currentMonth = computed(() => (currentMonthResource.data ? currentMonthResource.data.month : null))
 const currentCurrency = computed(() => (currentMonthResource.data ? currentMonthResource.data.currency : 'INR'))
 const currentTotals = computed(() => (currentMonthResource.data ? currentMonthResource.data.totals : {}))
 const currentLoading = computed(() => !!currentMonthResource.loading)
+const daily_totals = computed(() => currentMonthResource.data?.daily_totals ? currentMonthResource.data.daily_totals : {})
 
 function refreshCurrentMonth() {
   try {
@@ -473,6 +479,10 @@ function getIcon(routeName, icon) {
     } catch (e) {
       return amount
     }
+  }
+
+  function formatToTwoDecimals(value) {
+    return Number(value || 0).toFixed(2)
   }
 
 async function getFirstLead() {

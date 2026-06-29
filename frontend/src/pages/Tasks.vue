@@ -202,6 +202,7 @@ import TasksListView from '@/components/ListViews/TasksListView.vue'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
 import TaskModal from '@/components/Modals/TaskModal.vue'
+import { toServerDatetime } from '@/utils'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
@@ -242,15 +243,13 @@ const rows = computed(() => {
   }
 
   openTaskFromURL()
-  // For list view, sort by modified/creation desc and limit to 20
   let raw = Array.isArray(tasks.value.data.data) ? [...tasks.value.data.data] : []
   raw.sort((a, b) => {
     const aDate = new Date(a.modified || a.creation || 0).getTime() || 0
     const bDate = new Date(b.modified || b.creation || 0).getTime() || 0
     return bDate - aDate
   })
-  const limited = raw.slice(0, 20)
-  return parseRows(limited, tasks.value?.data?.columns)
+  return parseRows(raw, tasks.value?.data?.columns)
 })
 
 const columns = computed(() => {
@@ -365,7 +364,7 @@ function createTask(column) {
     title: '',
     description: '',
     assigned_to: '',
-    due_date: '',
+    due_date: toServerDatetime(new Date()),
     status: 'Backlog',
     priority: 'Low',
     reference_doctype: 'CRM Lead',
