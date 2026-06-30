@@ -74,6 +74,7 @@ const props = defineProps({
     default: () => ({}),
   },
   doctype: { type: String, default: 'CRM Lead' },
+  docname: { type: String, default: '' },
   isGridRow: { type: Boolean, default: false },
   preview: { type: Boolean, default: false },
   context: { type: Object, default: null },
@@ -85,13 +86,18 @@ const props = defineProps({
 
 const tabIndex = ref(0)
 
+// The authoritative document name. Prefer the explicit docname prop (known
+// synchronously by the parent modal) over data.name, which is empty while the
+// document is still loading and would bind field changes to the wrong cache.
+const resolvedDocname = computed(() => props.docname || props.data?.name || '')
+
 // Get fieldPropertyOverrides for tab/section overrides
 let overrides = {}
 if (props.context) {
   // Standalone mode: use externally managed context, skip useDocument
   overrides = computed(() => props.context?.fieldPropertyOverrides || {})
 } else if (!props.isGridRow) {
-  const { document: doc } = useDocument(props.doctype, props.data?.name)
+  const { document: doc } = useDocument(props.doctype, resolvedDocname.value)
   overrides = computed(() => doc?.fieldPropertyOverrides || {})
 } else {
   overrides = computed(() => ({}))
@@ -127,6 +133,7 @@ const hasTabs = computed(() => {
 provide('data', computed(() => props.data))
 provide('hasTabs', hasTabs)
 provide('doctype', props.doctype)
+provide('docname', resolvedDocname)
 provide('preview', props.preview)
 provide('isGridRow', props.isGridRow)
 provide('rowReadOnly', props.rowReadOnly)
