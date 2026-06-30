@@ -283,7 +283,7 @@ import { getMeta } from '@/stores/meta'
 import { useDocument } from '@/data/document'
 import { whatsappEnabled } from '@/composables/whatsapp'
 import { callEnabled } from '@/composables/telephony'
-import { whatsappEnabled } from '@/composables/settings'
+import { merabtCallEnabled } from '@/composables/settings'
 import {
   createResource,
   FileUploader,

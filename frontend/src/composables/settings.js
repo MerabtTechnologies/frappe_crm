@@ -1,4 +1,10 @@
+import { createResource } from 'frappe-ui'
 import { computed, ref } from 'vue'
+import { callEnabled } from '@/composables/telephony'
+import { whatsappEnabled, isWhatsappInstalled } from '@/composables/whatsapp'
+
+// Backward-compatible exports used across existing pages.
+export { callEnabled, whatsappEnabled, isWhatsappInstalled }
 
 export const merabtCallEnabled = ref(false)
 export const merabtCallSettings = ref({})
