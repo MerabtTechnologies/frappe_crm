@@ -1,7 +1,7 @@
 
 
 <template>
-  <div class="h-full w-full" ref="chartRef"></div>
+  <div class="h-full w-full" ref="chartRef" />
 </template>
 
 <script setup>
@@ -19,232 +19,6 @@ const emit = defineEmits(['click'])
 const chartRef = ref(null)
 let chartInstance = null
 
-// function convertToEChartsConfig(config) {
-//   if (!config || !config.data) return {}
-  
-//   // Extract x-axis categories
-//   const categories = config.data.map(item => item[config.xAxis.key])
-//   const categoryCount = categories.length
-  
-//   // Dynamic bar width based on data count
-//   let barWidth = '60%'
-//   if (categoryCount <= 5) {
-//     barWidth = '50%'
-//   } else if (categoryCount <= 8) {
-//     barWidth = '55%'
-//   } else if (categoryCount <= 12) {
-//     barWidth = '45%'
-//   } else {
-//     barWidth = '35%'
-//   }
-  
-//   // Dynamic label rotation and spacing based on category count
-//   let labelRotate = 0
-//   let bottomMargin = '8%'
-//   let axisLabelMargin = 12
-  
-//   if (categoryCount > 10) {
-//     labelRotate = 45
-//     bottomMargin = '12%'
-//     axisLabelMargin = 18
-//   } else if (categoryCount > 6) {
-//     labelRotate = 35
-//     bottomMargin = '10%'
-//     axisLabelMargin = 15
-//   }
-  
-//   // Adjust top margin based on content to prevent overlap
-//   const hasTitle = config.title && config.title !== ''
-//   const hasSubtitle = config.subtitle && config.subtitle !== ''
-//   const hasLegend = config.series && config.series.length > 0
-  
-//   // Compute numeric pixel offsets (numbers chosen to match common chart header heights)
-//   const titleTop = hasTitle ? 12 : 6        // px from top for the title
-//   const titleHeight = hasTitle ? 22 : 0     // estimated title block height
-//   const subtitleHeight = hasSubtitle ? 16 : 0
-//   const legendTop = hasLegend ? (titleTop + titleHeight + subtitleHeight + 8) : (titleTop + titleHeight)
-//   const gridTop = legendTop + (hasLegend ? 36 : 18)
-  
-//   const series = config.series.map(series => ({
-//     name: series.name,
-//     type: series.type,
-//     data: config.data.map(item => item[series.name]),
-//     yAxisIndex: series.axis === 'y2' ? 1 : 0,
-//     barWidth: barWidth,
-//     itemStyle: {
-//       borderRadius: [4, 4, 0, 0]
-//     },
-//     label: {
-//       show: series.type === 'line',
-//       position: 'top',
-//       fontSize: 11
-//     }
-//   }))
-  
-//   return {
-//     title: {
-//       show: true,
-//       text: config.title || '',
-//       subtext: config.subtitle || '',
-//       left: 'left',
-//       top: titleTop,
-//       textStyle: {
-//         fontSize: 16,
-//         fontWeight: '600',
-//         color: '#1f2937',
-//         fontFamily: 'Inter, system-ui, sans-serif'
-//       },
-//       subtextStyle: {
-//         fontSize: 12,
-//         color: '#6b7280',
-//         fontFamily: 'Inter, system-ui, sans-serif'
-//       },
-//       itemGap: 8
-//     },
-//     tooltip: {
-//       trigger: 'axis',
-//       axisPointer: { type: 'shadow' },
-//       backgroundColor: 'rgba(255, 255, 255, 0.95)',
-//       borderColor: '#e5e7eb',
-//       borderWidth: 1,
-//       textStyle: {
-//         fontSize: 12,
-//         color: '#374151'
-//       }
-//     },
-//       legend: {
-//       data: config.series.map(s => s.name),
-//       orient: 'horizontal',
-//       left: 'left',
-//       top: legendTop,
-//       itemWidth: 25,
-//       itemHeight: 14,
-//       textStyle: {
-//         fontSize: 12,
-//         color: '#4b5563'
-//       },
-//       // show series.label (fallback to series.name), remove underscores and capitalize first letter
-//       formatter: function(name) {
-//         const s = (config.series || []).find(ss => ss.name === name) || {}
-//         const raw = s.label || name || ''
-//         // remove underscores and collapse multiple spaces, then trim
-//         const cleaned = String(raw).replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
-//         return cleaned.length ? (cleaned.charAt(0).toUpperCase() + cleaned.slice(1)) : ''
-//       },
-//       lineStyle: {
-//         width: 2
-//       }
-//     },   grid: {
-//       left: '8%',
-//       right: '8%',
-//       bottom: bottomMargin,
-//       top: gridTop,
-//       containLabel: true,
-//       borderWidth: 0,
-//       backgroundColor: 'transparent'
-//     },
-//     xAxis: {
-//       type: 'category',
-//       data: categories,
-//       name: config.xAxis?.title || '',
-//       nameLocation: 'middle',
-//       nameGap: categoryCount > 10 ? 70 : categoryCount > 6 ? 60 : 50,
-//       nameTextStyle: {
-//         fontSize: 12,
-//         fontWeight: '500',
-//         color: '#6b7280'
-//       },
-//       axisLabel: {
-//         rotate: labelRotate,
-//         interval: 0,
-//         fontSize: 11,
-//         color: '#6b7280',
-//         margin: axisLabelMargin,
-//         // Truncate long labels to prevent overlap; coerce non-strings
-//         formatter: function(value) {
-//           if (value == null) return ''
-//           const str = String(value)
-//           if (str.length > 15) {
-//             return str.substring(0, 12) + '...'
-//           }
-//           return str
-//         },
-//         // ensure overflowing labels show ellipsis in tooltip when hovered
-//         overflow: 'truncate'
-//       },
-//       axisLine: {
-//         lineStyle: {
-//           color: '#e5e7eb',
-//           width: 1
-//         }
-//       },
-//       axisTick: {
-//         show: false
-//       }
-//     },
-//     yAxis: [
-//       {
-//         type: 'value',
-//         name: config.yAxis?.title || '',
-//         nameLocation: 'middle',
-//         nameGap: 45,
-//         nameTextStyle: {
-//           fontSize: 12,
-//           fontWeight: '500',
-//           color: '#6b7280'
-//         },
-//         splitLine: {
-//           lineStyle: {
-//             color: '#f3f4f6',
-//             width: 1,
-//             type: 'dashed'
-//           }
-//         },
-//         axisLabel: {
-//           fontSize: 11,
-//           color: '#6b7280'
-//         },
-//         axisLine: {
-//           show: false
-//         },
-//         axisTick: {
-//           show: false
-//         }
-//       },
-//       {
-//         type: 'value',
-//         name: config.y2Axis?.title || '',
-//         nameLocation: 'middle',
-//         nameGap: 45,
-//         nameTextStyle: {
-//           fontSize: 12,
-//           fontWeight: '500',
-//           color: '#6b7280'
-//         },
-//         splitLine: {
-//           show: false
-//         },
-//         axisLabel: {
-//           fontSize: 11,
-//           color: '#6b7280'
-//         },
-//         axisLine: {
-//           show: false
-//         },
-//         axisTick: {
-//           show: false
-//         }
-//       }
-//     ],
-//     series: series
-//   }
-// }
-
-
-
-
-
-
 
 function convertToEChartsConfig(config) {
   if (!config || !config.data) return {}
@@ -256,6 +30,8 @@ function convertToEChartsConfig(config) {
   // Extract x-axis categories
   const categories = config.data.map(item => item[config.xAxis.key])
   const categoryCount = categories.length
+  const axisTitle = String(config.xAxis?.title || 'Date')
+  const hasLongXAxisTitle = axisTitle.length > 18
   
   // ============ DEFAULT SETTINGS (for all other charts) ============
   let barWidth = '60%'
@@ -276,7 +52,7 @@ function convertToEChartsConfig(config) {
   let labelInterval = 0
   // x-axis name placement defaults (can be adjusted for bar charts)
   let xAxisNameLocation = 'middle'
-  let xAxisNameGap = 32
+  let xAxisNameGap = 40
   
   // Default interval calculation
   const explicitInterval = typeof config.xAxis?.interval !== 'undefined' 
@@ -315,7 +91,15 @@ function convertToEChartsConfig(config) {
     axisLabelMargin = axisLabelMargin + 8
     // move axis name below labels for clarity and increase gap
     xAxisNameLocation = 'bottom'
-    xAxisNameGap = 60
+    xAxisNameGap = 70
+  }
+
+  if (hasLongXAxisTitle) {
+    const currentBottom = parseInt(String(bottomMargin).replace('%', '')) || 8
+    bottomMargin = `${Math.max(currentBottom, 14) + 2}%`
+    axisLabelMargin = Math.max(axisLabelMargin, 20)
+    xAxisNameLocation = 'bottom'
+    xAxisNameGap = 42
   }
   
   // ============ SALES TREND SPECIFIC OPTIMIZATIONS ============
@@ -499,10 +283,9 @@ function convertToEChartsConfig(config) {
     xAxis: {
       type: 'category',
       data: categories,
-      name: config.xAxis?.title || 'Date',  // default to 'Date' if not provided
-      // use 'middle' so the axis title sits closer to labels and avoids clipping
-      nameLocation: 'middle',
-      nameGap: 35, // distance between axis labels and heading
+      name: axisTitle,
+      nameLocation: xAxisNameLocation,
+      nameGap: xAxisNameGap,
       nameTextStyle: {
         fontSize: 12,
         fontWeight: '500',
@@ -533,7 +316,7 @@ function convertToEChartsConfig(config) {
         type: 'value',
         name: config.yAxis?.title || '',
         nameLocation: 'middle',
-        nameGap: 45,
+        nameGap: 60,
         nameTextStyle: {
           fontSize: 12,
           fontWeight: '500',
@@ -561,7 +344,7 @@ function convertToEChartsConfig(config) {
         type: 'value',
         name: config.y2Axis?.title || '',
         nameLocation: 'middle',
-        nameGap: 45,
+        nameGap: 60,
         nameTextStyle: {
           fontSize: 12,
           fontWeight: '500',
