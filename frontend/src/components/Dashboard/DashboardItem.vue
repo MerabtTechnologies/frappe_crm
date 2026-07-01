@@ -6,9 +6,9 @@
     >
       <Tooltip :text="__(item.data.tooltip)">
         <NumberChart
-          class="!items-start"
           v-if="item.data"
           :key="index"
+          class="!items-start"
           :config="item.data"
           @click="handleChartClick"
         />

@@ -68,7 +68,7 @@
         >
           {{ getRow(itemName, titleField).label }}
         </div>
-        <div class="text-ink-gray-4" v-else>{{ __('No Title') }}</div>
+        <div v-else class="text-ink-gray-4">{{ __('No Title') }}</div>
       </div>
     </template>
     <template #fields="{ fieldName, itemName }">
@@ -153,8 +153,8 @@
     </template>
   </KanbanView>
   <TasksListView
-    ref="tasksListView"
     v-else-if="tasks.data && rows.length"
+    ref="tasksListView"
     v-model="tasks.data.page_length_count"
     v-model:list="tasks"
     :rows="rows"
@@ -181,12 +181,6 @@
     name="Tasks"
     :icon="Email2Icon"
   />
-  <TaskModal
-    v-if="showTaskModal"
-    v-model="showTaskModal"
-    v-model:reloadTasks="tasks"
-    :task="task"
-  />
 </template>
 
 <script setup>
@@ -201,17 +195,20 @@ import ViewControls from '@/components/ViewControls.vue'
 import TasksListView from '@/components/ListViews/TasksListView.vue'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
-import TaskModal from '@/components/Modals/TaskModal.vue'
-import { toServerDatetime } from '@/utils'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
-import { formatDate, timeAgo } from '@/utils'
+import { formatDate } from '@/utils'
+import { timestampCell } from '@/composables/useTimelinePreferences'
+import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { Tooltip, Avatar, TextEditor, Dropdown, call } from 'frappe-ui'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'  // Add useRoute here
+import { computed, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta('CRM Task')
 const { getUser } = usersStore()
+const { updateOnboardingStep } = useOnboarding('frappecrm')
+const { capture } = useTelemetry()
 
 const router = useRouter()
 const route = useRoute()
@@ -313,10 +310,7 @@ function parseRows(rows, columns = []) {
       }
 
       if (['modified', 'creation'].includes(row)) {
-        _rows[row] = {
-          label: formatDate(task[row]),
-          timeAgo: __(timeAgo(task[row])),
-        }
+        _rows[row] = timestampCell(task[row])
       } else if (row == 'assigned_to') {
         _rows[row] = {
           label: task.assigned_to && getUser(task.assigned_to).full_name,
@@ -328,57 +322,50 @@ function parseRows(rows, columns = []) {
   })
 }
 
-const showTaskModal = ref(false)
+const { showModal } = useDoctypeModal()
 
-const task = ref({
-  name: '',
-  title: '',
-  description: '',
-  assigned_to: '',
-  due_date: '',
-  status: 'Backlog',
-  priority: 'Low',
-  reference_doctype: 'CRM Lead',
-  reference_docname: '',
-})
+const taskCallbacks = {
+  afterInsert: () => {
+    tasks.value.reload()
+    updateOnboardingStep('create_first_task')
+    capture('task_created')
+  },
+  afterUpdate: () => {
+    tasks.value.reload()
+    capture('task_updated')
+  },
+}
 
 function showTask(name) {
-  let t = rows.value?.find((row) => row.name === name)
-  task.value = {
-    name: t.name,
-    title: t.title,
-    description: t.description,
-    assigned_to: t.assigned_to?.name || '',
-    due_date: t.due_date,
-    status: t.status,
-    priority: t.priority,
-    reference_doctype: t.reference_doctype,
-    reference_docname: t.reference_docname,
-  }
-  showTaskModal.value = true
+  showModal({
+    name,
+    doctype: 'CRM Task',
+    title: 'Task',
+    callbacks: taskCallbacks,
+  })
 }
 
 function createTask(column) {
-  task.value = {
-    name: '',
-    title: '',
-    description: '',
-    assigned_to: '',
-    due_date: toServerDatetime(new Date()),
+  const defaults = {
     status: 'Backlog',
     priority: 'Low',
     reference_doctype: 'CRM Lead',
     reference_docname: '',
   }
 
-  if (column.column?.name) {
+  if (column?.column?.name) {
     let column_field = tasks.value.params.column_field
     if (column_field) {
-      task.value[column_field] = column.column.name
+      defaults[column_field] = column.column.name
     }
   }
 
-  showTaskModal.value = true
+  showModal({
+    doctype: 'CRM Task',
+    title: 'Task',
+    defaults: defaults,
+    callbacks: taskCallbacks,
+  })
 }
 
 function actions(name) {
@@ -387,14 +374,14 @@ function actions(name) {
       label: __('Delete'),
       icon: 'trash-2',
       onClick: () => {
-        deletetask(name)
+        deleteTask(name)
         tasks.value.reload()
       },
     },
   ]
 }
 
-async function deletetask(name) {
+async function deleteTask(name) {
   await call('frappe.client.delete', {
     doctype: 'CRM Task',
     name,

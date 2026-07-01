@@ -45,23 +45,25 @@ import EditIcon from '@/components/Icons/EditIcon.vue'
 import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import { usersStore } from '@/stores/users'
 import { createResource } from 'frappe-ui'
-import { nextTick } from 'vue'
+import { nextTick, provide } from 'vue'
 
 const props = defineProps({
-  index: Number,
-  data: Object,
-  doctype: String,
-  parentDoctype: String,
-  rowReadOnly: {
-    type: Boolean,
-    default: false,
-  },
+  index: { type: Number, default: 0 },
+  data: { type: Object, default: () => ({}) },
+  doctype: { type: String, default: '' },
+  parentDoctype: { type: String, default: '' },
+  parentFieldname: { type: String, default: '' },
+  rowReadOnly: { type: Boolean, default: false },
 })
 
 const { isManager } = usersStore()
 
-const show = defineModel()
-const showGridRowFieldsModal = defineModel('showGridRowFieldsModal')
+provide('parentFieldname', props.parentFieldname)
+
+const show = defineModel({ type: Boolean })
+const showGridRowFieldsModal = defineModel('showGridRowFieldsModal', {
+  type: Boolean,
+})
 
 const tabs = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_fields_layout',
