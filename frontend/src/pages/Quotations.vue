@@ -249,20 +249,6 @@
     v-model="showDealModal"
     :props="defaults"
   />
-  <NoteModal
-    v-if="showNoteModal"
-    v-model="showNoteModal"
-    :note="note"
-    doctype="Quotation"
-    :doc="docname"
-  />
-  <TaskModal
-    v-if="showTaskModal"
-    v-model="showTaskModal"
-    :task="task"
-    doctype="Quotation"
-    :doc="docname"
-  />
 </template>
 
 <script setup>
@@ -280,9 +266,8 @@ import LayoutHeader from '@/components/LayoutHeader.vue'
 import QuotationListView from '@/components/ListViews/QuotationListView.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
 import QuotationModal from '@/components/Modals/QuotationModal.vue'
-import NoteModal from '@/components/Modals/NoteModal.vue'
-import TaskModal from '@/components/Modals/TaskModal.vue'
 import ViewControls from '@/components/ViewControls.vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { getMeta } from '@/stores/meta'
 import { globalStore } from '@/stores/global'
 import { usersStore } from '@/stores/users'
@@ -300,6 +285,7 @@ const { makeCall } = globalStore()
 const { getUser } = usersStore()
 const { getOrganization } = organizationsStore()
 const { getDealStatus } = statusesStore()
+const { showModal } = useDoctypeModal()
 
 const route = useRoute()
 
@@ -527,30 +513,25 @@ function actions(itemName) {
   )
 }
 
-const docname = ref('')
-const showNoteModal = ref(false)
-const note = ref({
-  title: '',
-  content: '',
-})
-
 function showNote(name) {
-  docname.value = name
-  showNoteModal.value = true
+  showModal({
+    doctype: 'FCRM Note',
+    title: 'Note',
+    defaults: {
+      reference_doctype: 'Quotation',
+      reference_docname: name,
+    },
+  })
 }
 
-const showTaskModal = ref(false)
-const task = ref({
-  title: '',
-  description: '',
-  assigned_to: '',
-  due_date: '',
-  priority: 'Low',
-  status: 'Backlog',
-})
-
 function showTask(name) {
-  docname.value = name
-  showTaskModal.value = true
+  showModal({
+    doctype: 'CRM Task',
+    title: 'Task',
+    defaults: {
+      reference_doctype: 'Quotation',
+      reference_docname: name,
+    },
+  })
 }
 </script>
