@@ -57,7 +57,6 @@
 </template>
 
 <script setup>
-import NotPermitted from '@/pages/NotPermitted.vue'
 import SplashScreen from '@/components/SplashScreen.vue'
 import DoctypeModals from '@/components/Modals/DoctypeModals.vue'
 import { Dialogs } from '@/utils/dialogs'
@@ -68,8 +67,6 @@ import { computed, defineAsyncComponent, onErrorCaptured, onMounted, onBeforeUnm
 import { bannerStore } from '@/stores/banner'
 import { useRouter } from 'vue-router'
 
-import { initializeApp } from "firebase/app";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { toast, createResource, Dialog } from 'frappe-ui'
 import LucideBadge from '~icons/lucide/badge-info'
 import LucideFrown from '~icons/lucide/frown'
@@ -94,122 +91,7 @@ const firebaseConfig = {
   appId: "1:594102127532:web:bee57cbafd666a1fb6c809",
   measurementId: "G-PVXM42V748"
 };
-try {
-  initializeApp(firebaseConfig);
-} catch (error) {
-  console.error("Firebase initialization error", error);
-}
 const { users, getUser } = usersStore()
-
-
-// Get registration token. Initially this makes a network call, once retrieved
-// subsequent calls to getToken will return from cache.
-const messaging = getMessaging();
-getToken(messaging,
-  { vapidKey: 'BCVG3-dOFvV09zxecE0uHqK1fXzIxXw0aGKzFNb9Ukzz3_jhySXEvnGMEFvsOtUgrnXAe2eOQn1aflh5LQ80ZGo' })
-  .then((currentToken) => {
-    if (currentToken) {
-      // Send the token to your server and update the UI if necessary
-      // ...
-      // console.log('current token for client: ', currentToken);
-      // send token to frappe server
-      const fcmToken = {
-        token: currentToken,
-        user: getUser().name,
-      }
-
-      // console.log('doc: ', fcmToken);
-
-      try {
-
-        createResource({
-          url: 'merabt_crm.portal_api.api.save_fcm_token',
-          params: { fcm_token: currentToken },
-          auto: true,
-          onError(error) {
-            // console.log('Error saving FCM Token2: ', error);
-            toast.error(
-              __('Error saving FCM Token: {0}', [String(error)]),
-            )
-          },
-
-        })
-
-      } catch (error) {
-        // console.log('Error saving FCM Token: ', error);
-
-        toast.error(
-              __('Error saving FCM Token: {0}', [String(error)]),
-          )
-      }
-
-    } else {
-
-      // console.log('No registration token available. Request permission to generate one.');
-      toast.info(
-        __(
-          'No registration token available. Request permission to generate one.'
-        ),
-      )
-    }
-    banner.closeBanner()
-  }).catch((err) => {
-    // ignore known permission / suspended consumer errors from FCM unsubscribe
-    const msg = (err && err.message) ? String(err.message) : ''
-    const code = err && err.code ? String(err.code) : ''
-    if (
-      code === 'messaging/token-unsubscribe-failed' ||
-      msg.includes('Permission denied') ||
-      msg.includes('has been suspended') ||
-      msg.includes('token-unsubscribe-failed')
-    ) {
-      console.warn('FCM token issue (ignored):', code || msg)
-      return
-    }
-
-    if (code === 'messaging/permission-blocked') {
-      toast.error(
-        __(
-          'Notification Permission Issue:The notification permission was not granted and blocked instead. Please enable notifications permission in your browser settings.',
-          [msg],
-        ),
-      )
-      try {
-        // debug: log before showing banner
-        // eslint-disable-next-line no-console
-        console.debug('[App] permission-blocked, showing banner', msg)
-        banner.showBanner(
-          __(
-            'Notification Permission Issue: The notification permission was not granted and blocked instead. Please enable notifications permission in your browser settings.',
-            [msg],
-          ),
-        )
-      } catch (e) {
-        console.warn('Unable to show banner for permission error', e)
-      }
-      return
-    }
-
-    // console.log('An error occurred while retrieving token. ', err);
-    toast.error(
-      __(
-        'Error: {0} - {1}',
-        [code || err, msg],
-      ),
-    )
-  });
-
-onMessage(messaging, (payload) => {
-  // console.log('Message received. ', payload);
-
-  toast.info(
-    __(
-      'New Notification: {0} - {1}',
-      [payload.notification.title, payload.notification.body],
-    ),
-  )
-
-});
 
 const session = sessionStore()
 provide('session', session)
@@ -218,6 +100,10 @@ const { setTheme: setUiTheme } = useTheme()
 if (!localStorage.getItem('theme')) {
   setUiTheme('light')
 }
+
+const NotPermitted = defineAsyncComponent(
+  () => import('@/pages/NotPermitted.vue'),
+)
 
 const MobileLayout = defineAsyncComponent(
   () => import('./components/Layouts/MobileLayout.vue'),
@@ -253,8 +139,100 @@ const modelData = ref({
 const banner = bannerStore()
 const router = useRouter()
 
+async function initFirebaseMessaging() {
+  if (typeof window === 'undefined') return
+  if (!('Notification' in window)) return
+
+  try {
+    const [{ initializeApp }, { getMessaging, getToken, onMessage }] =
+      await Promise.all([
+        import('firebase/app'),
+        import('firebase/messaging'),
+      ])
+
+    let firebaseApp = null
+    try {
+      firebaseApp = initializeApp(firebaseConfig)
+    } catch {
+      // Firebase app may already exist.
+    }
+
+    const messaging = getMessaging(firebaseApp || undefined)
+    const currentToken = await getToken(messaging, {
+      vapidKey:
+        'BCVG3-dOFvV09zxecE0uHqK1fXzIxXw0aGKzFNb9Ukzz3_jhySXEvnGMEFvsOtUgrnXAe2eOQn1aflh5LQ80ZGo',
+    })
+
+    if (currentToken) {
+      try {
+        createResource({
+          url: 'merabt_crm.portal_api.api.save_fcm_token',
+          params: { fcm_token: currentToken },
+          auto: true,
+          onError(error) {
+            toast.error(__('Error saving FCM Token: {0}', [String(error)]))
+          },
+        })
+      } catch (error) {
+        toast.error(__('Error saving FCM Token: {0}', [String(error)]))
+      }
+    } else {
+      toast.info(
+        __('No registration token available. Request permission to generate one.'),
+      )
+    }
+
+    banner.closeBanner()
+
+    onMessage(messaging, (payload) => {
+      toast.info(
+        __('New Notification: {0} - {1}', [
+          payload.notification.title,
+          payload.notification.body,
+        ]),
+      )
+    })
+  } catch (err) {
+    const msg = err && err.message ? String(err.message) : ''
+    const code = err && err.code ? String(err.code) : ''
+    if (
+      code === 'messaging/token-unsubscribe-failed' ||
+      msg.includes('Permission denied') ||
+      msg.includes('has been suspended') ||
+      msg.includes('token-unsubscribe-failed')
+    ) {
+      console.warn('FCM token issue (ignored):', code || msg)
+      return
+    }
+
+    if (code === 'messaging/permission-blocked') {
+      toast.error(
+        __(
+          'Notification Permission Issue:The notification permission was not granted and blocked instead. Please enable notifications permission in your browser settings.',
+          [msg],
+        ),
+      )
+      try {
+        console.debug('[App] permission-blocked, showing banner', msg)
+        banner.showBanner(
+          __(
+            'Notification Permission Issue: The notification permission was not granted and blocked instead. Please enable notifications permission in your browser settings.',
+            [msg],
+          ),
+        )
+      } catch (e) {
+        console.warn('Unable to show banner for permission error', e)
+      }
+      return
+    }
+
+    toast.error(__('Error: {0} - {1}', [code || err, msg]))
+  }
+}
+
 onMounted(async () => {
   setTheme()
+  void initFirebaseMessaging()
   try {
     await router.isReady()
   } catch (e) {

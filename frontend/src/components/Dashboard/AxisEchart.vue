@@ -6,7 +6,6 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from 'echarts'
 
 const props = defineProps({
   config: {
@@ -18,6 +17,14 @@ const props = defineProps({
 const emit = defineEmits(['click'])
 const chartRef = ref(null)
 let chartInstance = null
+let echartsLib = null
+
+async function getEcharts() {
+  if (echartsLib) return echartsLib
+  const module = await import('echarts')
+  echartsLib = module.default ?? module
+  return echartsLib
+}
 
 // function convertToEChartsConfig(config) {
 //   if (!config || !config.data) return {}
@@ -606,9 +613,10 @@ function convertToEChartsConfig(config) {
 
 
 
-onMounted(() => {
+onMounted(async () => {
   if (chartRef.value && props.config) {
     const ecConfig = convertToEChartsConfig(props.config)
+    const echarts = await getEcharts()
     chartInstance = echarts.init(chartRef.value)
     chartInstance.setOption(ecConfig)
     
