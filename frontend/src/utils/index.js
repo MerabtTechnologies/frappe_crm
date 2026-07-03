@@ -500,11 +500,14 @@ export const colors = [
 ]
 
 export function parseColor(color) {
-  let textColor = `!text-${color}-600`
-  if (color == 'black') {
+  const normalizedColor = String(color || 'gray').trim().toLowerCase()
+  const colorName = normalizedColor === 'grey' ? 'gray' : normalizedColor
+
+  let textColor = `!text-${colorName}-600`
+  if (colorName == 'black') {
     textColor = '!text-ink-gray-9'
-  } else if (['gray', 'green'].includes(color)) {
-    textColor = `!text-${color}-700`
+  } else if (['gray', 'green'].includes(colorName)) {
+    textColor = `!text-${colorName}-700`
   }
 
   return textColor
