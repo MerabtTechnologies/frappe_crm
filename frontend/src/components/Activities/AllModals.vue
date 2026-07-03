@@ -43,6 +43,7 @@ import { useDoctypeModal } from '@/composables/doctypeModal'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { call } from 'frappe-ui'
 import { ref } from 'vue'
+import { dayjs } from 'frappe-ui'
 import { useRoute, useRouter } from 'vue-router'
 import ProjectTaskModal from '@/components/Modals/ProjectTaskModal.vue'
 import GammaModal from '@/components/Modals/GammaModal.vue'
@@ -54,6 +55,8 @@ const props = defineProps({
 })
 
 const activities = defineModel({ type: Object })
+
+const now = dayjs()
 
 const { showModal } = useDoctypeModal()
 const { updateOnboardingStep } = useOnboarding('frappecrm')
@@ -68,6 +71,7 @@ function showTask(task) {
     defaults: {
       reference_doctype: props.doctype,
       reference_docname: props.doc?.name,
+      due_date: !task.due_date ? now.format('YYYY-MM-DD HH:mm:ss') : task.due_date,
     },
     callbacks: {
       afterInsert: (d) => afterDoctype(d, true),
@@ -139,7 +143,8 @@ function showGammaProposal(t) {
 const showQuotationModal = ref(false)
 const quotation = ref({})
 function showQuotation(q) {
-  const today = new Date().toISOString().split('T')[0];  quotation.value = q || {
+  const today = new Date().toISOString().split('T')[0]
+  quotation.value = q || {
     title: '',
     description: '',
     customer: '',
@@ -147,8 +152,8 @@ function showQuotation(q) {
     status: 'Draft',
     naming_series: 'SAL-QTN-.YYYY.-',
     transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
-    order_type: "Sales",
-    quotation_to: "Customer",
+    order_type: 'Sales',
+    quotation_to: 'Customer',
     crm_deal: props.doc.name
 
   }

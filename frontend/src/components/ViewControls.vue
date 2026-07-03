@@ -564,6 +564,14 @@ function getParams() {
   const title_field = _view?.title_field || ''
   const kanban_columns = _view?.kanban_columns || ''
   const kanban_fields = _view?.kanban_fields || ''
+  const normalizedPageLength = Math.max(
+    Number(props.options?.page_length ?? pageLength.value ?? 20) || 20,
+    1,
+  )
+  const normalizedPageLengthCount = Math.max(
+    Number(props.options?.page_length_count ?? pageLengthCount.value ?? 20) || 20,
+    1,
+  )
 
   view.value = {
     name: view_name,
@@ -601,8 +609,8 @@ function getParams() {
     kanban_fields: kanban_fields,
     columns: columns,
     rows: rows,
-    page_length: props.options?.page_length || pageLength.value,
-    page_length_count: props.options?.page_length_count || pageLengthCount.value,
+    page_length: normalizedPageLength,
+    page_length_count: normalizedPageLengthCount,
   }
 }
 

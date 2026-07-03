@@ -202,6 +202,7 @@ import { formatDate } from '@/utils'
 import { timestampCell } from '@/composables/useTimelinePreferences'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { Tooltip, Avatar, TextEditor, Dropdown, call } from 'frappe-ui'
+import { dayjs } from "frappe-ui";
 import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
@@ -214,6 +215,7 @@ const router = useRouter()
 const route = useRoute()
 
 const tasksListView = ref(null)
+const now = dayjs();
 
 // tasks data is loaded in the ViewControls component
 const tasks = ref({})
@@ -351,6 +353,7 @@ function createTask(column) {
     priority: 'Low',
     reference_doctype: 'CRM Lead',
     reference_docname: '',
+    due_date: now.format("YYYY-MM-DD HH:mm:ss"),
   }
 
   if (column?.column?.name) {

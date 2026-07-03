@@ -409,9 +409,17 @@ export function parseAssignees(assignees) {
 }
 
 async function getFormScript(script, obj) {
-  let scriptFn = new Function(script + '\nreturn setupForm')()
-  let formScript = await scriptFn(obj)
-  return formScript || {}
+  try {
+    let scriptFn = new Function(`${script}\nreturn typeof setupForm === 'function' ? setupForm : null`)()
+    if (typeof scriptFn !== 'function') {
+      return {}
+    }
+    let formScript = await scriptFn(obj)
+    return formScript || {}
+  } catch (error) {
+    console.error('Failed to evaluate form customization script', error)
+    return {}
+  }
 }
 
 export async function setupCustomizations(scripts, obj) {
