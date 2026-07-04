@@ -71,7 +71,7 @@ function showTask(task) {
     defaults: {
       reference_doctype: props.doctype,
       reference_docname: props.doc?.name,
-      due_date: !task.due_date ? now.format('YYYY-MM-DD HH:mm:ss') : task.due_date,
+      due_date: !task?.due_date ? now.format('YYYY-MM-DD HH:mm:ss') : task.due_date,
     },
     callbacks: {
       afterInsert: (d) => afterDoctype(d, true),
