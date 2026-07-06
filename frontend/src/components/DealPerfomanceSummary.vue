@@ -837,50 +837,6 @@ const allSalesChartResource = createResource({
   }
 })
 
-
-// const allSalesChartData = ref([])
-// const allSalesChartResource = createResource({
-//   url: `/api/method/merabt_crm.portal_api.sales_target.get_all_sales_persons_month_wise_chart`,
-//   method: 'POST',
-//   headers: {
-//     'Content-Type': 'application/json',
-//     'Accept': 'application/json'
-//   },
-//   transform: (data) => {
-//     if (data.message) return data.message
-//     if (data.data) return data.data
-//     return data
-//   },
-//   auto: false,
-//   onError: (err) => {
-//     console.error('All sales chart error:', err)
-//   },
-//   onSuccess: () => {
-//     try {
-//       const data = allSalesChartResource.data
-      
-//       // 🔴 Store the sales persons data for click handler
-//       allSalesChartData.value = data.sales_persons || []
-//       console.log('✅ All sales chart data stored:', allSalesChartData.value)
-      
-//       dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
-//         hour: '2-digit',
-//         minute: '2-digit',
-//         second: '2-digit'
-//       })
-      
-//       nextTick(() => {
-//         try {
-//           renderAllSalesChart(data)
-//         } catch (e) {
-//           console.error('Error rendering all sales chart after nextTick:', e)
-//         }
-//       })
-//     } catch (e) {
-//       console.error('Error rendering all sales chart:', e)
-//     }
-//   }
-// })
 // Date filter variables
 const fromDate = ref('')
 const toDate = ref('')
