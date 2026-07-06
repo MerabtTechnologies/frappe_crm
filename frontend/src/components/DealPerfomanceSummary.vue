@@ -665,7 +665,7 @@ import * as echarts from 'echarts'
 import { createResource } from 'frappe-ui'
 import { usersStore } from '../stores/users'
 import { useRouter } from 'vue-router'
-
+const fullChartData = ref(null)
 const API_ENDPOINT = 'merabt_crm.merabt_crm.override.custom_chart.get_deal_performance_cards'
 
 const { users, getUser, isManager, crmUsers } = usersStore()
@@ -688,8 +688,25 @@ const chartResource = createResource({
     'Accept': 'application/json'
   },
   transform: (data) => {
-    if (data.message) return data.message
-    if (data.data) return data.data
+    // 🔴 FIX: Return the FULL message, not just data.data
+    if (data.message) {
+      console.log('✅ Full message from API:', data.message)
+      console.log('✅ Months in full message:', data.message.months)
+      // Return the entire message object
+      return data.message
+    }
+    if (data.data) {
+      // If data.data has months, return it, otherwise check if data has months
+      if (data.data.months) {
+        return data.data
+      }
+      // If data has months at the top level, return data
+      if (data.months) {
+        return data
+      }
+      // Otherwise return data.data as fallback
+      return data.data
+    }
     return data
   },
   auto: false,
@@ -698,17 +715,24 @@ const chartResource = createResource({
   },
   onSuccess: () => {
     try {
-      // Update the displayed data time when chart data arrives
+      // Store the full data
+      const data = chartResource.data
+      fullChartData.value = data
+      
+      console.log('✅ Full chart data stored:', fullChartData.value)
+      console.log('✅ All keys in stored data:', Object.keys(fullChartData.value || {}))
+      console.log('✅ Months with deal_ids:', fullChartData.value?.months)
+      console.log('✅ First month:', fullChartData.value?.months?.[0])
+      
       dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
       })
 
-      // Ensure the DOM is updated (chart container exists) before rendering
       nextTick(() => {
         try {
-          renderChart(chartResource.data)
+          renderChart(data)
         } catch (e) {
           console.error('Error rendering chart after nextTick:', e)
         }
@@ -718,7 +742,6 @@ const chartResource = createResource({
     }
   }
 })
-
 // Full monthly report resource (used to get cumulative values for current user)
 const reportResource = createResource({
   url: `/api/method/merabt_crm.portal_api.sales_target.get_month_wise_sales_report`,
@@ -923,13 +946,15 @@ const getDateRangeLabel = () => {
   }
 }
 
-// Render ECharts bar chart from payload (modern styling)
+
+// Replace the existing renderChart function with this updated version
 const renderChart = (payload) => {
   if (!chartRef.value) return
 
+  // Payload now has the full structure with data, months, monthly_deals, etc.
   const chartPayload = payload?.data || payload || {}
-  const labels = chartPayload.labels || (chartPayload.data && chartPayload.data.labels) || []
-  const datasets = chartPayload.datasets || (chartPayload.data && chartPayload.data.datasets) || []
+  const labels = chartPayload.labels || (payload?.data?.labels) || []
+  const datasets = chartPayload.datasets || (payload?.data?.datasets) || []
 
   const colors = ['#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EF4444']
 
@@ -989,6 +1014,65 @@ const renderChart = (payload) => {
   if (!chartInstance) {
     try {
       chartInstance = echarts.init(chartRef.value, 'light', { renderer: 'canvas' })
+      
+      // 🔴 CHART CLICK HANDLER - SINGLE HANDLER (only one!)
+      chartInstance.on('click', function(params) {
+        const monthLabel = params.name || params.axisValue || ''
+        
+        console.log('🔍 Clicked on:', monthLabel)
+        
+        if (!monthLabel) {
+          console.log('❌ No month label found')
+          return
+        }
+        
+        // 🔴 Use fullChartData which now has the months data
+        const chartData = fullChartData.value || {}
+        console.log('🔴 fullChartData for click:', chartData)
+        console.log('🔴 months in fullChartData:', chartData.months)
+        
+        const months = chartData.months || []
+        
+        // Find the month data
+        const monthData = months.find(m => m.label === monthLabel)
+        
+        if (!monthData) {
+          console.log(`❌ No data found for ${monthLabel}`)
+          return
+        }
+        
+        const dealCount = monthData.deal_count || 0
+        const dealIds = monthData.deal_ids || []
+        
+        console.log(`📊 Deal count: ${dealCount}, Deal IDs:`, dealIds)
+        
+        // Only redirect if there are deals
+        if (dealCount <= 0 || dealIds.length === 0) {
+          console.log(`❌ No deals found for ${monthLabel}`)
+          return
+        }
+        
+        console.log(`✅ Redirecting to deals for ${monthLabel} with ${dealCount} deals:`, dealIds)
+        
+        // 🔴 FILTER: ONLY ID IN (deal_ids) - No date, no owner filter
+        const filters = [{
+          fieldname: 'name',
+          condition: 'in',
+          value: dealIds
+        }]
+        
+        const filtersString = JSON.stringify(filters)
+        console.log('✅ Final filters (ID IN only):', filtersString)
+        
+        // Redirect to Deals page
+        router.push({
+          name: 'Deals',
+          query: {
+            filters: filtersString
+          }
+        })
+      })
+      
     } catch (e) {
       console.error('ECharts init error', e)
       return
@@ -996,8 +1080,9 @@ const renderChart = (payload) => {
   }
 
   chartInstance.setOption(option)
+  // 🔴 REMOVE THIS DUPLICATE CLICK HANDLER - IT'S CAUSING THE ISSUE!
+  // The duplicate handler at the end of this function is overriding the one above
 }
-
 // Render chart for all sales persons (Target vs Achieved) - modernized
 const renderAllSalesChart = (payload) => {
   if (!allSalesChartRef.value) return

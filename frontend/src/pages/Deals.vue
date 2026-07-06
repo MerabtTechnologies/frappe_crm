@@ -682,9 +682,21 @@ const applyFiltersFromURL = () => {
               filterObj[filter.fieldname] = ['like', `%${filter.value}%`]
             } else if (filter.condition === 'Not in') {
               filterObj[filter.fieldname] = ['not in', filter.value]
-            }else if (filter.condition === 'In') {
-              filterObj[filter.fieldname] = ['in', filter.value]
+            // }else if (filter.condition === 'In') {
+            //   filterObj[filter.fieldname] = ['in', filter.value]
             } 
+            else if (filter.condition === 'In' || filter.condition === 'in') {
+              // 🔴 FIX: For 'in' operator, Frappe expects ['in', [value1, value2]]
+              // But if there's only one value, it should still work with an array
+              if (Array.isArray(filter.value) && filter.value.length === 1) {
+                // For single value, use '=' operator instead
+                filterObj[filter.fieldname] = filter.value[0]
+              } else if (Array.isArray(filter.value) && filter.value.length > 1) {
+                filterObj[filter.fieldname] = ['in', filter.value]
+              } else {
+                filterObj[filter.fieldname] = filter.value
+              }
+            }
             else if (filter.condition === '!=') {  // ✅ ADD THIS HANDLER
               filterObj[filter.fieldname] = ['!=', filter.value]
             }
