@@ -6,12 +6,13 @@ export const defaultCallingMedium = ref('')
 export const callEnabled = ref(false)
 
 createResource({
-  url: 'crm.integrations.api.is_call_integration_enabled',
+  url: '/api/method/crm.integrations.api.is_call_integration_enabled',
   cache: 'Is Call Integration Enabled',
   auto: true,
-  onSuccess: (data) => {
-    integrations.value = data.integrations || {}
-    defaultCallingMedium.value = data.default_calling_medium
+  onSuccess: ({message}) => {
+    const payload = (message && message.integrations) ? message : (message || {})
+    integrations.value = payload.integrations || {}
+    defaultCallingMedium.value = payload.default_calling_medium || ''
     callEnabled.value = Object.values(integrations.value).some(Boolean)
   },
 })

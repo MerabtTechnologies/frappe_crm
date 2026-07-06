@@ -75,7 +75,7 @@ import { usersStore } from '@/stores/users'
 
 
 const _merabtSettingsResource = createResource({
-  url: 'merabt_crm.portal_api.api.get_merabt_settings',
+  url: '/api/method/merabt_crm.portal_api.api.get_merabt_settings',
   cache: 'Merabt Settings',
   auto: true,
 })
