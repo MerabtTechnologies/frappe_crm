@@ -1172,12 +1172,49 @@ const renderAllSalesChart = (payload) => {
         }
       }
     })
+
+      // 🔴 ADD DEAL COUNT SERIES
+    const dealCounts = sales.map(s => {
+      // Try to get from totals first
+      if (s.totals && s.totals.deal_count !== undefined) {
+        return Number(s.totals.deal_count) || 0
+      }
+      // Fallback to deal_counts array
+      if (Array.isArray(s.deal_counts) && s.deal_counts.length > 0) {
+        // If multiple months, sum them up (or use the first one)
+        return s.deal_counts.reduce((a, b) => a + (Number(b) || 0), 0)
+      }
+      return 0
+    })
+    
+    series.push({
+      name: 'Deal Count',
+      type: 'bar',
+      data: dealCounts,
+      itemStyle: {
+        borderRadius: 6,
+        color: '#F59E0B' // Amber/yellow color
+      },
+      emphasis: { focus: 'series' }
+    })
   } else {
     const targetValues = sales.map(s => (s.totals && s.totals.target_amount) || (Array.isArray(s.target_values) ? s.target_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
     const achievedValues = sales.map(s => (s.totals && s.totals.achieved_amount) || (Array.isArray(s.achieved_values) ? s.achieved_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
+    // 🔴 ADD DEAL COUNT SERIES
+    const dealCounts = sales.map(s => {
+      if (s.totals && s.totals.deal_count !== undefined) {
+        return Number(s.totals.deal_count) || 0
+      }
+      if (Array.isArray(s.deal_counts) && s.deal_counts.length > 0) {
+        return s.deal_counts.reduce((a, b) => a + (Number(b) || 0), 0)
+      }
+      return 0
+    })
     series = [
       { name: 'Target', type: 'bar', data: targetValues, itemStyle: { borderRadius: 6, color: '#6366F1' } },
-      { name: 'Achieved', type: 'bar', data: achievedValues, itemStyle: { borderRadius: 6, color: '#10B981' } }
+      { name: 'Achieved', type: 'bar', data: achievedValues, itemStyle: { borderRadius: 6, color: '#10B981' } },
+      { name: 'Deal Count', type: 'bar', data: dealCounts, itemStyle: { borderRadius: 6, color: '#F59E0B' } } // ✅ ADD THIS
+    
     ]
   }
 
