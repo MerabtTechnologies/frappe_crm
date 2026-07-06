@@ -690,8 +690,7 @@ const chartResource = createResource({
   transform: (data) => {
     // 🔴 FIX: Return the FULL message, not just data.data
     if (data.message) {
-      console.log('✅ Full message from API:', data.message)
-      console.log('✅ Months in full message:', data.message.months)
+      
       // Return the entire message object
       return data.message
     }
@@ -718,12 +717,6 @@ const chartResource = createResource({
       // Store the full data
       const data = chartResource.data
       fullChartData.value = data
-      
-      console.log('✅ Full chart data stored:', fullChartData.value)
-      console.log('✅ All keys in stored data:', Object.keys(fullChartData.value || {}))
-      console.log('✅ Months with deal_ids:', fullChartData.value?.months)
-      console.log('✅ First month:', fullChartData.value?.months?.[0])
-      
       dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
@@ -818,7 +811,6 @@ const allSalesChartResource = createResource({
       
       // 🔴 NEW: Store the sales persons data for click handler
       allSalesChartData.value = data.sales_persons || []
-      console.log('✅ All sales chart data stored:', allSalesChartData.value)
       dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
@@ -1025,41 +1017,30 @@ const renderChart = (payload) => {
       chartInstance.on('click', function(params) {
         const monthLabel = params.name || params.axisValue || ''
         
-        console.log('🔍 Clicked on:', monthLabel)
-        
         if (!monthLabel) {
-          console.log('❌ No month label found')
           return
         }
         
         // 🔴 Use fullChartData which now has the months data
         const chartData = fullChartData.value || {}
-        console.log('🔴 fullChartData for click:', chartData)
-        console.log('🔴 months in fullChartData:', chartData.months)
-        
         const months = chartData.months || []
         
         // Find the month data
         const monthData = months.find(m => m.label === monthLabel)
         
         if (!monthData) {
-          console.log(`❌ No data found for ${monthLabel}`)
           return
         }
         
         const dealCount = monthData.deal_count || 0
         const dealIds = monthData.deal_ids || []
         
-        console.log(`📊 Deal count: ${dealCount}, Deal IDs:`, dealIds)
-        
         // Only redirect if there are deals
         if (dealCount <= 0 || dealIds.length === 0) {
-          console.log(`❌ No deals found for ${monthLabel}`)
+          
           return
         }
-        
-        console.log(`✅ Redirecting to deals for ${monthLabel} with ${dealCount} deals:`, dealIds)
-        
+                
         // 🔴 FILTER: ONLY ID IN (deal_ids) - No date, no owner filter
         const filters = [{
           fieldname: 'name',
@@ -1067,9 +1048,7 @@ const renderChart = (payload) => {
           value: dealIds
         }]
         
-        const filtersString = JSON.stringify(filters)
-        console.log('✅ Final filters (ID IN only):', filtersString)
-        
+        const filtersString = JSON.stringify(filters)        
         // Redirect to Deals page
         router.push({
           name: 'Deals',
@@ -1270,21 +1249,17 @@ const renderAllSalesChart = (payload) => {
         const salesPersonLabel = params.name || params.axisValue || ''
         
         if (!salesPersonLabel) {
-          console.log('No sales person label found')
           return
         }
         
         // Get the sales data from stored data
-        const salesData = allSalesChartData.value || []
-        console.log('🔍 Salesperson clicked:', salesPersonLabel)
-        
+        const salesData = allSalesChartData.value || []        
         // Find the sales person data by label
         const salesPersonData = salesData.find(s => 
           (s.sales_person_name || s.sales_person) === salesPersonLabel
         )
         
         if (!salesPersonData) {
-          console.log(`❌ No data found for ${salesPersonLabel}`)
           return
         }
         
@@ -1318,11 +1293,8 @@ const renderAllSalesChart = (payload) => {
           })
           dealIds = Array.from(allDeals)
         }
-        
-        console.log(`📊 Deal IDs for ${salesPersonLabel}:`, dealIds)
-        
+                
         if (dealIds.length === 0) {
-          console.log(`❌ No deals found for ${salesPersonLabel}`)
           return
         }
         
@@ -1344,9 +1316,7 @@ const renderAllSalesChart = (payload) => {
         //   }
         // }
         
-        const filtersString = JSON.stringify(filters)
-        console.log('✅ Redirecting with filters:', filtersString)
-        
+        const filtersString = JSON.stringify(filters)        
         // Redirect to Deals page
         router.push({
           name: 'Deals',
@@ -1405,12 +1375,14 @@ const dailyPaymentsResource = createResource({
   }
 })
 
+
 const renderDailyPaymentsChart = (payload) => {
   if (!dailyPaymentsChartRef.value) return
   const data = payload?.data || payload || {}
   const labels = data.labels || []
   const datasets = data.datasets || []
 
+  // 🔴 NEW: Store the daily payments data for click handler
   const palette = ['#60A5FA', '#34D399', '#F59E0B', '#EF4444', '#A78BFA', '#F472B6']
   const series = []
   datasets.forEach((d, idx) => {
@@ -1423,8 +1395,6 @@ const renderDailyPaymentsChart = (payload) => {
       barGap: 0,
       itemStyle: { borderRadius: 6, color }
     })
-
-    // (Daily target line intentionally removed — targets remain available in number cards)
   })
 
   const option = {
@@ -1448,7 +1418,7 @@ const renderDailyPaymentsChart = (payload) => {
     grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
     xAxis: { type: 'category', data: labels, axisLine: { lineStyle: { color: '#E6E9EE' } }, axisLabel: { color: '#334155', rotate: 0 } },
     yAxis: { type: 'value', axisLine: { lineStyle: { color: '#E6E9EE' } }, splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#475569' } },
-    series
+    series: series
   }
 
   const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && series.some(s => Array.isArray(s.data) && s.data.some(v => Number(v) !== 0))
@@ -1467,13 +1437,75 @@ const renderDailyPaymentsChart = (payload) => {
   if (!dailyPaymentsChartInstance) {
     try {
       dailyPaymentsChartInstance = echarts.init(dailyPaymentsChartRef.value, 'light', { renderer: 'canvas' })
+      
+      // 🔴 NEW: CLICK HANDLER FOR DAILY PAYMENTS CHART
+      dailyPaymentsChartInstance.on('click', function(params) {
+        const dayLabel = params.name || params.axisValue || ''
+        
+        if (!dayLabel) {
+          
+          return
+        }
+             
+        // Get the daily payments data
+        const chartData = dailyPaymentsResource.data || {}
+        const datasets = chartData.datasets || []
+        
+        // Find the index of the clicked day
+        const labels = chartData.labels || []
+        const dayIndex = labels.indexOf(dayLabel)
+        
+        if (dayIndex === -1) {
+          return
+        }
+        
+        // Get deal IDs for this day
+        let dealIds = []
+        
+        // Try to get from datasets (deal_ids should be in the dataset)
+        datasets.forEach(dataset => {
+          if (dataset.deal_ids && Array.isArray(dataset.deal_ids)) {
+            const dayDealIds = dataset.deal_ids[dayIndex]
+            if (Array.isArray(dayDealIds) && dayDealIds.length > 0) {
+              dayDealIds.forEach(id => {
+                if (!dealIds.includes(id)) {
+                  dealIds.push(id)
+                }
+              })
+            }
+          }
+        })
+        
+        if (dealIds.length === 0) {
+          return
+        }
+        
+        // 🔴 FILTER: ONLY ID IN (deal_ids) - No date, no owner filter
+        const filters = [{
+          fieldname: 'name',
+          condition: 'in',
+          value: dealIds
+        }]
+        
+        const filtersString = JSON.stringify(filters)
+        // Redirect to Deals page
+        router.push({
+          name: 'Deals',
+          query: {
+            filters: filtersString
+          }
+        })
+      })
+      
     } catch (e) {
       console.error('ECharts init error for daily payments chart', e)
       return
     }
   }
+  
   dailyPaymentsChartInstance.setOption(option)
 }
+
 
 // Apply filters
 const applyFilters = () => {
