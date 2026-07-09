@@ -47,8 +47,8 @@
 
     <!-- Email template list -->
     <div
-      class="flex flex-col overflow-hidden"
       v-if="!templates.loading && templates.data?.length"
+      class="flex flex-col overflow-hidden"
     >
       <div
         v-if="templates.data?.length > 10"
@@ -66,8 +66,8 @@
           </template>
         </TextInput>
         <FormControl
-          type="select"
           v-model="currentDoctype"
+          type="select"
           :options="[
             { label: __('All'), value: 'All' },
             { label: __('Lead'), value: 'CRM Lead' },
@@ -100,9 +100,11 @@
             </div>
             <div class="flex items-center justify-between w-1/6">
               <Switch
-                size="sm"
                 v-model="template.enabled"
-                @update:model-value="toggleEmailTemplate(template)"
+                size="sm"
+                @update:model-value="
+                  (val) => toggleEmailTemplate(template, val)
+                "
                 @click.stop
               />
               <Dropdown
@@ -133,10 +135,10 @@
         >
           <Button
             class="mt-3.5 p-2"
-            @click="() => templates.next()"
             :loading="templates.loading"
             :label="__('Load More')"
             icon-left="refresh-cw"
+            @click="() => templates.next()"
           />
         </div>
       </ul>
@@ -146,6 +148,7 @@
 <script setup>
 import EmailTemplateIcon from '@/components/Icons/EmailTemplateIcon.vue'
 import EmptyState from '../../ListViews/EmptyState.vue'
+import { useBroadcast } from '@/composables/useBroadcast'
 import {
   TextInput,
   FormControl,
@@ -155,8 +158,11 @@ import {
   toast,
 } from 'frappe-ui'
 import { ref, computed, inject } from 'vue'
+import { ConfirmDelete } from '../../../utils'
 
 const emit = defineEmits(['updateStep'])
+
+const { send } = useBroadcast()
 
 const templates = inject('templates')
 
@@ -181,24 +187,25 @@ const templatesList = computed(() => {
   return list
 })
 
-function toggleEmailTemplate(template) {
+function toggleEmailTemplate(template, enabledVal) {
   templates.setValue.submit(
     {
       name: template.name,
-      enabled: template.enabled ? 1 : 0,
+      enabled: enabledVal ? 1 : 0,
     },
     {
       onSuccess: () => {
         toast.success(
-          template.enabled
+          enabledVal
             ? __('Template enabled successfully')
             : __('Template disabled successfully'),
         )
+        send('refresh-email-templates')
       },
       onError: (error) => {
         toast.error(error.messages[0] || __('Failed to update template'))
         // Revert the change if there was an error
-        template.enabled = !template.enabled
+        template.enabled = !enabledVal
       },
     },
   )
@@ -223,23 +230,10 @@ function getDropdownOptions(template) {
       icon: 'copy',
       onClick: () => emit('updateStep', 'new-template', { ...template }),
     },
-    {
-      label: __('Delete'),
-      icon: 'trash-2',
-      onClick: (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        confirmDelete.value = true
-      },
-      condition: () => !confirmDelete.value,
-    },
-    {
-      label: __('Confirm Delete'),
-      icon: 'trash-2',
-      theme: 'red',
-      onClick: () => deleteTemplate(template),
-      condition: () => confirmDelete.value,
-    },
+    ...ConfirmDelete({
+      onConfirmDelete: () => deleteTemplate(template),
+      isConfirmingDelete: confirmDelete,
+    }),
   ]
 
   return options

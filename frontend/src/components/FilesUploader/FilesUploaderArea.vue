@@ -13,11 +13,11 @@
   </div>
   <div v-else>
     <div
+      v-show="files.length === 0"
       class="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-outline-gray-modals min-h-64 text-ink-gray-5"
       @dragover.prevent="dragover"
       @dragleave.prevent="dragleave"
       @drop.prevent="dropfiles"
-      v-show="files.length === 0"
     >
       <div v-if="!isDragging" class="flex flex-col gap-3">
         <div class="text-center text-ink-gray-5">
@@ -27,12 +27,12 @@
           class="grid grid-flow-col justify-center gap-4 text-center text-base"
         >
           <input
+            ref="fileInput"
             type="file"
             class="hidden"
-            ref="fileInput"
-            @change="onFileInput"
             :multiple="allowMultiple"
             :accept="(restrictions.allowedFileTypes || []).join(', ')"
+            @change="onFileInput"
           />
           <div>
             <Button icon="monitor" size="md" @click="browseFiles" />
@@ -73,7 +73,7 @@
               :src="file.src"
               :alt="file.name"
             />
-            <component v-else class="size-4" :is="fileIcon(file.type)" />
+            <component :is="fileIcon(file.type)" v-else class="size-4" />
           </div>
           <div class="flex flex-col gap-1 text-sm text-ink-gray-5 truncate">
             <div class="text-base text-ink-gray-8 truncate">
@@ -89,8 +89,8 @@
               :label="__('Private')"
             />
             <ErrorMessage
-              class="mt-2"
               v-if="file.errorMessage"
+              class="mt-2"
               :message="file.errorMessage"
             />
           </div>
@@ -136,17 +136,11 @@ import {
 import { ref, onMounted, watch, onUnmounted } from 'vue'
 
 const props = defineProps({
-  doctype: {
-    type: String,
-    required: true,
-  },
-  options: {
-    type: Object,
-    default: () => ({}),
-  },
+  doctype: { type: String, required: true },
+  options: { type: Object, default: () => ({}) },
 })
 
-const files = defineModel()
+const files = defineModel({ type: Array, default: () => [] })
 
 const fileInput = ref(null)
 const isDragging = ref(false)
@@ -173,12 +167,14 @@ onMounted(() => {
     cache: ['file_uploader_defaults', props.doctype],
     auto: true,
     transform: (data) => {
+      const propRestrictions = props.options.restrictions || {}
       restrictions.value = {
         allowedFileTypes: data.allowed_file_types
           ? data.allowed_file_types.split('\n').map((ext) => `.${ext}`)
           : [],
         maxFileSize: data.max_file_size,
         maxNumberOfFiles: data.max_number_of_files,
+        ...propRestrictions,
       }
       makeAttachmentsPublic.value = Boolean(data.make_attachments_public)
     },
@@ -200,8 +196,9 @@ function browseFiles() {
   fileInput.value.click()
 }
 
-function onFileInput(event) {
+function onFileInput() {
   addFiles(fileInput.value.files)
+  fileInput.value.value = ''
 }
 
 const video = ref(null)

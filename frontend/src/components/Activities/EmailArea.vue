@@ -24,11 +24,7 @@
           variant="subtle"
           :theme="status.color"
         />
-        <Tooltip :text="formatDate(activity.communication_date)">
-          <div class="text-sm text-ink-gray-5">
-            {{ __(timeAgo(activity.communication_date)) }}
-          </div>
-        </Tooltip>
+        <TimelineTimestamp :date="activity.communication_date" />
         <div class="flex gap-0.5">
           <Button
             :tooltip="__('Reply')"
@@ -81,20 +77,23 @@ import ReplyIcon from '@/components/Icons/ReplyIcon.vue'
 import ReplyAllIcon from '@/components/Icons/ReplyAllIcon.vue'
 import AttachmentItem from '@/components/AttachmentItem.vue'
 import EmailContent from '@/components/Activities/EmailContent.vue'
-import { Badge, Tooltip } from 'frappe-ui'
-import { timeAgo, formatDate } from '@/utils'
-import { computed } from 'vue'
+import { Badge } from 'frappe-ui'
+import TimelineTimestamp from '@/components/Activities/TimelineTimestamp.vue'
+import { reactive, computed } from 'vue'
 
 const props = defineProps({
-  activity: Object,
-  emailBox: Object,
+  activity: { type: Object, default: () => ({}) },
+  emailBox: { type: Object, default: () => ({}) },
 })
 
+const emailBox = reactive(props.emailBox)
+
 function reply(email, reply_all = false) {
-  props.emailBox.show = true
-  let editor = props.emailBox.editor
+  emailBox.show = true
+  let editor = emailBox.editor
   let message = email.content
   let recipients = email.recipients.split(',').map((r) => r.trim())
+  editor.fromEmail = email.sender
   editor.toEmails = [email.sender]
   editor.cc = editor.bcc = false
   editor.ccEmails = []
