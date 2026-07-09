@@ -665,7 +665,7 @@ import * as echarts from 'echarts'
 import { createResource } from 'frappe-ui'
 import { usersStore } from '../stores/users'
 import { useRouter } from 'vue-router'
-
+const fullChartData = ref(null)
 const API_ENDPOINT = 'merabt_crm.merabt_crm.override.custom_chart.get_deal_performance_cards'
 
 const { users, getUser, isManager, crmUsers } = usersStore()
@@ -688,8 +688,24 @@ const chartResource = createResource({
     'Accept': 'application/json'
   },
   transform: (data) => {
-    if (data.message) return data.message
-    if (data.data) return data.data
+    // 🔴 FIX: Return the FULL message, not just data.data
+    if (data.message) {
+      
+      // Return the entire message object
+      return data.message
+    }
+    if (data.data) {
+      // If data.data has months, return it, otherwise check if data has months
+      if (data.data.months) {
+        return data.data
+      }
+      // If data has months at the top level, return data
+      if (data.months) {
+        return data
+      }
+      // Otherwise return data.data as fallback
+      return data.data
+    }
     return data
   },
   auto: false,
@@ -698,17 +714,18 @@ const chartResource = createResource({
   },
   onSuccess: () => {
     try {
-      // Update the displayed data time when chart data arrives
+      // Store the full data
+      const data = chartResource.data
+      fullChartData.value = data
       dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
       })
 
-      // Ensure the DOM is updated (chart container exists) before rendering
       nextTick(() => {
         try {
-          renderChart(chartResource.data)
+          renderChart(data)
         } catch (e) {
           console.error('Error rendering chart after nextTick:', e)
         }
@@ -718,7 +735,6 @@ const chartResource = createResource({
     }
   }
 })
-
 // Full monthly report resource (used to get cumulative values for current user)
 const reportResource = createResource({
   url: `/api/method/merabt_crm.portal_api.sales_target.get_month_wise_sales_report`,
@@ -771,7 +787,8 @@ const monthOptions = [
   { value: '11', label: 'Nov' },
   { value: '12', label: 'Dec' },
 ]
-
+// 🔴 NEW: Store salesperson data for click handler
+const allSalesChartData = ref([])
 const allSalesChartResource = createResource({
   url: `/api/method/merabt_crm.portal_api.sales_target.get_all_sales_persons_month_wise_chart`,
   method: 'POST',
@@ -790,6 +807,10 @@ const allSalesChartResource = createResource({
   },
   onSuccess: () => {
     try {
+      const data = allSalesChartResource.data
+      
+      // 🔴 NEW: Store the sales persons data for click handler
+      allSalesChartData.value = data.sales_persons || []
       dataUpdatedTime.value = new Date().toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
@@ -923,13 +944,15 @@ const getDateRangeLabel = () => {
   }
 }
 
-// Render ECharts bar chart from payload (modern styling)
+
+// Replace the existing renderChart function with this updated version
 const renderChart = (payload) => {
   if (!chartRef.value) return
 
+  // Payload now has the full structure with data, months, monthly_deals, etc.
   const chartPayload = payload?.data || payload || {}
-  const labels = chartPayload.labels || (chartPayload.data && chartPayload.data.labels) || []
-  const datasets = chartPayload.datasets || (chartPayload.data && chartPayload.data.datasets) || []
+  const labels = chartPayload.labels || (payload?.data?.labels) || []
+  const datasets = chartPayload.datasets || (payload?.data?.datasets) || []
 
   const colors = ['#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EF4444']
 
@@ -989,6 +1012,52 @@ const renderChart = (payload) => {
   if (!chartInstance) {
     try {
       chartInstance = echarts.init(chartRef.value, 'light', { renderer: 'canvas' })
+      
+      // 🔴 CHART CLICK HANDLER - SINGLE HANDLER (only one!)
+      chartInstance.on('click', function(params) {
+        const monthLabel = params.name || params.axisValue || ''
+        
+        if (!monthLabel) {
+          return
+        }
+        
+        // 🔴 Use fullChartData which now has the months data
+        const chartData = fullChartData.value || {}
+        const months = chartData.months || []
+        
+        // Find the month data
+        const monthData = months.find(m => m.label === monthLabel)
+        
+        if (!monthData) {
+          return
+        }
+        
+        const dealCount = monthData.deal_count || 0
+        const dealIds = monthData.deal_ids || []
+        
+        // Only redirect if there are deals
+        if (dealCount <= 0 || dealIds.length === 0) {
+          
+          return
+        }
+                
+        // 🔴 FILTER: ONLY ID IN (deal_ids) - No date, no owner filter
+        const filters = [{
+          fieldname: 'name',
+          condition: 'in',
+          value: dealIds
+        }]
+        
+        const filtersString = JSON.stringify(filters)        
+        // Redirect to Deals page
+        router.push({
+          name: 'Deals',
+          query: {
+            filters: filtersString
+          }
+        })
+      })
+      
     } catch (e) {
       console.error('ECharts init error', e)
       return
@@ -996,15 +1065,20 @@ const renderChart = (payload) => {
   }
 
   chartInstance.setOption(option)
+  // 🔴 REMOVE THIS DUPLICATE CLICK HANDLER - IT'S CAUSING THE ISSUE!
+  // The duplicate handler at the end of this function is overriding the one above
 }
 
-// Render chart for all sales persons (Target vs Achieved) - modernized
+// Render chart for all sales persons (Target vs Achieved) - with click handler
 const renderAllSalesChart = (payload) => {
   if (!allSalesChartRef.value) return
 
   const data = payload?.data || payload || {}
   const sales = Array.isArray(data.sales_persons) ? data.sales_persons : []
   const labels = sales.map(s => s.sales_person_name || s.sales_person)
+
+  // 🔴 Store the sales data for click handler
+  allSalesChartData.value = sales
 
   const hasItemGroups = sales.some(s => Array.isArray(s.item_groups) && s.item_groups.length > 0)
   let series = []
@@ -1045,7 +1119,7 @@ const renderAllSalesChart = (payload) => {
       series.push({ name: group === 'Unassigned' ? 'Unassigned' : group, type: 'bar', stack: 'Achieved', data: values, itemStyle: { borderRadius: 6, color } })
     })
 
-    // Create a safe gradient for the target area; some builds may not expose echarts.graphic
+    // Create a safe gradient for the target area
     let targetAreaGradient = 'rgba(15,23,42,0.08)'
     try {
       if (echarts && echarts.graphic && typeof echarts.graphic.LinearGradient === 'function') {
@@ -1087,12 +1161,47 @@ const renderAllSalesChart = (payload) => {
         }
       }
     })
+    
+    // Deal Count series
+    const dealCounts = sales.map(s => {
+      if (s.totals && s.totals.deal_count !== undefined) {
+        return Number(s.totals.deal_count) || 0
+      }
+      if (Array.isArray(s.deal_counts) && s.deal_counts.length > 0) {
+        return s.deal_counts.reduce((a, b) => a + (Number(b) || 0), 0)
+      }
+      return 0
+    })
+    
+    series.push({
+      name: 'Deal Count',
+      type: 'bar',
+      data: dealCounts,
+      itemStyle: {
+        borderRadius: 6,
+        color: '#F59E0B'
+      },
+      emphasis: { focus: 'series' }
+    })
+    
   } else {
     const targetValues = sales.map(s => (s.totals && s.totals.target_amount) || (Array.isArray(s.target_values) ? s.target_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
     const achievedValues = sales.map(s => (s.totals && s.totals.achieved_amount) || (Array.isArray(s.achieved_values) ? s.achieved_values.reduce((a,b)=>a + (Number(b)||0),0) : 0))
+    
+    const dealCounts = sales.map(s => {
+      if (s.totals && s.totals.deal_count !== undefined) {
+        return Number(s.totals.deal_count) || 0
+      }
+      if (Array.isArray(s.deal_counts) && s.deal_counts.length > 0) {
+        return s.deal_counts.reduce((a, b) => a + (Number(b) || 0), 0)
+      }
+      return 0
+    })
+    
     series = [
       { name: 'Target', type: 'bar', data: targetValues, itemStyle: { borderRadius: 6, color: '#6366F1' } },
-      { name: 'Achieved', type: 'bar', data: achievedValues, itemStyle: { borderRadius: 6, color: '#10B981' } }
+      { name: 'Achieved', type: 'bar', data: achievedValues, itemStyle: { borderRadius: 6, color: '#10B981' } },
+      { name: 'Deal Count', type: 'bar', data: dealCounts, itemStyle: { borderRadius: 6, color: '#F59E0B' } }
     ]
   }
 
@@ -1134,6 +1243,89 @@ const renderAllSalesChart = (payload) => {
   if (!allSalesChartInstance) {
     try {
       allSalesChartInstance = echarts.init(allSalesChartRef.value, 'light', { renderer: 'canvas' })
+      
+      // 🔴 CLICK HANDLER FOR SALESPERSON COMPARISON CHART
+      allSalesChartInstance.on('click', function(params) {
+        const salesPersonLabel = params.name || params.axisValue || ''
+        
+        if (!salesPersonLabel) {
+          return
+        }
+        
+        // Get the sales data from stored data
+        const salesData = allSalesChartData.value || []        
+        // Find the sales person data by label
+        const salesPersonData = salesData.find(s => 
+          (s.sales_person_name || s.sales_person) === salesPersonLabel
+        )
+        
+        if (!salesPersonData) {
+          return
+        }
+        
+        // Get deal IDs from the sales person data
+        let dealIds = []
+        
+        // Try to get from totals first
+        if (salesPersonData.totals && salesPersonData.totals.deal_ids) {
+          dealIds = salesPersonData.totals.deal_ids
+        }
+        // If not in totals, try to get from deal_ids array
+        else if (Array.isArray(salesPersonData.deal_ids) && salesPersonData.deal_ids.length > 0) {
+          // If multiple months, combine all deal IDs
+          const allDeals = new Set()
+          salesPersonData.deal_ids.forEach(monthDeals => {
+            if (Array.isArray(monthDeals)) {
+              monthDeals.forEach(id => allDeals.add(id))
+            }
+          })
+          dealIds = Array.from(allDeals)
+        }
+        // If still no deal IDs, try to get from item_groups
+        else if (Array.isArray(salesPersonData.item_groups)) {
+          const allDeals = new Set()
+          salesPersonData.item_groups.forEach(group => {
+            if (group.totals && group.totals.deal_ids) {
+              if (Array.isArray(group.totals.deal_ids)) {
+                group.totals.deal_ids.forEach(id => allDeals.add(id))
+              }
+            }
+          })
+          dealIds = Array.from(allDeals)
+        }
+                
+        if (dealIds.length === 0) {
+          return
+        }
+        
+        // Create filter with deal IDs
+        const filters = [{
+          fieldname: 'name',
+          condition: 'in',
+          value: dealIds
+        }]
+        
+        // Add user filter if a specific user is selected
+        // if (selectedUser.value) {
+        //   if (!isManager() || selectedUser.value) {
+        //     filters.push({
+        //       fieldname: 'deal_owner',
+        //       condition: 'equals',
+        //       value: selectedUser.value
+        //     })
+        //   }
+        // }
+        
+        const filtersString = JSON.stringify(filters)        
+        // Redirect to Deals page
+        router.push({
+          name: 'Deals',
+          query: {
+            filters: filtersString
+          }
+        })
+      })
+      
     } catch (e) {
       console.error('ECharts init error for all sales chart', e)
       return
@@ -1183,12 +1375,14 @@ const dailyPaymentsResource = createResource({
   }
 })
 
+
 const renderDailyPaymentsChart = (payload) => {
   if (!dailyPaymentsChartRef.value) return
   const data = payload?.data || payload || {}
   const labels = data.labels || []
   const datasets = data.datasets || []
 
+  // 🔴 NEW: Store the daily payments data for click handler
   const palette = ['#60A5FA', '#34D399', '#F59E0B', '#EF4444', '#A78BFA', '#F472B6']
   const series = []
   datasets.forEach((d, idx) => {
@@ -1201,8 +1395,6 @@ const renderDailyPaymentsChart = (payload) => {
       barGap: 0,
       itemStyle: { borderRadius: 6, color }
     })
-
-    // (Daily target line intentionally removed — targets remain available in number cards)
   })
 
   const option = {
@@ -1226,7 +1418,7 @@ const renderDailyPaymentsChart = (payload) => {
     grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
     xAxis: { type: 'category', data: labels, axisLine: { lineStyle: { color: '#E6E9EE' } }, axisLabel: { color: '#334155', rotate: 0 } },
     yAxis: { type: 'value', axisLine: { lineStyle: { color: '#E6E9EE' } }, splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#475569' } },
-    series
+    series: series
   }
 
   const hasMeaningfulData = Array.isArray(labels) && labels.length > 0 && series.some(s => Array.isArray(s.data) && s.data.some(v => Number(v) !== 0))
@@ -1245,13 +1437,75 @@ const renderDailyPaymentsChart = (payload) => {
   if (!dailyPaymentsChartInstance) {
     try {
       dailyPaymentsChartInstance = echarts.init(dailyPaymentsChartRef.value, 'light', { renderer: 'canvas' })
+      
+      // 🔴 NEW: CLICK HANDLER FOR DAILY PAYMENTS CHART
+      dailyPaymentsChartInstance.on('click', function(params) {
+        const dayLabel = params.name || params.axisValue || ''
+        
+        if (!dayLabel) {
+          
+          return
+        }
+             
+        // Get the daily payments data
+        const chartData = dailyPaymentsResource.data || {}
+        const datasets = chartData.datasets || []
+        
+        // Find the index of the clicked day
+        const labels = chartData.labels || []
+        const dayIndex = labels.indexOf(dayLabel)
+        
+        if (dayIndex === -1) {
+          return
+        }
+        
+        // Get deal IDs for this day
+        let dealIds = []
+        
+        // Try to get from datasets (deal_ids should be in the dataset)
+        datasets.forEach(dataset => {
+          if (dataset.deal_ids && Array.isArray(dataset.deal_ids)) {
+            const dayDealIds = dataset.deal_ids[dayIndex]
+            if (Array.isArray(dayDealIds) && dayDealIds.length > 0) {
+              dayDealIds.forEach(id => {
+                if (!dealIds.includes(id)) {
+                  dealIds.push(id)
+                }
+              })
+            }
+          }
+        })
+        
+        if (dealIds.length === 0) {
+          return
+        }
+        
+        // 🔴 FILTER: ONLY ID IN (deal_ids) - No date, no owner filter
+        const filters = [{
+          fieldname: 'name',
+          condition: 'in',
+          value: dealIds
+        }]
+        
+        const filtersString = JSON.stringify(filters)
+        // Redirect to Deals page
+        router.push({
+          name: 'Deals',
+          query: {
+            filters: filtersString
+          }
+        })
+      })
+      
     } catch (e) {
       console.error('ECharts init error for daily payments chart', e)
       return
     }
   }
+  
   dailyPaymentsChartInstance.setOption(option)
 }
+
 
 // Apply filters
 const applyFilters = () => {
