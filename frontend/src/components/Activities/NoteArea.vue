@@ -14,8 +14,8 @@
             onClick: () => deleteNote(note.name),
           },
         ]"
-        @click.stop
         class="h-6 w-6"
+        @click.stop
       >
         <Button
           icon="more-horizontal"
@@ -42,25 +42,24 @@
           {{ getUser(note.owner).full_name }}
         </div>
       </div>
-      <Tooltip :text="formatDate(note.modified)">
-        <div class="truncate text-sm text-ink-gray-7">
-          {{ __(timeAgo(note.modified)) }}
-        </div>
-      </Tooltip>
+      <TimelineTimestamp
+        :date="note.modified"
+        class-name="truncate text-sm text-ink-gray-7"
+      />
     </div>
   </div>
 </template>
 <script setup>
 import UserAvatar from '@/components/UserAvatar.vue'
-import { timeAgo, formatDate } from '@/utils'
-import { Tooltip, Dropdown, TextEditor, call, toast } from 'frappe-ui'
+import TimelineTimestamp from '@/components/Activities/TimelineTimestamp.vue'
+import { Dropdown, TextEditor, call, toast } from 'frappe-ui'
 import { usersStore } from '@/stores/users'
 
-const props = defineProps({
-  note: Object,
+defineProps({
+  note: { type: Object, default: () => ({}) },
 })
 
-const notes = defineModel()
+const notes = defineModel({ type: Object })
 
 const { getUser } = usersStore()
 

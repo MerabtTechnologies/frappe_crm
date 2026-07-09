@@ -29,6 +29,8 @@
     <EmailEditor
       ref="newEmailEditor"
       v-model:content="newEmail"
+      v-model="doc"
+      v-model:attachments="attachments"
       :submitButtonProps="{
         variant: 'solid',
         onClick: submitEmail,
@@ -48,8 +50,6 @@
         },
       }"
       :editable="showEmailBox"
-      v-model="doc"
-      v-model:attachments="attachments"
       :doctype="doctype"
       :subject="subject"
       :placeholder="
@@ -61,6 +61,8 @@
     <CommentBox
       ref="newCommentEditor"
       v-model:content="newComment"
+      v-model="doc"
+      v-model:attachments="attachments"
       :submitButtonProps="{
         variant: 'solid',
         onClick: submitComment,
@@ -74,8 +76,6 @@
         },
       }"
       :editable="showCommentBox"
-      v-model="doc"
-      v-model:attachments="attachments"
       :doctype="doctype"
       :placeholder="__('@John, can you please check this?')"
     />
@@ -94,14 +94,11 @@ import { call, createResource, toast } from 'frappe-ui'
 import { ref, watch, computed } from 'vue'
 
 const props = defineProps({
-  doctype: {
-    type: String,
-    default: 'CRM Lead',
-  },
+  doctype: { type: String, default: 'CRM Lead' },
 })
 
-const doc = defineModel()
-const reload = defineModel('reload')
+const doc = defineModel({ type: Object, default: () => ({}) })
+const reload = defineModel('reload', { type: Boolean })
 
 const emit = defineEmits(['scroll'])
 
@@ -194,6 +191,7 @@ const emailEmpty = computed(() => {
 })
 
 async function sendMail() {
+  let fromEmail = newEmailEditor.value.fromEmail || getUser().email
   let recipients = newEmailEditor.value.toEmails
   let subject = newEmailEditor.value.subject
   let cc = newEmailEditor.value.ccEmails || []
@@ -212,7 +210,7 @@ async function sendMail() {
     doctype: props.doctype,
     name: doc.value.name,
     send_email: 1,
-    sender: getUser().email,
+    sender: fromEmail,
     sender_full_name: getUser()?.full_name || undefined,
   })
 }
@@ -258,7 +256,7 @@ async function submitEmail() {
   showEmailBox.value = false
   await toast.promise(sendMail(), {
     loading: __('Sending email...'),
-    success: __('Email sent!'),
+    success: __('Email sent'),
     error: (e) => e?.messages?.[0] || __('Failed to send email!'),
   })
   newEmail.value = ''
@@ -274,7 +272,7 @@ async function submitComment() {
   showCommentBox.value = false
   await toast.promise(sendComment(), {
     loading: __('Sending comment...'),
-    success: __('Comment sent!'),
+    success: __('Comment sent'),
     error: (e) => e?.messages?.[0] || __('Failed to send comment!'),
   })
   newComment.value = ''

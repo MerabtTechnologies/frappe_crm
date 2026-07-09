@@ -1,51 +1,34 @@
 import { createResource } from 'frappe-ui'
 import { computed, ref } from 'vue'
+import {
+  callEnabled,
+  defaultCallingMedium,
+  useTelephony,
+} from '@/composables/telephony'
+import {
+  whatsappEnabled,
+  isWhatsappInstalled,
+} from '@/composables/whatsapp'
 
-export const whatsappEnabled = ref(false)
-export const isWhatsappInstalled = ref(false)
-createResource({
-  url: 'crm.api.whatsapp.is_whatsapp_enabled',
-  cache: 'Is Whatsapp Enabled',
-  auto: true,
-  onSuccess: (data) => {
-    whatsappEnabled.value = Boolean(data)
-  },
-})
-createResource({
-  url: 'crm.api.whatsapp.is_whatsapp_installed',
-  cache: 'Is Whatsapp Installed',
-  auto: true,
-  onSuccess: (data) => {
-    isWhatsappInstalled.value = Boolean(data)
-  },
-})
-
-export const callEnabled = ref(false)
-export const twilioEnabled = ref(false)
-export const exotelEnabled = ref(false)
-export const defaultCallingMedium = ref('')
-createResource({
-  url: 'crm.integrations.api.is_call_integration_enabled',
-  cache: 'Is Call Integration Enabled',
-  auto: true,
-  onSuccess: (data) => {
-    twilioEnabled.value = Boolean(data.twilio_enabled)
-    exotelEnabled.value = Boolean(data.exotel_enabled)
-    defaultCallingMedium.value = data.default_calling_medium
-    callEnabled.value = twilioEnabled.value || exotelEnabled.value
-  },
-})
+export {
+  callEnabled,
+  defaultCallingMedium,
+  isWhatsappInstalled,
+  useTelephony,
+  whatsappEnabled,
+}
 
 export const merabtCallEnabled = ref(false)
 export const merabtCallSettings = ref({})
 
 createResource({
-  url: 'merabt_crm.portal_api.voice_call.get_voice_call_settings',
+  url: '/api/method/merabt_crm.portal_api.voice_call.get_voice_call_settings',
   cache: 'Merabt Call Integration Enabled',
   auto: true,
-  onSuccess: (data) => {
-    merabtCallEnabled.value = Boolean(data.settings.enable_call == 1)
-    merabtCallSettings.value = data.settings || {}
+  onSuccess: ({message}) => {
+    const payload = (message && message.settings) ? message.settings : (message || {})
+    merabtCallEnabled.value = Boolean(payload.enable_call == 1)
+    merabtCallSettings.value = payload || {}
   },
 })
 
@@ -53,14 +36,18 @@ export const merabtNewLeadColour = ref(false)
 export const merabtSettings = ref({})
 
 createResource({
-  url: 'merabt_crm.portal_api.api.get_merabt_settings',
+  url: '/api/method/merabt_crm.portal_api.api.get_merabt_settings',
   cache: 'Merabt Settingss',
   auto: true,
-  onSuccess: (data) => {
-    merabtNewLeadColour.value = Boolean(data.settings.enable_new_lead_colour == 1)
-    merabtSettings.value = data.settings || {}
+  onSuccess: ({message}) => {
+    const payload = (message && message.settings) ? message.settings : (message || {})
+    merabtNewLeadColour.value = Boolean(
+      payload.enable_new_lead_colour == 1,
+    )
+    merabtSettings.value = payload || {}
   },
 })
+
 export const mobileSidebarOpened = ref(false)
 
 export const isMobileView = computed(() => window.innerWidth < 768)

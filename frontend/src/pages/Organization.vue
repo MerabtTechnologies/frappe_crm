@@ -22,8 +22,8 @@
     >
       <div class="border-b">
         <FileUploader
-          @success="changeOrganizationImage"
           :validateFile="validateIsImageFile"
+          @success="changeOrganizationImage"
         >
           <template #default="{ openFileSelector, error }">
             <div class="flex flex-col items-start justify-start gap-4 p-5">
@@ -117,17 +117,17 @@
       </div>
     </Resizer>
     <Tabs
-      as="div"
       v-model="tabIndex"
+      as="div"
       :tabs="tabs"
-      class="flex flex-1 overflow-hidden flex-col [&_[role='tablist']]:gap-7.5 [&_[role='tablist']]:px-5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
+      class="flex flex-1 overflow-hidden flex-col [&_[role='tablist']]:gap-7.5 [&_[role='tablist']]:px-5 [&_[role='tablist']::-webkit-scrollbar]:h-0 [&_[role='tablist']]:min-h-[45px] [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
       <template #tab-item="{ tab, selected }">
         <button
           class="group flex items-center gap-2 border-b border-transparent py-2.5 text-base text-ink-gray-5 duration-300 ease-in-out hover:text-ink-gray-9"
           :class="{ 'text-ink-gray-9': selected }"
         >
-          <component v-if="tab.icon" :is="tab.icon" class="h-5" />
+          <component :is="tab.icon" v-if="tab.icon" class="h-5" />
           {{ __(tab.label) }}
           <Badge
             class="group-hover:bg-surface-gray-7"
@@ -142,15 +142,15 @@
       </template>
       <template #tab-panel="{ tab }">
         <DealsListView
-          class="mt-4"
           v-if="tab.label === 'Deals' && rows.length"
+          class="mt-4"
           :rows="rows"
           :columns="columns"
           :options="{ selectable: false, showTooltip: false }"
         />
         <ContactsListView
-          class="mt-4"
           v-if="tab.label === 'Contacts' && rows.length"
+          class="mt-4"
           :rows="rows"
           :columns="columns"
           :options="{ selectable: false, showTooltip: false }"
@@ -191,7 +191,6 @@ import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
 import CustomActions from '@/components/CustomActions.vue'
-import { showAddressModal, addressProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
 import { getSettings } from '@/stores/settings'
 import { globalStore } from '@/stores/global'
@@ -200,12 +199,11 @@ import { usersStore } from '@/stores/users'
 import { statusesStore } from '@/stores/statuses'
 import { getView } from '@/utils/view'
 import {
-  formatDate,
-  timeAgo,
   validateIsImageFile,
   setupCustomizations,
   openWebsite as openExternalWebsite,
 } from '@/utils'
+import { timestampCell } from '@/composables/useTimelinePreferences'
 import {
   Breadcrumbs,
   Avatar,
@@ -218,14 +216,13 @@ import {
   toast,
   call,
 } from 'frappe-ui'
-import { h, computed, ref, watch } from 'vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
+import { useTelemetry } from 'frappe-ui/frappe'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const props = defineProps({
-  organizationId: {
-    type: String,
-    required: true,
-  },
+  organizationId: { type: String, required: true },
 })
 
 const { brand } = getSettings()
@@ -233,6 +230,7 @@ const { $dialog, $socket } = globalStore()
 const { getUser } = usersStore()
 const { getDealStatus } = statusesStore()
 const { doctypeMeta } = getMeta('CRM Organization')
+const { capture } = useTelemetry()
 
 const route = useRoute()
 const router = useRouter()
@@ -246,9 +244,14 @@ const {
   document: organization,
   permissions,
   scripts,
+  triggerOnRender,
 } = useDocument('CRM Organization', props.organizationId)
 
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
+
+onMounted(async () => {
+  if (organization.doc) await triggerOnRender()
+})
 
 const breadcrumbs = computed(() => {
   let items = [{ label: __('Organizations'), route: { name: 'Organizations' } }]
@@ -257,7 +260,7 @@ const breadcrumbs = computed(() => {
     let view = getView(
       route.query.view,
       route.query.viewType,
-      'CRM Organization'
+      'CRM Organization',
     )
     if (view) {
       items.push({
@@ -283,7 +286,7 @@ const breadcrumbs = computed(() => {
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['CRM Organization']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return organization.doc?.[t] || props.organizationId
 })
 
@@ -305,7 +308,7 @@ function changeOrganizationImage(file) {
 }
 
 function beforeFieldChange(data) {
-  if (data?.hasOwnProperty('organization_name')) {
+  if (Object.hasOwn(data ?? {}, 'organization_name')) {
     call('frappe.client.rename_doc', {
       doctype: 'CRM Organization',
       old_name: props.organizationId,
@@ -350,10 +353,10 @@ function getParsedSections(_sections) {
           return {
             ...field,
             create: (value, close) => {
-              openAddressModal()
+              showAddressModal()
               close()
             },
-            edit: (address) => openAddressModal(address),
+            edit: (address) => showAddressModal(address),
           }
         } else {
           return field
@@ -424,8 +427,7 @@ const contacts = createListResource({
 })
 
 const rows = computed(() => {
-  let list = []
-  list = !tabIndex.value ? deals : contacts
+  let list = !tabIndex.value ? deals : contacts
 
   if (!list.data) return []
 
@@ -458,10 +460,7 @@ function getDealRowObject(deal) {
       label: deal.deal_owner && getUser(deal.deal_owner).full_name,
       ...(deal.deal_owner && getUser(deal.deal_owner)),
     },
-    modified: {
-      label: formatDate(deal.modified),
-      timeAgo: __(timeAgo(deal.modified)),
-    },
+    modified: timestampCell(deal.modified),
   }
 }
 
@@ -479,10 +478,7 @@ function getContactRowObject(contact) {
       label: contact.company_name,
       logo: organization.doc?.organization_logo,
     },
-    modified: {
-      label: formatDate(contact.modified),
-      timeAgo: __(timeAgo(contact.modified)),
-    },
+    modified: timestampCell(contact.modified),
   }
 }
 
@@ -553,12 +549,20 @@ const contactColumns = [
   },
 ]
 
-function openAddressModal(_address) {
-  showAddressModal.value = true
-  addressProps.value = {
+const { showModal } = useDoctypeModal()
+
+function showAddressModal(_address) {
+  showModal({
+    name: _address || null,
     doctype: 'Address',
-    address: _address,
-  }
+    callbacks: {
+      afterInsert: (d) => {
+        capture('address_created')
+        organization.doc.address = d.name
+        organization.save.submit()
+      },
+    },
+  })
 }
 
 // Setup custom actions from Form Scripts

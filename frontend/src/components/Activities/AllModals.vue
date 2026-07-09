@@ -1,12 +1,4 @@
 <template>
-  <TaskModal
-    v-model="showTaskModal"
-    v-model:reloadTasks="activities"
-    :task="task"
-    :doctype="doctype"
-    :doc="doc?.name"
-    @after="redirect('tasks')"
-  />
   <ProjectTaskModal
     v-model="showProjectTaskModal"
     v-model:reloadTasks="activities"
@@ -43,43 +35,49 @@
     v-model:reloadQuotations="activities"
     :defaults="quotation"
     :doctype="doctype"
-  
     @after="redirect('quotations')"
   />
 </template>
 <script setup>
-import TaskModal from '@/components/Modals/TaskModal.vue'
-import NoteModal from '@/components/Modals/NoteModal.vue'
-import CallLogModal from '@/components/Modals/CallLogModal.vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
+import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { call } from 'frappe-ui'
 import { ref } from 'vue'
-import { toServerDatetime } from '@/utils'
+import { dayjs } from 'frappe-ui'
 import { useRoute, useRouter } from 'vue-router'
 import ProjectTaskModal from '@/components/Modals/ProjectTaskModal.vue'
 import GammaModal from '@/components/Modals/GammaModal.vue'
 import QuotationModal from '@/components/Modals/QuotationModal.vue'
 
 const props = defineProps({
-  doctype: String,
+  doctype: { type: String, default: '' },
+  doc: { type: Object, default: () => ({}) },
 })
 
-const activities = defineModel()
-const doc = defineModel('doc')
+const activities = defineModel({ type: Object })
+
+const now = dayjs()
+
+const { showModal } = useDoctypeModal()
+const { updateOnboardingStep } = useOnboarding('frappecrm')
+const { capture } = useTelemetry()
 
 // Tasks
-const showTaskModal = ref(false)
-const task = ref({})
-
-function showTask(t) {
-  task.value = t || {
-    title: '',
-    description: '',
-    assigned_to: '',
-    due_date: toServerDatetime(new Date()),
-    priority: 'Low',
-    status: 'Backlog',
-  }
-  showTaskModal.value = true
+function showTask(task) {
+  showModal({
+    name: task?.name,
+    doctype: 'CRM Task',
+    title: 'Task',
+    defaults: {
+      reference_doctype: props.doctype,
+      reference_docname: props.doc?.name,
+      due_date: !task?.due_date ? now.format('YYYY-MM-DD HH:mm:ss') : task.due_date,
+    },
+    callbacks: {
+      afterInsert: (d) => afterDoctype(d, true),
+      afterUpdate: afterDoctype,
+    },
+  })
 }
 
 async function deleteTask(name) {
@@ -145,7 +143,8 @@ function showGammaProposal(t) {
 const showQuotationModal = ref(false)
 const quotation = ref({})
 function showQuotation(q) {
-  const today = new Date().toISOString().split('T')[0];  quotation.value = q || {
+  const today = new Date().toISOString().split('T')[0]
+  quotation.value = q || {
     title: '',
     description: '',
     customer: '',
@@ -153,8 +152,8 @@ function showQuotation(q) {
     status: 'Draft',
     naming_series: 'SAL-QTN-.YYYY.-',
     transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
-    order_type: "Sales",
-    quotation_to: "Customer",
+    order_type: 'Sales',
+    quotation_to: 'Customer',
     crm_deal: props.doc.name
 
   }
@@ -190,31 +189,62 @@ function updateProjectTaskStatus(status, task) {
 // }
 
 // Notes
-const showNoteModal = ref(false)
-const note = ref({})
+function showNote(note) {
+  showModal({
+    name: note?.name,
+    doctype: 'FCRM Note',
+    title: 'Note',
+    defaults: {
+      reference_doctype: props.doctype,
+      reference_docname: props.doc?.name,
+    },
+    callbacks: {
+      afterInsert: (d) => afterDoctype(d, true),
+      afterUpdate: afterDoctype,
+    },
+  })
+}
 
-function showNote(n) {
-  note.value = n || {
-    title: '',
-    content: '',
+function afterDoctype(d, isInsert = false) {
+  activities.value.reload()
+
+  let name =
+    d.doctype == 'FCRM Note'
+      ? 'note'
+      : d.doctype == 'CRM Task'
+        ? 'task'
+        : 'call_log'
+
+  let redirectHash = name + 's'
+  if (d.doctype == 'CRM Call Log') {
+    redirectHash = 'calls'
   }
-  showNoteModal.value = true
+
+  if (isInsert) {
+    updateOnboardingStep('create_first_' + name)
+    capture(name + '_created')
+  } else {
+    capture(name + '_updated')
+  }
+
+  redirect(redirectHash)
 }
 
 // Call Logs
-const showCallLogModal = ref(false)
-const callLog = ref({})
-const referenceDoc = ref({})
-
 function createCallLog() {
-  let doctype = props.doctype
-  let docname = props.doc?.name
-  referenceDoc.value = { ...props.doc }
-  callLog.value = {
-    reference_doctype: doctype,
-    reference_docname: docname,
-  }
-  showCallLogModal.value = true
+  showModal({
+    doctype: 'CRM Call Log',
+    title: 'Call Log',
+    defaults: {
+      reference_doctype: props.doctype,
+      reference_docname: props.doc?.name,
+      reference_doc: { ...props.doc },
+    },
+    callbacks: {
+      afterInsert: (d) => afterDoctype(d, true),
+      afterUpdate: afterDoctype,
+    },
+  })
 }
 
 // common

@@ -25,8 +25,8 @@
     doctype="CRM Organization"
   />
   <OrganizationsListView
-    ref="organizationsListView"
     v-if="organizations.data && rows.length"
+    ref="organizationsListView"
     v-model="organizations.data.page_length_count"
     v-model:list="organizations"
     :rows="rows"
@@ -66,8 +66,8 @@ import OrganizationModal from '@/components/Modals/OrganizationModal.vue'
 import OrganizationsListView from '@/components/ListViews/OrganizationsListView.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import { getMeta } from '@/stores/meta'
-import { formatDate, timeAgo, website } from '@/utils'
-import { call } from 'frappe-ui'
+import { formatDate, website } from '@/utils'
+import { timestampCell } from '@/composables/useTimelinePreferences'
 import { ref, computed } from 'vue'
 import EmptyState from '../components/ListViews/EmptyState.vue'
 
@@ -132,10 +132,7 @@ const rows = computed(() => {
       } else if (row === 'website') {
         _rows[row] = website(organization.website)
       } else if (['modified', 'creation'].includes(row)) {
-        _rows[row] = {
-          label: formatDate(organization[row]),
-          timeAgo: __(timeAgo(organization[row])),
-        }
+        _rows[row] = timestampCell(organization[row])
       }
     })
     return _rows

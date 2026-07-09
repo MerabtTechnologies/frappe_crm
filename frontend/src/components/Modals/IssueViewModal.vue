@@ -115,9 +115,9 @@
                         
                         <div class="flex self-end gap-2">
                             <Button v-if="_task.status !== 'Closed'" :label="__('Close Ticket')" :loading="addingComment"
-                                @click="() => closeIssue('Closed')" />
+                                @click="closeIssue('Closed')" />
                             <Button v-if="_task.status !== 'Resolved'" :label="__('Resolved')" :loading="addingComment"
-                                @click="() => closeIssue('Resolved')" />
+                                @click="closeIssue('Resolved')" />
                                 
                             <Button :label="__('Post Comment')" variant="solid" :loading="addingComment"
                                 @click="postComment" />
@@ -415,6 +415,34 @@ function render() {
     })
     
 }
+
+const taskSubject = ref('')
+
+const loadTaskResource = createResource({
+    url: 'frappe.client.get',
+    makeParams() {
+        const linked = _task.value?.custom_task ?? null
+        const id = linked && typeof linked === 'object' ? (linked.name ?? linked) : linked
+        return { doctype: 'CRM Task', name: id }
+    },
+})
+
+async function loadLinkedTask() {
+    const linked = _task.value?.custom_task ?? null
+    const id = linked && typeof linked === 'object' ? (linked.name ?? linked) : linked
+    if (!id) {
+        taskSubject.value = ''
+        return
+    }
+    try {
+        await loadTaskResource.submit()
+        const res = loadTaskResource.data
+        const payload = res && res.data ? res.data : res
+        taskSubject.value = (payload && (payload.subject || payload.title)) || ''
+    } catch (e) {
+        taskSubject.value = ''
+    }
+}
 // console.log("LOG: ", _task);
 
 onMounted(() => show.value && render())
@@ -685,34 +713,6 @@ function openLinkedTask() {
         router.push({ name: 'Tasks', query: { open: String(id) } })
     } catch (e) {
         // ignore navigation errors
-    }
-}
-
-const taskSubject = ref('')
-
-const loadTaskResource = createResource({
-    url: 'frappe.client.get',
-    makeParams() {
-        const linked = _task.value?.custom_task ?? null
-        const id = linked && typeof linked === 'object' ? (linked.name ?? linked) : linked
-        return { doctype: 'CRM Task', name: id }
-    },
-})
-
-async function loadLinkedTask() {
-    const linked = _task.value?.custom_task ?? null
-    const id = linked && typeof linked === 'object' ? (linked.name ?? linked) : linked
-    if (!id) {
-        taskSubject.value = ''
-        return
-    }
-    try {
-        await loadTaskResource.submit()
-        const res = loadTaskResource.data
-        const payload = res && res.data ? res.data : res
-        taskSubject.value = (payload && (payload.subject || payload.title)) || ''
-    } catch (e) {
-        taskSubject.value = ''
     }
 }
 
