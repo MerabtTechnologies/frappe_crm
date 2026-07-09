@@ -165,7 +165,7 @@ def fetch_and_store_pages_from_facebook(access_token: str) -> list[dict]:
 		frappe.throw(frappe._("Invalid access token provided for Facebook."))
 
 	url = get_fb_graph_api_url("/me/accounts")
-	pages = make_get_request(url, params={"access_token": access_token}).get("data", [])
+	pages = make_get_request(url, params={"access_token": access_token, "limit": 100000}).get("data", [])
 	for page in pages:
 		page_id = page["id"]
 		already_synced = frappe.db.exists("Facebook Page", page_id)
