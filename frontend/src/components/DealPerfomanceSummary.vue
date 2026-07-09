@@ -661,7 +661,6 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
-import * as echarts from 'echarts'
 import { createResource } from 'frappe-ui'
 import { usersStore } from '../stores/users'
 import { useRouter } from 'vue-router'
@@ -679,6 +678,14 @@ const dataUpdatedTime = ref('')
 // Chart refs and resource
 const chartRef = ref(null)
 let chartInstance = null
+let echartsLib = null
+
+async function getEcharts() {
+  if (echartsLib) return echartsLib
+  const module = await import('echarts')
+  echartsLib = module.default ?? module
+  return echartsLib
+}
 
 const chartResource = createResource({
   url: `merabt_crm.portal_api.sales_target.get_month_wise_sales_chart`,
@@ -946,7 +953,7 @@ const getDateRangeLabel = () => {
 
 
 // Replace the existing renderChart function with this updated version
-const renderChart = (payload) => {
+const renderChart = async (payload) => {
   if (!chartRef.value) return
 
   // Payload now has the full structure with data, months, monthly_deals, etc.
@@ -1011,6 +1018,7 @@ const renderChart = (payload) => {
 
   if (!chartInstance) {
     try {
+      const echarts = await getEcharts()
       chartInstance = echarts.init(chartRef.value, 'light', { renderer: 'canvas' })
       
       // 🔴 CHART CLICK HANDLER - SINGLE HANDLER (only one!)
@@ -1070,7 +1078,7 @@ const renderChart = (payload) => {
 }
 
 // Render chart for all sales persons (Target vs Achieved) - with click handler
-const renderAllSalesChart = (payload) => {
+const renderAllSalesChart = async (payload) => {
   if (!allSalesChartRef.value) return
 
   const data = payload?.data || payload || {}
@@ -1122,6 +1130,7 @@ const renderAllSalesChart = (payload) => {
     // Create a safe gradient for the target area
     let targetAreaGradient = 'rgba(15,23,42,0.08)'
     try {
+      const echarts = await getEcharts()
       if (echarts && echarts.graphic && typeof echarts.graphic.LinearGradient === 'function') {
         targetAreaGradient = echarts.graphic.LinearGradient(0, 0, 0, 1, [
           { offset: 0, color: 'rgba(15,23,42,0.08)' },
@@ -1242,6 +1251,7 @@ const renderAllSalesChart = (payload) => {
 
   if (!allSalesChartInstance) {
     try {
+      const echarts = await getEcharts()
       allSalesChartInstance = echarts.init(allSalesChartRef.value, 'light', { renderer: 'canvas' })
       
       // 🔴 CLICK HANDLER FOR SALESPERSON COMPARISON CHART
@@ -1376,7 +1386,8 @@ const dailyPaymentsResource = createResource({
 })
 
 
-const renderDailyPaymentsChart = (payload) => {
+
+const renderDailyPaymentsChart = async (payload) => {
   if (!dailyPaymentsChartRef.value) return
   const data = payload?.data || payload || {}
   const labels = data.labels || []
@@ -1436,6 +1447,7 @@ const renderDailyPaymentsChart = (payload) => {
 
   if (!dailyPaymentsChartInstance) {
     try {
+      const echarts = await getEcharts()
       dailyPaymentsChartInstance = echarts.init(dailyPaymentsChartRef.value, 'light', { renderer: 'canvas' })
       
       // 🔴 NEW: CLICK HANDLER FOR DAILY PAYMENTS CHART

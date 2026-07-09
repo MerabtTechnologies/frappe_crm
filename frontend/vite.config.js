@@ -72,6 +72,46 @@ export default defineConfig(async ({ mode }) => {
         allow: [path.resolve(__dirname, '..')],
       },
     },
+    build: {
+      cssCodeSplit: true,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+
+            if (
+              id.includes('/echarts/') ||
+              id.includes('/zrender/') ||
+              id.includes('/vue-echarts/')
+            ) {
+              return 'vendor-echarts'
+            }
+
+            if (
+              id.includes('/@tiptap/') ||
+              id.includes('/prosemirror/') ||
+              id.includes('/lowlight/')
+            ) {
+              return 'vendor-editor'
+            }
+
+            if (id.includes('/firebase/')) {
+              return 'vendor-firebase'
+            }
+
+            if (id.includes('/frappe-ui/')) {
+              return 'vendor-frappe-ui'
+            }
+
+            if (id.includes('/leaflet')) {
+              return 'vendor-leaflet'
+            }
+
+            return 'vendor-misc'
+          },
+        },
+      },
+    },
   }
 
   const frappeui = await importFrappeUIPlugin(isDev, config)

@@ -22,8 +22,8 @@
     >
       <div class="border-b">
         <FileUploader
-          @success="changeContactImage"
           :validateFile="validateIsImageFile"
+          @success="changeContactImage"
         >
           <template #default="{ openFileSelector, error }">
             <div class="flex flex-col items-start justify-start gap-4 p-5">
@@ -120,17 +120,17 @@
       </div>
     </Resizer>
     <Tabs
-      as="div"
       v-model="tabIndex"
+      as="div"
       :tabs="tabs"
-      class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-0 [&_[role='tablist']]:px-5 [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
+      class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-0 [&_[role='tab']]:shrink-0 [&_[role='tablist']]:px-5 [&_[role='tablist']::-webkit-scrollbar]:h-0 [&_[role='tablist']]:min-h-[45px] [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
       <template #tab-item="{ tab, selected }">
         <button
           class="group flex items-center gap-2 border-b border-transparent py-2.5 text-base text-ink-gray-5 duration-300 ease-in-out hover:text-ink-gray-9"
           :class="{ 'text-ink-gray-9': selected }"
         >
-          <component v-if="tab.icon" :is="tab.icon" class="h-5" />
+          <component :is="tab.icon" v-if="tab.icon" class="h-5" />
           {{ __(tab.label) }}
           <Badge
             class="group-hover:bg-surface-gray-7"
@@ -180,12 +180,8 @@ import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import DealsListView from '@/components/ListViews/DealsListView.vue'
 import CustomActions from '@/components/CustomActions.vue'
-import {
-  formatDate,
-  timeAgo,
-  validateIsImageFile,
-  setupCustomizations,
-} from '@/utils'
+import { validateIsImageFile, setupCustomizations } from '@/utils'
+import { timestampCell } from '@/composables/useTimelinePreferences'
 import { getView } from '@/utils/view'
 import { useDocument } from '@/data/document'
 import { getSettings } from '@/stores/settings'
@@ -194,8 +190,7 @@ import { globalStore } from '@/stores/global.js'
 import { usersStore } from '@/stores/users.js'
 import { organizationsStore } from '@/stores/organizations.js'
 import { statusesStore } from '@/stores/statuses'
-import { showAddressModal, addressProps } from '@/composables/modals'
-import { callEnabled } from '@/composables/settings'
+import { callEnabled } from '@/composables/telephony'
 import {
   Breadcrumbs,
   Avatar,
@@ -207,7 +202,9 @@ import {
   Dropdown,
   toast,
 } from 'frappe-ui'
-import { ref, computed, h, watch } from 'vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
+import { useTelemetry } from 'frappe-ui/frappe'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 
@@ -218,12 +215,10 @@ const { getUser } = usersStore()
 const { getOrganization } = organizationsStore()
 const { getDealStatus } = statusesStore()
 const { doctypeMeta } = getMeta('Contact')
+const { capture } = useTelemetry()
 
 const props = defineProps({
-  contactId: {
-    type: String,
-    required: true,
-  },
+  contactId: { type: String, required: true },
 })
 
 const route = useRoute()
@@ -236,9 +231,14 @@ const {
   document: contact,
   permissions,
   scripts,
+  triggerOnRender,
 } = useDocument('Contact', props.contactId)
 
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
+
+onMounted(async () => {
+  if (contact.doc) await triggerOnRender()
+})
 
 const breadcrumbs = computed(() => {
   let items = [{ label: __('Contacts'), route: { name: 'Contacts' } }]
@@ -266,7 +266,7 @@ const breadcrumbs = computed(() => {
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['Contact']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return contact.doc?.[t] || props.contactId
 })
 
@@ -415,10 +415,10 @@ const parsedSections = computed(() => {
           return {
             ...field,
             create: (_value, close) => {
-              openAddressModal()
-              close && close()
+              showAddressModal()
+              close?.()
             },
-            edit: (address) => openAddressModal(address),
+            edit: (address) => showAddressModal(address),
           }
         }
         return field
@@ -506,10 +506,7 @@ function getDealRowObject(deal) {
       label: deal.deal_owner && getUser(deal.deal_owner).full_name,
       ...(deal.deal_owner && getUser(deal.deal_owner)),
     },
-    modified: {
-      label: formatDate(deal.modified),
-      timeAgo: __(timeAgo(deal.modified)),
-    },
+    modified: timestampCell(deal.modified),
   }
 }
 
@@ -521,7 +518,7 @@ const dealColumns = [
   },
   {
     label: __('Amount'),
-    key: 'annual_revenue',
+    key: 'deal_value',
     align: 'right',
     width: '9rem',
   },
@@ -552,12 +549,20 @@ const dealColumns = [
   },
 ]
 
-function openAddressModal(_address) {
-  showAddressModal.value = true
-  addressProps.value = {
+const { showModal } = useDoctypeModal()
+
+function showAddressModal(_address) {
+  showModal({
+    name: _address || null,
     doctype: 'Address',
-    address: _address,
-  }
+    callbacks: {
+      afterInsert: (d) => {
+        capture('address_created')
+        contact.doc.address = d.name
+        contact.save.submit()
+      },
+    },
+  })
 }
 
 // Setup custom actions from Form Scripts

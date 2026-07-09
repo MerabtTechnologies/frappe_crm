@@ -56,7 +56,7 @@
             class="cursor-pointer rounded-full"
             :tooltip="__('Add a Note')"
             :icon="NoteIcon"
-            @click="showNoteModal = true"
+            @click="openNoteModal"
           />
           <Button
             class="rounded-full bg-surface-red-5 hover:bg-surface-red-6 rotate-[135deg] text-ink-white"
@@ -71,9 +71,9 @@
             variant="solid"
             theme="red"
             :label="__('Cancel')"
-            @click="cancelCall"
             class="rounded-lg text-ink-white"
             :disabled="callStatus == 'initiating'"
+            @click="cancelCall"
           >
             <template #prefix>
               <PhoneIcon class="rotate-[135deg]" />
@@ -109,8 +109,8 @@
   <div
     v-show="showSmallCallWindow"
     class="ml-2 flex cursor-pointer select-none items-center justify-between gap-3 rounded-lg bg-surface-gray-7 px-2 py-[7px] text-base text-ink-gray-2"
-    @click="toggleCallWindow"
     v-bind="$attrs"
+    @click="toggleCallWindow"
   >
     <div class="flex items-center gap-2">
       <Avatar
@@ -166,12 +166,6 @@
       />
     </div>
   </div>
-  <NoteModal
-    v-model="showNoteModal"
-    :note="note"
-    doctype="CRM Call Log"
-    @after="updateNote"
-  />
 </template>
 
 <script setup>
@@ -179,14 +173,15 @@ import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import MinimizeIcon from '@/components/Icons/MinimizeIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CountUpTimer from '@/components/CountUpTimer.vue'
-import NoteModal from '@/components/Modals/NoteModal.vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { Device } from '@twilio/voice-sdk'
 import { useDraggable, useWindowSize } from '@vueuse/core'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry, useOnboarding } from 'frappe-ui/frappe'
 import { Avatar, call, createResource } from 'frappe-ui'
 import { ref, watch } from 'vue'
 
 const { capture } = useTelemetry()
+const { updateOnboardingStep } = useOnboarding('frappecrm')
 
 let device = ''
 let log = ref('Connecting...')
@@ -227,20 +222,36 @@ const getContact = createResource({
   },
 })
 
-const showNoteModal = ref(false)
+const { showModal } = useDoctypeModal()
 const note = ref({
   name: '',
   title: '',
   content: '',
 })
 
-async function updateNote(_note, insert_mode = false) {
+function openNoteModal() {
+  showModal({
+    name: note.value.name || null,
+    doctype: 'CRM Call Log',
+    title: 'Call Log',
+    callbacks: {
+      afterInsert: (n) => updateNote(n, true),
+      afterUpdate: updateNote,
+    },
+  })
+}
+
+async function updateNote(_note, isInsert = false) {
   note.value = _note
-  if (insert_mode && _note.name) {
+  if (isInsert && _note.name) {
     await call('crm.integrations.api.add_note_to_call_log', {
       call_sid: _call.parameters.CallSid,
       note: _note,
     })
+    updateOnboardingStep('create_first_note')
+    capture('note_created')
+  } else {
+    capture('note_updated')
   }
 }
 
@@ -280,7 +291,7 @@ function addDeviceListeners() {
     log.value = 'Ready to make and receive calls!'
   })
 
-  device.on('unregistered', (device) => {
+  device.on('unregistered', () => {
     log.value = 'Logged out'
   })
 
@@ -334,11 +345,8 @@ function rejectIncomingCall() {
   _call.reject()
   log.value = 'Rejected incoming call'
   showCallPopup.value = false
-  if (showSmallCallWindow.value == undefined) {
-    showSmallCallWindow = false
-  } else {
-    showSmallCallWindow.value = false
-  }
+  showSmallCallWindow.value = false
+
   callStatus.value = ''
   muted.value = false
 }
@@ -360,11 +368,7 @@ function hangUpCall() {
 function handleDisconnectedIncomingCall() {
   log.value = `Call ended from handle disconnected Incoming call.`
   showCallPopup.value = false
-  if (showSmallCallWindow.value == undefined) {
-    showSmallCallWindow = false
-  } else {
-    showSmallCallWindow.value = false
-  }
+  showSmallCallWindow.value = false
   _call = null
   muted.value = false
   onCall.value = false
@@ -407,12 +411,12 @@ async function makeOutgoingCall(number) {
         calling.value = true
         onCall.value = false
       })
-      _call.on('disconnect', (conn) => {
+      _call.on('disconnect', () => {
         log.value = `Call ended from makeOutgoing call disconnect.`
         calling.value = false
         onCall.value = false
         showCallPopup.value = false
-        showSmallCallWindow = false
+        showSmallCallWindow.value = false
         _call = null
         callStatus.value = ''
         muted.value = false
@@ -428,7 +432,7 @@ async function makeOutgoingCall(number) {
         calling.value = false
         onCall.value = false
         showCallPopup.value = false
-        showSmallCallWindow = false
+        showSmallCallWindow.value = false
         _call = null
         callStatus.value = ''
         muted.value = false
@@ -450,11 +454,7 @@ async function makeOutgoingCall(number) {
 function cancelCall() {
   _call.disconnect()
   showCallPopup.value = false
-  if (showSmallCallWindow.value == undefined) {
-    showSmallCallWindow = false
-  } else {
-    showSmallCallWindow.value = false
-  }
+  showSmallCallWindow.value = false
   calling.value = false
   onCall.value = false
   callStatus.value = ''
@@ -468,11 +468,7 @@ function cancelCall() {
 
 function toggleCallWindow() {
   showCallPopup.value = !showCallPopup.value
-  if (showSmallCallWindow.value == undefined) {
-    showSmallCallWindow = !showSmallCallWindow
-  } else {
-    showSmallCallWindow.value = !showSmallCallWindow.value
-  }
+  showSmallCallWindow.value = !showSmallCallWindow.value
 }
 
 watch(
