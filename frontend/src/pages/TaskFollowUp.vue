@@ -93,12 +93,6 @@
       </div>
     </div>
   </div>
-  <TaskModal
-    v-if="showTaskModal"
-    v-model="showTaskModal"
-    v-model:reloadTasks="tasks"
-    :task="task"
-  />
   <IssueModal
     v-if="showTaskCreateModal"
     v-model="showTaskCreateModal"
@@ -112,9 +106,9 @@ import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
-import TaskModal from '@/components/Modals/TaskModal.vue'
 import TaskItem from '@/components/TaskItem.vue'
 import IssueModal from '@/components/Modals/IssueModal.vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
@@ -125,6 +119,7 @@ import { useRouter } from 'vue-router'
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta('CRM Task')
 const { getUser } = usersStore()
+const { showModal } = useDoctypeModal()
 
 const router = useRouter()
 
@@ -372,45 +367,24 @@ function parseRows(rows, columns = []) {
   })
 }
 
-const showTaskModal = ref(false)
-
-const task = ref({
-  name: '',
-  title: '',
-  description: '',
-  assigned_to: '',
-  due_date: '',
-  status: 'Backlog',
-  priority: 'Low',
-  reference_doctype: 'CRM Lead',
-  reference_docname: '',
-})
+function afterTask() {
+  tasks.value.reload?.()
+}
 
 function showTask(name) {
-  let t = rows.value?.find((row) => row.name === name)
-  task.value = {
-    name: t.name,
-    title: t.title,
-    description: t.description,
-    assigned_to: t.assigned_to?.name || '',
-    due_date: t.due_date,
-    status: t.status,
-    priority: t.priority,
-    reference_doctype: t.reference_doctype,
-    reference_docname: t.reference_docname,
-  }
-  showTaskModal.value = true
+  showModal({
+    name,
+    doctype: 'CRM Task',
+    title: 'Task',
+    callbacks: {
+      afterInsert: afterTask,
+      afterUpdate: afterTask,
+    },
+  })
 }
 
 function createTask(column) {
-  task.value = {
-    name: '',
-    title: '',
-    description: '',
-    assigned_to: '',
-    due_date: '',
-    status: 'Backlog',
-    priority: 'Low',
+  const defaults = {
     reference_doctype: 'CRM Lead',
     reference_docname: '',
   }
@@ -418,11 +392,19 @@ function createTask(column) {
   if (column.column?.name) {
     let column_field = tasks.value.params.column_field
     if (column_field) {
-      task.value[column_field] = column.column.name
+      defaults[column_field] = column.column.name
     }
   }
 
-  showTaskModal.value = true
+  showModal({
+    doctype: 'CRM Task',
+    title: 'Task',
+    defaults,
+    callbacks: {
+      afterInsert: afterTask,
+      afterUpdate: afterTask,
+    },
+  })
 }
 
 

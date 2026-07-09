@@ -13,12 +13,10 @@
 </template>
 <script setup>
 defineOptions({
-  inheritAttrs: false
+  inheritAttrs: false,
 })
-const props = defineProps({
-  priority: {
-    type: String,
-    required: true,
-  },
+
+defineProps({
+  priority: { type: String, required: true },
 })
 </script>

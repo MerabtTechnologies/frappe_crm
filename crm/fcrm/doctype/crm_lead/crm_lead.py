@@ -1,16 +1,19 @@
 # Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
 
+import json
+
 import frappe
 from frappe import _
-from frappe.desk.form.assign_to import add as assign
+from frappe.desk.form.assign_to import _add as assign
 from frappe.model.document import Document
-from frappe.utils import has_gravatar, validate_email_address
+from frappe.utils import validate_email_address
 
 from crm.fcrm.doctype.crm_service_level_agreement.utils import get_sla
 from crm.fcrm.doctype.crm_status_change_log.crm_status_change_log import (
 	add_status_change_log,
 )
+from crm.fcrm.doctype.utils import add_or_remove_lost_reason_section_in_sidepanel
 
 
 class CRMLead(Document):
@@ -74,10 +77,12 @@ class CRMLead(Document):
 		self.set_sla()
 
 	def validate(self):
+		self.validate_status()
 		self.set_full_name()
 		self.set_lead_name()
 		self.set_title()
 		self.validate_email()
+		self.validate_lost_reason()
 		if not self.is_new() and self.has_value_changed("lead_owner") and self.lead_owner:
 			self.share_with_agent(self.lead_owner)
 			self.assign_agent(self.lead_owner)
@@ -86,10 +91,19 @@ class CRMLead(Document):
 
 	def after_insert(self):
 		if self.lead_owner:
+			if self.lead_owner != frappe.session.user:
+				self.share_with_agent(self.lead_owner)
 			self.assign_agent(self.lead_owner)
 
 	def before_save(self):
 		self.apply_sla()
+
+	def validate_status(self):
+		if self.is_new() and not self.status:
+			if frappe.db.exists("CRM Lead Status", "New"):
+				self.status = "New"
+			else:
+				self.status = frappe.get_all("CRM Lead Status", {"type": "Open"}, pluck="name")[0]
 
 	def set_full_name(self):
 		if self.first_name:
@@ -127,8 +141,17 @@ class CRMLead(Document):
 			if self.email == self.lead_owner:
 				frappe.throw(_("Lead Owner cannot be same as the Lead Email Address"))
 
-			if self.is_new() or not self.image:
-				self.image = has_gravatar(self.email)
+	def validate_lost_reason(self):
+		"""
+		Validate the lost reason if the status is set to "Lost".
+		"""
+		if self.status and frappe.get_cached_value("CRM Lead Status", self.status, "type") == "Lost":
+			if not self.lost_reason:
+				frappe.throw(_("Please specify a reason for losing the lead."), frappe.ValidationError)
+			elif self.lost_reason == "Other" and not self.lost_notes:
+				frappe.throw(_("Please specify the reason for losing the lead."), frappe.ValidationError)
+		if self.has_value_changed("status"):
+			add_or_remove_lost_reason_section_in_sidepanel(self)
 
 	def assign_agent(self, agent):
 		if not agent:
@@ -141,7 +164,7 @@ class CRMLead(Document):
 					# the agent is already set as an assignee
 					return
 
-		assign({"assign_to": [agent], "doctype": "CRM Lead", "name": self.name})
+		assign({"assign_to": [agent], "doctype": "CRM Lead", "name": self.name}, ignore_permissions=True)
 
 	def share_with_agent(self, agent):
 		if not agent:
@@ -168,7 +191,12 @@ class CRMLead(Document):
 					flags={"ignore_share_permission": True},
 				)
 			elif user != agent:
-				frappe.share.remove(self.doctype, self.name, user)
+				frappe.share.remove(
+					self.doctype,
+					self.name,
+					user,
+					flags={"ignore_share_permission": True, "ignore_permissions": True},
+				)
 
 	def create_contact(self, existing_contact=None, throw=True):
 		if not self.lead_name:
@@ -347,6 +375,11 @@ class CRMLead(Document):
 			new_deal.update(deal)
 
 		new_deal.insert(ignore_permissions=True)
+
+		for user in self.get_assigned_users():
+			if user and user != new_deal.deal_owner:
+				new_deal.assign_agent(user)
+
 		return new_deal.name
 
 	def set_sla(self):
@@ -398,7 +431,8 @@ class CRMLead(Document):
 			},
 			{
 				"label": "Status",
-				"type": "Select",
+				"type": "Link",
+				"options": "CRM Lead Status",
 				"key": "status",
 				"width": "8rem",
 			},

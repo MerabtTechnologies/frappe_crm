@@ -1,6 +1,6 @@
 <template>
-  <Combobox v-model="selectedValue" nullable v-slot="{ open: isComboboxOpen }">
-    <Popover class="w-full" v-model:show="showOptions" :placement="placement">
+  <Combobox v-model="selectedValue" nullable>
+    <Popover v-model:show="showOptions" class="w-full" :placement="placement">
       <template #target="{ open: openPopover, togglePopover }">
         <slot
           name="target"
@@ -53,14 +53,14 @@
                 ref="search"
                 class="form-input w-full focus:bg-surface-gray-3 hover:bg-surface-gray-4 text-ink-gray-8"
                 type="text"
+                :value="query"
+                autocomplete="off"
+                :placeholder="__('Search')"
                 @change="
                   (e) => {
                     query = e.target.value
                   }
                 "
-                :value="query"
-                autocomplete="off"
-                :placeholder="__('Search')"
               />
               <button
                 class="absolute right-1.5 inline-flex h-7 w-7 items-center justify-center"
@@ -74,10 +74,10 @@
               static
             >
               <div
-                class="mt-1.5"
                 v-for="group in groups"
-                :key="group.key"
                 v-show="group.items.length > 0"
+                :key="group.key"
+                class="mt-1.5"
               >
                 <div
                   v-if="group.group && !group.hideLabel"
@@ -86,11 +86,11 @@
                   {{ group.group }}
                 </div>
                 <ComboboxOption
-                  as="template"
-                  v-for="option in group.items"
+                  v-for="option in group.items.slice(0, props.maxOptions)"
                   :key="option.value"
-                  :value="option"
                   v-slot="{ active, selected }"
+                  as="template"
+                  :value="option"
                 >
                   <li
                     :class="[
@@ -157,7 +157,7 @@ const props = defineProps({
   },
   size: {
     type: String,
-    default: 'md',
+    default: 'sm',
   },
   variant: {
     type: String,
@@ -178,6 +178,10 @@ const props = defineProps({
   placement: {
     type: String,
     default: 'bottom-start',
+  },
+  maxOptions: {
+    type: Number,
+    default: 20,
   },
 })
 const emit = defineEmits(['update:modelValue', 'update:query', 'change'])
@@ -282,7 +286,7 @@ const inputClasses = computed(() => {
   let variant = props.disabled ? 'disabled' : props.variant
   let variantClasses = {
     subtle:
-      'border border-gray-100 bg-surface-gray-2 placeholder-ink-gray-4 hover:border-outline-gray-modals hover:bg-surface-gray-3 focus:bg-surface-white focus:border-outline-gray-4 focus:shadow-sm focus:ring-0 focus-visible:ring-2 focus-visible:ring-outline-gray-3',
+      'border border-[--surface-gray-2] bg-surface-gray-2 placeholder-ink-gray-4 hover:border-outline-gray-modals hover:bg-surface-gray-3 focus:bg-surface-white focus:border-outline-gray-4 focus:shadow-sm focus:ring-0 focus-visible:ring-2 focus-visible:ring-outline-gray-3',
     outline:
       'border border-outline-gray-2 bg-surface-white placeholder-ink-gray-4 hover:border-outline-gray-3 hover:shadow-sm focus:bg-surface-white focus:border-outline-gray-4 focus:shadow-sm focus:ring-0 focus-visible:ring-2 focus-visible:ring-outline-gray-3',
     disabled: [
