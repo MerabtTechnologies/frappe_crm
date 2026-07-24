@@ -147,14 +147,8 @@ import { ref, watch, getCurrentInstance } from 'vue'
 import { useRouter } from 'vue-router'
 import ConfirmDialogBox from '@/components/ConfirmDialogBox.vue'
 const props = defineProps({
-  doctype: {
-    type: String,
-    required: true,
-  },
-  docname: {
-    type: String,
-    required: true,
-  },
+  doctype: { type: String, required: true },
+  docname: { type: String, required: true },
 })
 
 const emit = defineEmits(['beforeSave', 'afterSave'])

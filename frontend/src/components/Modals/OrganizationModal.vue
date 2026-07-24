@@ -20,8 +20,8 @@
             <Button
               variant="ghost"
               class="w-7"
-              @click="show = false"
               icon="x"
+              @click="show = false"
             />
           </div>
         </div>
@@ -31,7 +31,7 @@
           :data="organization.doc"
           doctype="CRM Organization"
         />
-        <ErrorMessage class="mt-8" v-if="error" :message="__(error)" />
+        <ErrorMessage v-if="error" class="mt-8" :message="__(error)" />
       </div>
       <div class="px-4 pt-4 pb-7 sm:px-6">
         <div class="space-y-2">
@@ -53,29 +53,19 @@ import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import { usersStore } from '@/stores/users'
 import { isMobileView } from '@/composables/settings'
-import {
-  showQuickEntryModal,
-  quickEntryProps,
-  showAddressModal,
-  addressProps,
-} from '@/composables/modals'
+import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { useTelemetry } from 'frappe-ui/frappe'
 import { call, createResource } from 'frappe-ui'
 import { ref, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
-  data: {
-    type: Object,
-    default: () => ({}),
-  },
+  data: { type: Object, default: () => ({}) },
   options: {
     type: Object,
-    default: {
-      redirect: true,
-      afterInsert: () => {},
-    },
+    default: () => ({ redirect: true, afterInsert: () => {} }),
   },
 })
 
@@ -83,7 +73,7 @@ const { isManager } = usersStore()
 const { capture } = useTelemetry()
 
 const router = useRouter()
-const show = defineModel()
+const show = defineModel({ type: Boolean })
 
 const loading = ref(false)
 const error = ref(null)
@@ -116,6 +106,7 @@ async function createOrganization() {
   if (doc.name) {
     capture('organization_created')
     handleOrganizationUpdate(doc)
+    organization.doc = {}
   }
 }
 
@@ -127,7 +118,7 @@ function handleOrganizationUpdate(doc) {
     })
   }
   show.value = false
-  props.options.afterInsert && props.options.afterInsert(doc)
+  props.options.afterInsert?.(doc)
 }
 
 const tabs = createResource({
@@ -143,10 +134,10 @@ const tabs = createResource({
             if (field.fieldname == 'address') {
               field.create = (value, close) => {
                 organization.doc.address = value
-                openAddressModal()
+                showAddressModal()
                 close()
               }
-              field.edit = (address) => openAddressModal(address)
+              field.edit = (address) => showAddressModal(address)
             } else if (field.fieldtype === 'Table') {
               organization.doc[field.fieldname] = []
             }
@@ -158,7 +149,7 @@ const tabs = createResource({
 })
 
 onMounted(() => {
-  organization.doc = { no_of_employees: '1-10' }
+  organization.doc.no_of_employees = '1-10'
   Object.assign(organization.doc, props.data)
 })
 
@@ -168,11 +159,18 @@ function openQuickEntryModal() {
   nextTick(() => (show.value = false))
 }
 
-function openAddressModal(_address) {
-  showAddressModal.value = true
-  addressProps.value = {
+const { showModal } = useDoctypeModal()
+
+function showAddressModal(_address) {
+  showModal({
+    name: _address || null,
     doctype: 'Address',
-    address: _address,
-  }
+    callbacks: {
+      afterInsert: (d) => {
+        capture('address_created')
+        organization.doc.address = d.name
+      },
+    },
+  })
 }
 </script>

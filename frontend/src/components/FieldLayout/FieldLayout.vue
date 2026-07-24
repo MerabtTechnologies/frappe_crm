@@ -7,12 +7,12 @@
     }"
   >
     <Tabs
-      as="div"
       v-model="tabIndex"
-      :tabs="tabsUsed"
+      as="div"
+    :tabs="tabsUsed"
       :class="[
         !hasTabs ? `[&_[role='tablist']]:hidden` : '',
-        `[&_[role='tabpanel']]:overflow-visible !overflow-visible`,
+        `[&_[role='tablist']::-webkit-scrollbar]:h-0 [&_[role='tab']]:shrink-0 [&_[role='tabpanel']]:overflow-visible !overflow-visible`,
       ]"
     >
       <template #tab-panel="{ tab }">
@@ -58,6 +58,7 @@
 <script setup>
 import Section from '@/components/FieldLayout/Section.vue'
 import MetaInfo from '@/components/FieldLayout/MetaInfo.vue'
+import { useDocument } from '@/data/document'
 import { Tabs } from 'frappe-ui'
 import { ref, computed, provide } from 'vue'
 
@@ -65,50 +66,72 @@ import { ref, computed, provide } from 'vue'
 const __ = typeof window !== 'undefined' && window.__ ? window.__ : (s) => s
 
 const props = defineProps({
-  tabs: {
-    type: Array,
-    default: () => [],
-  },
-  data: {
-    type: Object,
-    default: () => ({}),
-  },
-  doctype: {
-    type: String,
-    default: 'CRM Lead',
-  },
-  isGridRow: {
-    type: Boolean,
-    default: false,
-  },
-  preview: {
-    type: Boolean,
-    default: false,
-  },
-  rowReadOnly: {
-    type: Boolean,
-    default: false,
-  },
+  tabs: { type: Array, default: () => [] },
+  data: { type: Object, default: () => ({}) },
+  doctype: { type: String, default: 'CRM Lead' },
+  docname: { type: String, default: '' },
+  isGridRow: { type: Boolean, default: false },
+  preview: { type: Boolean, default: false },
+  rowReadOnly: { type: Boolean, default: false },
+  context: { type: Object, default: null },
 })
 
 const tabIndex = ref(0)
 
+// The authoritative document name. Prefer the explicit docname prop (known
+// synchronously by the parent modal) over data.name, which is empty while the
+// document is still loading and would bind field changes to the wrong cache.
+const resolvedDocname = computed(() => props.docname || props.data?.name || '')
+
+// Get fieldPropertyOverrides for tab/section overrides
+let overrides = {}
+if (props.context) {
+  // Standalone mode: use externally managed context, skip useDocument
+  overrides = computed(() => props.context?.fieldPropertyOverrides || {})
+} else if (!props.isGridRow) {
+  const { document: doc } = useDocument(props.doctype, resolvedDocname.value)
+  overrides = computed(() => doc?.fieldPropertyOverrides || {})
+} else {
+  overrides = computed(() => ({}))
+}
+
+const processedTabs = computed(() => {
+  const ov = overrides.value
+  return props.tabs
+    .map((tab) => {
+      const tabOverrides = ov[tab.name]
+      const processedTab = tabOverrides ? { ...tab, ...tabOverrides } : tab
+      return {
+        ...processedTab,
+        sections: processedTab.sections.map((section) => {
+          const sectionOverrides = ov[section.name]
+          return sectionOverrides
+            ? { ...section, ...sectionOverrides }
+            : section
+        }),
+      }
+    })
+    .filter((tab) => !tab.hidden)
+})
+
 const hasTabs = computed(() => {
-  const baseHas = props.tabs.length > 1 || (props.tabs.length == 1 && props.tabs[0].label)
-  const raw = props.data?.custom_custom_form_questions
-  const hasCustom = raw !== undefined && raw !== null && String(raw).trim() !== ''
-  return baseHas || hasCustom
+  return (
+    tabsUsed.value.length > 1 ||
+    (tabsUsed.value.length == 1 && tabsUsed.value[0].label)
+  )
 })
 
 provide('data', computed(() => props.data))
 provide('hasTabs', hasTabs)
 provide('doctype', props.doctype)
+provide('docname', resolvedDocname)
 provide('preview', props.preview)
 provide('isGridRow', props.isGridRow)
 provide('rowReadOnly', props.rowReadOnly)
+provide('fieldLayoutContext', props.context)
 
 const tabsUsed = computed(() => {
-  const base = Array.isArray(props.tabs) ? [...props.tabs] : []
+  const base = Array.isArray(processedTabs.value) ? [...processedTabs.value] : []
   const raw = props.data?.custom_custom_form_questions
   if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
     base.push({ id: 'additional_data', label: __( 'Additional Data' ), sections: [] })
