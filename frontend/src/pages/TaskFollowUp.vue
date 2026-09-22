@@ -42,7 +42,7 @@
       <div class="flex gap-4 md:grid md:grid-cols-3">
       <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
         <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
-          <div class="font-semibold mb-2 text-center "">{{ __('Today') }}</div>
+          <div class="font-semibold mb-2 text-center ">{{ __('Today') }}</div>
           <div class="font-semibold mb-2 text-center ">{{ `[${todayItems.length}]` }}</div>
         </div>
         <div class="flex flex-col gap-2">
