@@ -1,15 +1,23 @@
 <template>
-  <Dialog v-model="show" :options="{ size: 'xl' }">
-    <template #body>
-      <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
+  <Dialog v-model:open="show" :size="'xl'" bare>
+    <template #default>
+      <div class="bg-surface-elevation-2 px-4 pb-6 pt-5 sm:px-6">
         <div class="mb-6 flex items-center justify-between">
           <div>
-            <h3 class="text-2xl leading-6 text-ink-gray-9 font-semibold">
-              {{ __('Delete') }}
-            </h3>
+            <Dialog.Title as-child>
+              <h3 class="text-3xl-semibold leading-6 text-ink-gray-9">
+                {{ __('Delete') }}
+              </h3>
+            </Dialog.Title>
           </div>
           <div class="flex items-center gap-1">
-            <Button variant="ghost" icon="x" @click="show = false" />
+            <Dialog.Close as-child>
+              <Button
+                :aria-label="__('Close')"
+                variant="ghost"
+                icon="lucide-x"
+              />
+            </Dialog.Close>
           </div>
         </div>
         <div>
@@ -26,14 +34,14 @@
         <div class="flex flex-row-reverse gap-2">
           <Button
             :label="__('Delete {0} items', [props.items.length])"
-            icon-left="trash-2"
+            icon-left="lucide-trash-2"
             variant="solid"
             theme="red"
             @click="confirmDelete()"
           />
           <Button
             :label="__('Unlink & Delete {0} items', [props.items.length])"
-            icon-left="unlock"
+            icon-left="lucide-unlock"
             variant="solid"
             @click="confirmUnlink()"
           />
@@ -41,16 +49,22 @@
       </div>
       <div
         v-if="confirmDeleteInfo.show"
-        class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6"
+        class="bg-surface-elevation-2 px-4 pb-6 pt-5 sm:px-6"
       >
         <div class="mb-6 flex items-center justify-between">
           <div>
-            <h3 class="text-2xl leading-6 text-ink-gray-9 font-semibold">
+            <h3 class="text-3xl-semibold leading-6 text-ink-gray-9">
               {{ __('Delete') }}
             </h3>
           </div>
           <div class="flex items-center gap-1">
-            <Button variant="ghost" icon="x" @click="show = false" />
+            <Dialog.Close as-child>
+              <Button
+                :aria-label="__('Close')"
+                variant="ghost"
+                icon="lucide-x"
+              />
+            </Dialog.Close>
           </div>
         </div>
         <div>
@@ -73,7 +87,9 @@
             :label="
               confirmDeleteInfo.delete ? __('Delete') : __('Unlink & Delete')
             "
-            :icon-left="confirmDeleteInfo.delete ? 'trash-2' : 'unlock'"
+            :icon-left="
+              confirmDeleteInfo.delete ? 'lucide-trash-2' : 'lucide-unlock'
+            "
             variant="solid"
             theme="red"
             @click="deleteDocs()"
@@ -90,7 +106,7 @@
 </template>
 
 <script setup>
-import { call } from 'frappe-ui'
+import { Dialog, call } from 'frappe-ui'
 import { ref } from 'vue'
 
 const show = defineModel({ type: Boolean })

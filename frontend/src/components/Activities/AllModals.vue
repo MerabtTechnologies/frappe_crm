@@ -40,7 +40,8 @@
 </template>
 <script setup>
 import { useDoctypeModal } from '@/composables/doctypeModal'
-import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
+import { useCrmOnboarding } from '@/composables/onboarding'
 import { call } from 'frappe-ui'
 import { ref } from 'vue'
 import { dayjs } from 'frappe-ui'
@@ -59,7 +60,7 @@ const activities = defineModel({ type: Object })
 const now = dayjs()
 
 const { showModal } = useDoctypeModal()
-const { updateOnboardingStep } = useOnboarding('frappecrm')
+const { completeStep } = useCrmOnboarding()
 const { capture } = useTelemetry()
 
 // Tasks
@@ -221,7 +222,7 @@ function afterDoctype(d, isInsert = false) {
   }
 
   if (isInsert) {
-    updateOnboardingStep('create_first_' + name)
+    completeStep('create_first_' + name)
     capture(name + '_created')
   } else {
     capture(name + '_updated')

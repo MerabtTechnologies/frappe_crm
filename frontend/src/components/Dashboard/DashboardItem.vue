@@ -2,101 +2,90 @@
   <div class="h-full w-full">
     <div
       v-if="item.type == 'number_chart'"
-      class="flex h-full w-full rounded shadow overflow-hidden cursor-pointer"
+      class="flex h-full w-full overflow-hidden cursor-pointer"
     >
-      <Tooltip :text="__(item.data.tooltip)">
-        <NumberChart
+      <Tooltip :text="__(item.data?.tooltip || '')">
+        <NumberCard
           v-if="item.data"
           :key="index"
-          class="!items-start"
-          :config="item.data"
+          class="h-full !items-start"
+          v-bind="numberCardProps"
           @click="handleChartClick"
         />
       </Tooltip>
       <!-- Download icon button -->
       <div class="ml-auto">
-        
-        <Button v-if="false"
-            class="absolute top-2 right-2 z-10"
-            variant="outline"
-            icon="download"
-            @click.stop="downloadExcel"
-          />
-
-
+        <Button
+          v-if="false"
+          class="absolute top-2 right-2 z-10"
+          variant="outline"
+          icon="download"
+          @click.stop="downloadExcel"
+        />
       </div>
       <!-- Button div end here -->
     </div>
     <div
       v-else-if="item.type == 'spacer'"
-      class="rounded bg-surface-white h-full overflow-hidden text-ink-gray-5 flex items-center justify-center"
+      class="rounded-4 bg-surface-base h-full overflow-hidden text-ink-gray-5 flex items-center justify-center"
       :class="editing ? 'border border-dashed border-outline-gray-2' : ''"
     >
       {{ editing ? __('Spacer') : '' }}
     </div>
     <div
-      v-else-if="item.type == 'axis_chart'"
-      class="h-full w-full rounded-md bg-surface-white shadow"
+      v-else-if="item.type == 'axis_chart' && customAxisCharts.has(item.name)"
+      class="h-full w-full rounded-4 bg-surface-base shadow cursor-pointer"
     >
-      <!-- Download icon button -->
-      <Button v-if ="false"
-        class="absolute top-2 right-2 z-10"
-        variant="outline"
-        icon="download"
-        @click.stop="downloadExcel"
-        
+      <AxisEchart
+        v-if="item.data"
+        :config="item.data"
+        @click="handleAxisChartClick"
       />
-
-      <!-- end here -->
-    <div
-        v-else-if="item.type == 'axis_chart'"
-        class="h-full w-full rounded-md bg-surface-white shadow cursor-pointer"
-      >
-        <AxisEchart 
-          v-if="item.data" 
-          :config="item.data"
-          @click="handleAxisChartClick"
-        />
-      </div>
-      <!-- <AxisChart v-if="item.data" :config="item.data" /> -->
     </div>
     <div
-      v-else-if="item.type == 'donut_chart'"
-      class="h-full w-full rounded-md bg-surface-white shadow overflow-hidden"
+      v-else-if="item.type == 'donut_chart' && customDonutCharts.has(item.name)"
+      class="h-full w-full rounded-4 bg-surface-base shadow overflow-hidden"
     >
-    <div class="h-full w-full relative">
-    <!-- Download icon button -->
-      <Button v-if="false"
-        class="absolute top-2 right-2 z-10"
-        variant="outline"
-        icon="download"
-        @click.stop="downloadExcel"
+      <ClickableDonutChart
+        v-if="item.data"
+        :config="item.data"
+        @click="handleEChartClick"
       />
-      
-      <!-- <DonutChart v-if="item.data" :config="item.data"  -->
-      
-      <ClickableDonutChart 
-          v-if="item.data" 
-          :config="item.data" 
-          @click="handleEChartClick"
-        />
     </div>
-     <!-- Download icon button -->
-    </div>
+    <ChartCard v-else-if="item.type == 'axis_chart'" class="h-full">
+      <component
+        :is="axisChart.component"
+        v-if="item.data"
+        v-bind="axisChart.props"
+      />
+    </ChartCard>
+    <ChartCard v-else-if="item.type == 'donut_chart'" class="h-full">
+      <DonutChart v-if="item.data" v-bind="donutChartProps" />
+    </ChartCard>
   </div>
 </template>
 <script setup>
-
-
 //------- For Download Excel Data For donut Chart--------
 
-import { AxisChart, Button, NumberChart, Tooltip } from 'frappe-ui'
-import { computed, inject } from 'vue'
-import { createResource} from 'frappe-ui'
-import { usersStore } from '@/stores/users'
+import { Button, Tooltip, createResource } from 'frappe-ui'
+import {
+  AreaChart,
+  BarChart,
+  ChartCard,
+  DonutChart,
+  LineChart,
+  NumberCard,
+} from 'frappe-ui/charts'
+import {
+  getAxisChartKind,
+  toAxisChartProps,
+  toDonutChartProps,
+  toNumberCardProps,
+} from '@/utils/dashboardCharts'
+import { computed, inject, unref } from 'vue'
 import { useRouter } from 'vue-router'
 import AxisEchart from './AxisEchart.vue'
-import ClickableDonutChart from './Echart.vue' 
+import ClickableDonutChart from './Echart.vue'
 
 const downloadExcelResource = createResource({
   url: 'merabt_crm.merabt_crm.override.custom_chart.download_donut_chart_excel',
@@ -108,13 +97,6 @@ const downloadExcelResource = createResource({
   },
 })
 
-const enableButton = computed(() => {
-  if (isSalesMasterManager()) {
-    return true
-  }
-  return false
-})
-
 const downloadExcelResourceNumberChart = createResource({
   url: 'merabt_crm.merabt_crm.override.custom_chart.download_number_chart_excel',
   auto: false,
@@ -123,7 +105,7 @@ const downloadExcelResourceNumberChart = createResource({
       window.open(res.file_url)
     }
   },
-})  
+})
 
 const downloadExcelResourceAxisChart = createResource({
   url: 'merabt_crm.merabt_crm.override.custom_chart.download_axis_chart_excel',
@@ -135,7 +117,6 @@ const downloadExcelResourceAxisChart = createResource({
   },
 })
 
-
 function downloadExcel() {
   if (!props.item?.name) {
     console.error('Chart name missing')
@@ -146,16 +127,14 @@ function downloadExcel() {
     name: props.item.name,
     from_date: fromDate?.value,
     to_date: toDate?.value,
-    user: filters?.user,
+    user: unref(filters)?.user,
   }
 
   if (props.item.type === 'donut_chart') {
     downloadExcelResource.fetch(payload)
-  }
-  else if (props.item.type === 'number_chart') {
+  } else if (props.item.type === 'number_chart') {
     downloadExcelResourceNumberChart.fetch(payload)
-  }
-  else if (props.item.type === 'axis_chart') {
+  } else if (props.item.type === 'axis_chart') {
     downloadExcelResourceAxisChart.fetch(payload)
   }
 }
@@ -173,7 +152,7 @@ async function getUserEmailFromName(fullName) {
       params: {
         doctype: 'User',
         filters: { full_name: fullName },
-        fieldname: 'name'
+        fieldname: 'name',
       },
       auto: false,
       onSuccess: (data) => {
@@ -186,9 +165,9 @@ async function getUserEmailFromName(fullName) {
       onError: (err) => {
         console.error('Error fetching user email:', err)
         reject(err)
-      }
+      },
     })
-    
+
     getUserEmail.fetch()
   })
 }
@@ -199,18 +178,33 @@ const userEmailCache = {}
 
 // Helper function to apply user filter
 async function applyUserFilter(filtersArray, routeName) {
-  const owner = filters?.user || null
-  if (owner && (routeName === 'Leads' || routeName === 'Deals' || routeName === 'Tasks' || routeName === 'Call Logs')) {
+  const owner = unref(filters)?.user || null
+  if (
+    owner &&
+    (routeName === 'Leads' ||
+      routeName === 'Deals' ||
+      routeName === 'Tasks' ||
+      routeName === 'Call Logs')
+  ) {
     if (owner === 'Unassigned') {
       let field = ''
       if (routeName === 'Leads') field = 'lead_owner'
       else if (routeName === 'Deals') field = 'deal_owner'
       else if (routeName === 'Tasks') field = 'owner'
-      else if (routeName === 'Call Logs') field = 'caller' || 'receiver'
+      else if (routeName === 'Call Logs')
+        field =
+          props.item.name === 'total_incoming_call_logs_count'
+            ? 'receiver'
+            : props.item.name === 'total_outgoing_call_logs_count'
+              ? 'caller'
+              : 'call_participant'
 
-      
       if (field) {
-        filtersArray.push({ fieldname: field, condition: 'is', value: 'not set' })
+        filtersArray.push({
+          fieldname: field,
+          condition: 'is',
+          value: 'not set',
+        })
       }
     } else if (owner !== 'Total') {
       let email = userEmailCache[owner]
@@ -226,20 +220,28 @@ async function applyUserFilter(filtersArray, routeName) {
       if (routeName === 'Leads') field = 'lead_owner'
       else if (routeName === 'Deals') field = 'deal_owner'
       else if (routeName === 'Tasks') field = 'owner'
-       else if (routeName === 'Call Logs') field = 'caller' || 'receiver'
-      
+      else if (routeName === 'Call Logs')
+        field =
+          props.item.name === 'total_incoming_call_logs_count'
+            ? 'receiver'
+            : props.item.name === 'total_outgoing_call_logs_count'
+              ? 'caller'
+              : 'call_participant'
+
       if (field) {
-        filtersArray.push({ fieldname: field, condition: 'equals', value: email || owner })
+        filtersArray.push({
+          fieldname: field,
+          condition: 'equals',
+          value: email || owner,
+        })
       }
-      
     }
   }
-  
 }
-
 
 // -----Filter handling for chart click starts here-------
 async function handleChartClick() {
+  if (props.editing) return
 
   //  this.$emit('click', {
   //   territory: params.name, // The date
@@ -247,7 +249,7 @@ async function handleChartClick() {
   // })
 
   const chartName = props.item?.name
-  const owner = filters?.user || null
+  const owner = unref(filters)?.user || null
 
   if (!chartName) {
     console.error('Chart name missing')
@@ -255,7 +257,7 @@ async function handleChartClick() {
   }
 
   const filtersArray = []
-  let routeName = ''
+  let routeName
 
   // ✅ STATUS (based on chart)
   if (chartName === 'open_leads') {
@@ -263,35 +265,31 @@ async function handleChartClick() {
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: 'Open'
+      value: 'Open',
     })
-  }
-  else if (chartName === 'converted_leads') {
+  } else if (chartName === 'converted_leads') {
     routeName = 'Leads'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: 'Converted'
+      value: 'Converted',
     })
-  }
-  else if (chartName === 'lost_leads') {
+  } else if (chartName === 'lost_leads') {
     routeName = 'Leads'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: 'Lost'
+      value: 'Lost',
     })
-    
-  }
-  else if (chartName === 'total_leads' || chartName === 'our_total_leads') {
+  } else if (chartName === 'total_leads' || chartName === 'our_total_leads') {
     routeName = 'Leads'
-    
+
     // ✅ ADD CUSTOMER FILTER FOR our_total_leads
     if (chartName === 'our_total_leads') {
       filtersArray.push({
         fieldname: 'custom_customer',
         condition: 'is',
-        value: 'not set'
+        value: 'not set',
       })
     }
   }
@@ -308,298 +306,286 @@ async function handleChartClick() {
   //     value: 'not set'
   //   })
   // }
-
-
-else if (chartName === 'won_deals') {
-  routeName = 'Deals'
-  filtersArray.push({
-    fieldname: 'status',
-    condition: 'equals',
-    value: 'Won'
-  })
-  filtersArray.push({
-    fieldname: 'closed_date',
-    condition: 'between',
-    value: [fromDate.value, toDate.value]   
-  })
-
-  }
-  else if (chartName === 'total_deal_value') {
+  else if (chartName === 'won_deals') {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
-      condition: 'Not in',  
-      value: "Lost"
+      condition: 'equals',
+      value: 'Won',
+    })
+    filtersArray.push({
+      fieldname: 'closed_date',
+      condition: 'between',
+      value: [fromDate.value, toDate.value],
+    })
+  } else if (chartName === 'total_deal_value') {
+    routeName = 'Deals'
+    filtersArray.push({
+      fieldname: 'status',
+      condition: 'Not in',
+      value: 'Lost',
     })
     // filtersArray.push({
     //   fieldname: 'deal_value',
     //   condition: 'is',
     //   value: 'set'
     // })
-  }
-  else if (chartName === 'ongoing_deals') {
+  } else if (chartName === 'ongoing_deals') {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
-      condition: 'Not in',  
-      value: "Won, Lost"
+      condition: 'Not in',
+      value: 'Won, Lost',
     })
-  }
-  else if (chartName === 'average_ongoing_deal_value') {
+  } else if (chartName === 'average_ongoing_deal_value') {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
-      condition: 'Not in',  
-      value: "Won, Lost"
+      condition: 'Not in',
+      value: 'Won, Lost',
     })
-   // filtersArray.push({
+    // filtersArray.push({
     //  fieldname: 'deal_value',
     //  condition: 'is',
-      //value: 'set'
-   // })
-  }
-  else if (chartName === 'average_deal_value') {
+    //value: 'set'
+    // })
+  } else if (chartName === 'average_deal_value') {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
       condition: '!=',
-      value: 'Lost'
+      value: 'Lost',
     })
-  }
-  else if (chartName === 'average_won_deal_value') {
+  } else if (chartName === 'average_won_deal_value') {
     routeName = 'Deals'
     // Add closed_date filter (no creation filter added due to condition above)
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({
         fieldname: 'closed_date',
         condition: 'between',
-        value: [fromDate.value, toDate.value]
+        value: [fromDate.value, toDate.value],
       })
     } else if (fromDate?.value) {
       filtersArray.push({
         fieldname: 'closed_date',
         condition: '>=',
-        value: fromDate.value
+        value: fromDate.value,
       })
     } else if (toDate?.value) {
       filtersArray.push({
         fieldname: 'closed_date',
         condition: '<=',
-        value: toDate.value
+        value: toDate.value,
       })
     }
-    
+
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: 'Won'
+      value: 'Won',
     })
-    
+
     filtersArray.push({
       fieldname: 'deal_value',
       condition: 'is',
-      value: 'set'
+      value: 'set',
     })
-  }
-  else if(chartName === 'total_won_deal_value') {
+  } else if (chartName === 'total_won_deal_value') {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: 'Won'
+      value: 'Won',
     })
-  }
-  else if (chartName === 'total_won_deal_balance_value') {
+  } else if (chartName === 'total_won_deal_balance_value') {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: 'Won'
+      value: 'Won',
     })
     filtersArray.push({
       fieldname: 'custom_balance_amount',
       condition: 'is',
-      value: 'set'
+      value: 'set',
     })
-  }
-  else if (chartName === 'average_time_to_close_a_deal') {
+  } else if (chartName === 'average_time_to_close_a_deal') {
     routeName = 'Deals'
     // Add closed_date filter (no creation filter added due to condition above)
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({
         fieldname: 'closed_date',
         condition: 'between',
-        value: [fromDate.value, toDate.value]
+        value: [fromDate.value, toDate.value],
       })
     } else if (fromDate?.value) {
       filtersArray.push({
         fieldname: 'closed_date',
         condition: '>=',
-        value: fromDate.value
+        value: fromDate.value,
       })
     } else if (toDate?.value) {
       filtersArray.push({
         fieldname: 'closed_date',
         condition: '<=',
-        value: toDate.value
+        value: toDate.value,
       })
     }
-    
+
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: 'Won'
+      value: 'Won',
     })
-  }
-  else if (chartName === 'total_call_logs_count') {
+  } else if (chartName === 'total_call_logs_count') {
     routeName = 'Call Logs'
 
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: 'between',
-        value: [fromDate.value, toDate.value]
+        value: [fromDate.value, toDate.value],
       })
     } else if (fromDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '>=',
-        value: fromDate.value
+        value: fromDate.value,
       })
     } else if (toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '<=',
-        value: toDate.value
+        value: toDate.value,
       })
     }
-  }
-  else if (chartName === 'total_incoming_call_logs_count') {
+  } else if (chartName === 'total_incoming_call_logs_count') {
     routeName = 'Call Logs'
 
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: 'between',
-        value: [fromDate.value, toDate.value]
+        value: [fromDate.value, toDate.value],
       })
     } else if (fromDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '>=',
-        value: fromDate.value
+        value: fromDate.value,
       })
     } else if (toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '<=',
-        value: toDate.value
+        value: toDate.value,
       })
     }
 
     filtersArray.push({
       fieldname: 'type',
       condition: 'equals',
-      value: 'Incoming'
+      value: 'Incoming',
     })
-  }
-  else if (chartName === 'total_outgoing_call_logs_count') {
-    routeName = 'Call Logs' 
+  } else if (chartName === 'total_outgoing_call_logs_count') {
+    routeName = 'Call Logs'
 
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: 'between',
-        value: [fromDate.value, toDate.value]
+        value: [fromDate.value, toDate.value],
       })
     } else if (fromDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '>=',
-        value: fromDate.value
+        value: fromDate.value,
       })
     } else if (toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '<=',
-        value: toDate.value
+        value: toDate.value,
       })
     }
 
     filtersArray.push({
       fieldname: 'type',
       condition: 'equals',
-      value: 'Outgoing'
+      value: 'Outgoing',
     })
-  }
-  else if (chartName === 'average_call_duration') {
+  } else if (chartName === 'average_call_duration') {
     routeName = 'Call Logs'
 
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: 'between',
-        value: [fromDate.value, toDate.value]
+        value: [fromDate.value, toDate.value],
       })
     } else if (fromDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '>=',
-        value: fromDate.value
+        value: fromDate.value,
       })
     } else if (toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '<=',
-        value: toDate.value
+        value: toDate.value,
       })
     }
 
     filtersArray.push({
       fieldname: 'duration',
       condition: 'is',
-      value: 'set'
+      value: 'set',
     })
-  }
-  else if(chartName === 'total_call_duration'){
+  } else if (chartName === 'total_call_duration') {
     routeName = 'Call Logs'
     filtersArray.push({
       fieldname: 'duration',
       condition: 'is',
-      value: 'set'
+      value: 'set',
     })
     filtersArray.push({
       fieldname: 'creation',
       condition: 'between',
-      value: [fromDate.value, toDate.value]
+      value: [fromDate.value, toDate.value],
     })
-    
-  }
-  else {
+  } else {
     console.warn('Unhandled chart:', chartName)
     return
   }
 
   // ✅ Add date filters for charts that don't have special date handling
-  const skipDateCharts = ['average_won_deal_value', 'average_time_to_close_a_deal', 'won_deals','total_won_deal_value','total_won_deal_balance_value']
+  const skipDateCharts = [
+    'average_won_deal_value',
+    'average_time_to_close_a_deal',
+    'won_deals',
+    'total_won_deal_value',
+    'total_won_deal_balance_value',
+  ]
   if (!skipDateCharts.includes(chartName) && routeName !== 'Call Logs') {
     if (fromDate?.value && toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: 'between',
-        value: [fromDate.value, toDate.value]
+        value: [fromDate.value, toDate.value],
       })
     } else if (fromDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '>=',
-        value: fromDate.value
+        value: fromDate.value,
       })
     } else if (toDate?.value) {
       filtersArray.push({
         fieldname: 'creation',
         condition: '<=',
-        value: toDate.value
+        value: toDate.value,
       })
     }
   }
@@ -610,8 +596,8 @@ else if (chartName === 'won_deals') {
   router.push({
     name: routeName,
     query: {
-      filters: JSON.stringify(filtersArray)
-    }
+      filters: JSON.stringify(filtersArray),
+    },
   })
 }
 
@@ -619,6 +605,7 @@ else if (chartName === 'won_deals') {
 
 // -----Filter handling for Vue E chart click starts here-------
 async function handleEChartClick(segment) {
+  if (props.editing) return
   const chartName = props.item?.name
 
   if (!chartName || !segment) {
@@ -626,8 +613,8 @@ async function handleEChartClick(segment) {
   }
 
   const filtersArray = []
-  let routeName = ''
-  const value = segment.name  // ✅ IMPORTANT FIX
+  let routeName
+  const value = segment.name // ✅ IMPORTANT FIX
 
   if (chartName === 'leads_by_source') {
     routeName = 'Leads'
@@ -635,100 +622,93 @@ async function handleEChartClick(segment) {
     filtersArray.push({
       fieldname: 'source',
       condition: 'equals',
-      value: value
+      value: value,
     })
-  }
-  else if (chartName === 'deals_by_source') {
+  } else if (chartName === 'deals_by_source') {
     routeName = 'Deals'
-    
+
     if (value === 'Empty') {
       filtersArray.push({
         fieldname: 'source',
         condition: 'is',
-        value: 'not set'
+        value: 'not set',
       })
     } else {
       filtersArray.push({
         fieldname: 'source',
         condition: 'equals',
-        value: value
+        value: value,
       })
     }
-  }
-  else if (chartName === 'deals_by_stage_donut') {
+  } else if (chartName === 'deals_by_stage_donut') {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: value
+      value: value,
     })
-  } 
-  else if (chartName === 'user_status_leads') {
+  } else if (chartName === 'user_status_leads') {
     routeName = 'Leads'
-    
+
     if (value === 'Qualified') {
       filtersArray.push({
         fieldname: 'status',
         condition: 'equals',
-        value: 'Qualified'
+        value: 'Qualified',
       })
     } else if (value === 'Other') {
       filtersArray.push({
         fieldname: 'status',
         condition: '!=',
-        value: 'Qualified'
+        value: 'Qualified',
       })
     }
-    
+
     filtersArray.push({
       fieldname: 'custom_customer',
       condition: 'is',
-      value: 'not set'
+      value: 'not set',
     })
-  }
-  else if (chartName === 'tasks_by_stage') {
+  } else if (chartName === 'tasks_by_stage') {
     routeName = 'Tasks'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: value
+      value: value,
     })
-  }
-  else if (chartName === 'deals_by_stage_deal_value') {
+  } else if (chartName === 'deals_by_stage_deal_value') {
     routeName = 'Deals'
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: value
+      value: value,
     })
     filtersArray.push({
       fieldname: 'deal_value',
       condition: 'is',
-      value: 'set'
+      value: 'set',
     })
-  }
-  else if (chartName === 'won_deals_by_source_for_owner_donut') {
-    routeName = 'Deals' 
+  } else if (chartName === 'won_deals_by_source_for_owner_donut') {
+    routeName = 'Deals'
     if (value === 'Not Assigned') {
       filtersArray.push({
         fieldname: 'source',
         condition: 'is',
-        value: 'not set'
+        value: 'not set',
       })
     } else {
       filtersArray.push({
         fieldname: 'source',
         condition: 'equals',
-        value: value
+        value: value,
       })
     }
     filtersArray.push({
       fieldname: 'status',
       condition: 'equals',
-      value: 'Won'
+      value: 'Won',
     })
-  }
-  else {
+  } else {
     console.warn('Unhandled donut chart:', chartName)
     return
   }
@@ -738,19 +718,19 @@ async function handleEChartClick(segment) {
     filtersArray.push({
       fieldname: 'creation',
       condition: 'between',
-      value: [fromDate.value, toDate.value]
+      value: [fromDate.value, toDate.value],
     })
   } else if (fromDate?.value) {
     filtersArray.push({
       fieldname: 'creation',
       condition: '>=',
-      value: fromDate.value
+      value: fromDate.value,
     })
   } else if (toDate?.value) {
     filtersArray.push({
       fieldname: 'creation',
       condition: '<=',
-      value: toDate.value
+      value: toDate.value,
     })
   }
 
@@ -760,47 +740,53 @@ async function handleEChartClick(segment) {
   router.push({
     name: routeName,
     query: {
-      filters: JSON.stringify(filtersArray)
-    }
+      filters: JSON.stringify(filtersArray),
+    },
   })
 }
 
 // -----Filter handling for Axis chart click starts here-------
 async function handleAxisChartClick({ territory }) {
+  if (props.editing) return
   const chartName = props.item?.name
   if (!chartName) {
     console.error('No chart name')
     return
   }
-  
+
   const filtersArray = []
-  let routeName = ''
-  
+  let routeName
+
   // Leads by Source Performance
   if (chartName === 'leads_by_source_performance') {
     routeName = 'Leads'
-    
-    if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
+
+    if (
+      territory &&
+      territory !== 'null' &&
+      territory !== 'undefined' &&
+      territory !== ''
+    ) {
       const sourceName = territory
-      
+
       if (sourceName === 'Not Assigned') {
         filtersArray.push({
           fieldname: 'source',
           condition: 'is',
-          value: 'not set'
+          value: 'not set',
         })
       } else {
         filtersArray.push({
           fieldname: 'source',
           condition: '=',
-          value: sourceName
+          value: sourceName,
         })
       }
-      
+
       filtersArray.push({
         fieldname: 'custom_customer',
         condition: 'is',
-        value: 'not set'
+        value: 'not set',
       })
     } else {
       console.error('❌ No source received')
@@ -810,19 +796,24 @@ async function handleAxisChartClick({ territory }) {
   // Deals by Territory
   else if (chartName === 'deals_by_territory') {
     routeName = 'Deals'
-    
-    if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
+
+    if (
+      territory &&
+      territory !== 'null' &&
+      territory !== 'undefined' &&
+      territory !== ''
+    ) {
       if (territory === 'Empty' || territory === 'Not Assigned') {
         filtersArray.push({
           fieldname: 'territory',
           condition: 'is',
-          value: 'not set'
+          value: 'not set',
         })
       } else {
         filtersArray.push({
           fieldname: 'territory',
           condition: '=',
-          value: territory
+          value: territory,
         })
       }
     }
@@ -830,10 +821,15 @@ async function handleAxisChartClick({ territory }) {
   // Deals by Salesperson
   else if (chartName === 'deals_by_salesperson') {
     routeName = 'Deals'
-    
-    const salespersonName = territory  
-    
-    if (salespersonName && salespersonName !== 'null' && salespersonName !== 'undefined' && salespersonName !== '') {
+
+    const salespersonName = territory
+
+    if (
+      salespersonName &&
+      salespersonName !== 'null' &&
+      salespersonName !== 'undefined' &&
+      salespersonName !== ''
+    ) {
       let email = userEmailCache[salespersonName]
       if (!email) {
         try {
@@ -843,11 +839,11 @@ async function handleAxisChartClick({ territory }) {
           console.error('Error fetching email for salesperson:', err)
         }
       }
-      
+
       filtersArray.push({
         fieldname: 'deal_owner',
         condition: '=',
-        value: email || salespersonName
+        value: email || salespersonName,
       })
     } else {
       console.error('❌ No valid salesperson received')
@@ -857,18 +853,23 @@ async function handleAxisChartClick({ territory }) {
   // Lost deal reasons
   else if (chartName === 'lost_deal_reasons') {
     routeName = 'Deals'
-    
-    if (territory && territory !== 'null' && territory !== 'undefined' && territory !== '') {
+
+    if (
+      territory &&
+      territory !== 'null' &&
+      territory !== 'undefined' &&
+      territory !== ''
+    ) {
       filtersArray.push({
         fieldname: 'lost_reason',
         condition: '=',
-        value: territory
+        value: territory,
       })
-      
+
       filtersArray.push({
         fieldname: 'status',
         condition: '=',
-        value: 'Lost'
+        value: 'Lost',
       })
     } else {
       console.error('❌ No lost reason received')
@@ -879,15 +880,19 @@ async function handleAxisChartClick({ territory }) {
   else if (chartName === 'conversion_ratio_by_salesperson') {
     let salesperson = territory
     routeName = 'Deals'
-    
+
     if (salesperson === 'Unknown') {
       filtersArray.push({
         fieldname: 'deal_owner',
         condition: 'in',
-        value: ['', null]
+        value: ['', null],
       })
-    } 
-    else if (salesperson && salesperson !== 'null' && salesperson !== 'undefined' && salesperson !== '') {
+    } else if (
+      salesperson &&
+      salesperson !== 'null' &&
+      salesperson !== 'undefined' &&
+      salesperson !== ''
+    ) {
       let email = userEmailCache[salesperson]
       if (!email) {
         try {
@@ -901,7 +906,7 @@ async function handleAxisChartClick({ territory }) {
       filtersArray.push({
         fieldname: 'deal_owner',
         condition: '=',
-        value: email || salesperson
+        value: email || salesperson,
       })
     } else {
       console.error('❌ No valid salesperson received')
@@ -911,40 +916,45 @@ async function handleAxisChartClick({ territory }) {
   // Deal Value by Stage
   else if (chartName === 'deal_value_by_stage') {
     routeName = 'Deals'
-    
-    const stageName = territory  
-    
-    if (stageName && stageName !== 'null' && stageName !== 'undefined' && stageName !== '') {
+
+    const stageName = territory
+
+    if (
+      stageName &&
+      stageName !== 'null' &&
+      stageName !== 'undefined' &&
+      stageName !== ''
+    ) {
       filtersArray.push({
         fieldname: 'status',
         condition: '=',
-        value: stageName
+        value: stageName,
       })
       filtersArray.push({
         fieldname: 'deal_value',
         condition: 'is',
-        value: 'set'
+        value: 'set',
       })
     }
   }
   // Deals by Stage - Add this to your else if chain
-else if (chartName === 'deals_by_stage_axis') {
-  routeName = 'Deals'
-  const stageName = territory  
-  
-  if (stageName && stageName !== 'null' && stageName !== 'undefined' && stageName !== '') {
-    filtersArray.push({
-      fieldname: 'status',
-      condition: '=',
-      value: stageName
-    })
-  }
+  else if (chartName === 'deals_by_stage_axis') {
+    routeName = 'Deals'
+    const stageName = territory
 
-  
- 
-}
-
-  else {
+    if (
+      stageName &&
+      stageName !== 'null' &&
+      stageName !== 'undefined' &&
+      stageName !== ''
+    ) {
+      filtersArray.push({
+        fieldname: 'status',
+        condition: '=',
+        value: stageName,
+      })
+    }
+  } else {
     console.warn('Unhandled axis chart:', chartName)
     return
   }
@@ -954,19 +964,19 @@ else if (chartName === 'deals_by_stage_axis') {
     filtersArray.push({
       fieldname: 'creation',
       condition: 'between',
-      value: [fromDate.value, toDate.value]
+      value: [fromDate.value, toDate.value],
     })
   } else if (fromDate?.value) {
     filtersArray.push({
       fieldname: 'creation',
       condition: '>=',
-      value: fromDate.value
+      value: fromDate.value,
     })
   } else if (toDate?.value) {
     filtersArray.push({
       fieldname: 'creation',
       condition: '<=',
-      value: toDate.value
+      value: toDate.value,
     })
   }
 
@@ -976,8 +986,8 @@ else if (chartName === 'deals_by_stage_axis') {
   router.push({
     name: routeName,
     query: {
-      filters: JSON.stringify(filtersArray)
-    }
+      filters: JSON.stringify(filtersArray),
+    },
   })
 }
 
@@ -993,6 +1003,33 @@ const props = defineProps({
   editing: {
     type: Boolean,
     default: false,
-  }
+  },
 })
+
+const customAxisCharts = new Set([
+  'leads_by_source_performance',
+  'deals_by_territory',
+  'deals_by_salesperson',
+  'lost_deal_reasons',
+  'conversion_ratio_by_salesperson',
+  'deal_value_by_stage',
+  'deals_by_stage_axis',
+])
+const customDonutCharts = new Set([
+  'leads_by_source',
+  'deals_by_source',
+  'deals_by_stage_donut',
+  'user_status_leads',
+  'tasks_by_stage',
+  'deals_by_stage_deal_value',
+  'won_deals_by_source_for_owner_donut',
+])
+const axisChartComponents = { line: LineChart, area: AreaChart, bar: BarChart }
+const config = computed(() => props.item.data || {})
+const numberCardProps = computed(() => toNumberCardProps(config.value))
+const donutChartProps = computed(() => toDonutChartProps(config.value))
+const axisChart = computed(() => ({
+  component: axisChartComponents[getAxisChartKind(config.value)],
+  props: toAxisChartProps(config.value),
+}))
 </script>

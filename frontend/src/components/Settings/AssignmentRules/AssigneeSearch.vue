@@ -1,17 +1,16 @@
 <template>
   <Combobox :multiple="true">
-    <Popover placement="bottom-end">
-      <template #target="{ togglePopover }">
+    <Popover side="bottom" align="end" bare>
+      <template #trigger>
         <Button
           variant="subtle"
-          icon-left="plus"
+          icon-left="lucide-plus"
           :label="__('Add Assignee')"
-          @click="togglePopover()"
         />
       </template>
-      <template #body="{ togglePopover }">
+      <template #default="{ close }">
         <div
-          class="mt-1 rounded-lg bg-surface-white py-1 text-base shadow-2xl w-60"
+          class="mt-1 rounded-6 bg-surface-base py-1 text-base shadow-2xl w-60"
         >
           <div class="relative px-1.5 pt-0.5">
             <ComboboxInput
@@ -27,7 +26,7 @@
               class="absolute right-1.5 inline-flex h-7 w-7 items-center justify-center"
               @click="query = ''"
             >
-              <FeatherIcon name="x" class="w-4" />
+              <span class="lucide-x w-4" aria-hidden="true" />
             </button>
           </div>
           <ComboboxOptions class="my-2 max-h-64 overflow-y-auto px-1.5" static>
@@ -46,16 +45,11 @@
               "
             >
               <li
-                class="flex items-center rounded p-1.5 w-full text-base"
+                class="flex items-center rounded-4 p-1.5 w-full text-base"
                 :class="{ 'bg-surface-gray-1': active }"
               >
                 <div class="flex gap-2 items-center w-full select-none">
-                  <Avatar
-                    :shape="'circle'"
-                    :image="user.user_image"
-                    :label="user.full_name"
-                    size="lg"
-                  />
+                  <UserAvatar :shape="'circle'" :user="user.email" size="lg" />
                   <div class="flex flex-col gap-1">
                     <div class="font-semibold text-ink-gray-7">
                       {{ user.full_name }}
@@ -67,7 +61,7 @@
             </ComboboxOption>
             <li
               v-if="usersList.length == 0"
-              class="mt-1.5 rounded-md p-1.5 text-base text-ink-gray-5"
+              class="mt-1.5 rounded-5 p-1.5 text-base text-ink-gray-5"
             >
               {{ __('No Results Found') }}
             </li>
@@ -75,13 +69,13 @@
           <div class="border-t p-1.5 pb-0.5 *:w-full">
             <Button
               variant="ghost"
-              icon-left="plus"
+              icon-left="lucide-plus"
               class="w-full"
               :label="__('Invite Agent')"
               @click="
                 () => {
                   inviteAgent()
-                  togglePopover()
+                  close()
                 }
               "
             />
@@ -93,6 +87,7 @@
 </template>
 
 <script setup>
+import UserAvatar from '@/components/UserAvatar.vue'
 import {
   Combobox,
   ComboboxInput,
@@ -100,7 +95,7 @@ import {
   ComboboxOptions,
 } from '@headlessui/vue'
 import { useDebounceFn } from '@vueuse/core'
-import { Avatar, Popover } from 'frappe-ui'
+import { Popover } from 'frappe-ui'
 import { computed, inject, ref } from 'vue'
 import { usersStore } from '@/stores/users'
 import { globalStore } from '@/stores/global'
@@ -157,7 +152,7 @@ const inviteAgent = () => {
       {
         label: __('Go to Invite Page'),
         variant: 'solid',
-        onClick: (close) => {
+        onClick: ({ close }) => {
           activeSettingsPage.value = 'Invite User'
           close()
         },

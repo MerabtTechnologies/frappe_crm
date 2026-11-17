@@ -1,19 +1,19 @@
 <template>
   <ActivityHeader
-    v-model="tabIndex"
+    v-model="activeTab"
     v-model:showWhatsappTemplates="showWhatsappTemplates"
     v-model:showFilesUploader="showFilesUploader"
     v-model:emailBox="emailBox"
-    :tabs="tabs"
     :title="title"
     :doc="doc"
     :whatsappBox="whatsappBox"
     :modalRef="modalRef"
   />
   <FadedScrollableDiv class="flex flex-col h-full overflow-y-auto">
+    <QuotationsList v-if="title == 'ERPNext Quotations'" :deal="docname" />
     <div
-      v-if="all_activities?.loading"
-      class="flex flex-1 flex-col items-center justify-center gap-3 text-xl font-medium text-ink-gray-4"
+      v-else-if="all_activities?.loading"
+      class="flex flex-1 flex-col items-center justify-center gap-3 text-2xl-medium text-ink-gray-4"
     >
       <LoadingIndicator class="h-6 w-6" />
       <span>{{ __('Loading...') }}</span>
@@ -40,7 +40,8 @@
         <div
           v-for="note in activities"
           :key="note.name"
-          @click="modalRef.showNote(note)"
+          :id="note.name"
+          @click="openNote(note, { edit: () => modalRef.showNote(note) })"
         >
           <NoteArea v-model="all_activities" :note="note" />
         </div>
@@ -51,13 +52,13 @@
             class="activity grid grid-cols-[30px_minmax(auto,_1fr)] gap-2 px-3 sm:gap-4 sm:px-10"
           >
             <div
-              class="z-0 relative flex justify-center before:absolute before:left-[50%] before:-z-[1] before:top-0 before:border-l before:border-outline-gray-modals"
+              class="z-0 relative flex justify-center before:absolute before:left-[50%] before:-z-[1] before:top-0 before:border-l before:border-outline-elevation-2"
               :class="
                 i != activities.length - 1 ? 'before:h-full' : 'before:h-4'
               "
             >
               <div
-                class="flex h-8 w-7 items-center justify-center bg-surface-white"
+                class="flex h-8 w-7 items-center justify-center bg-surface-base"
               >
                 <CommentIcon class="text-ink-gray-8" />
               </div>
@@ -73,8 +74,15 @@
       <div v-else-if="title == 'Tasks'" class="px-3 pb-3 sm:px-10 sm:pb-5">
         <TaskArea :modalRef="modalRef" :tasks="activities" :doctype="doctype" />
       </div>
-      <div v-else-if="title == 'Project Tasks'" class="px-3 pb-3 sm:px-10 sm:pb-5">
-        <ProjectTaskArea :modalRef="projectModalProxy" :tasks="activities" :doctype="doctype" />
+      <div
+        v-else-if="title == 'Project Tasks'"
+        class="px-3 pb-3 sm:px-10 sm:pb-5"
+      >
+        <ProjectTaskArea
+          :modalRef="projectModalProxy"
+          :tasks="activities"
+          :doctype="doctype"
+        />
       </div>
       <div v-else-if="title == 'Gamma'" class="px-3 pb-3 sm:px-10 sm:pb-5">
         <GammaTemplates
@@ -96,17 +104,17 @@
             class="activity grid grid-cols-[30px_minmax(auto,_1fr)] gap-4 px-3 sm:px-10"
           >
             <div
-              class="z-0 relative flex justify-center before:absolute before:left-[50%] before:-z-[1] before:top-0 before:border-l before:border-outline-gray-modals"
+              class="z-0 relative flex justify-center before:absolute before:left-[50%] before:-z-[1] before:top-0 before:border-l before:border-outline-elevation-2"
               :class="
                 i != activities.length - 1 ? 'before:h-full' : 'before:h-4'
               "
             >
               <div
-                class="flex h-8 w-7 items-center justify-center bg-surface-white text-ink-gray-8"
+                class="flex h-8 w-7 items-center justify-center bg-surface-base text-ink-gray-8"
               >
                 <MissedCallIcon
                   v-if="call.status == 'No Answer'"
-                  class="text-ink-red-4"
+                  class="text-ink-red-7"
                 />
                 <DeclinedCallIcon v-else-if="call.status == 'Busy'" />
                 <component
@@ -143,16 +151,16 @@
         >
           <div
             v-if="['Activity', 'Emails'].includes(title)"
-            class="z-0 relative flex justify-center before:absolute before:left-[50%] before:-z-[1] before:top-0 before:border-l before:border-outline-gray-modals"
+            class="z-0 relative flex justify-center before:absolute before:left-[50%] before:-z-[1] before:top-0 before:border-l before:border-outline-elevation-2"
             :class="[
               i != activities.length - 1 ? 'before:h-full' : 'before:h-4',
             ]"
           >
             <div
-              class="flex h-7 w-7 items-center justify-center bg-surface-white"
+              class="flex h-7 w-7 items-center justify-center bg-surface-base"
               :class="{
                 'mt-2.5': ['communication'].includes(activity.activity_type),
-                'bg-surface-white': ['added', 'removed', 'changed'].includes(
+                'bg-surface-base': ['added', 'removed', 'changed'].includes(
                   activity.activity_type,
                 ),
                 'h-8': [
@@ -174,7 +182,7 @@
                     activity.activity_type,
                   ) && activity.status == 'No Answer'
                 "
-                class="text-ink-red-4"
+                class="text-ink-red-7"
               />
               <DeclinedCallIcon
                 v-else-if="
@@ -198,9 +206,14 @@
           </div>
           <div
             v-if="activity.activity_type == 'communication'"
+            :id="activity.name"
             class="pb-5 mt-px"
           >
-            <EmailArea :activity="activity" :emailBox="emailBox" />
+            <EmailArea
+              :activity="activity"
+              :emailBox="emailBox"
+              @reload="all_activities.reload()"
+            />
           </div>
           <div
             v-else-if="activity.activity_type == 'comment'"
@@ -211,6 +224,72 @@
               :activity="activity"
               @reload="all_activities.reload()"
             />
+          </div>
+          <div
+            v-else-if="activity.activity_type == 'note'"
+            class="mb-4 flex flex-col gap-0.5"
+          >
+            <div
+              class="flex items-center justify-stretch gap-2 py-1.5 text-base"
+            >
+              <div
+                v-if="activity.other_notes"
+                class="inline-flex items-center flex-wrap gap-1.5 text-ink-gray-8 font-medium"
+              >
+                <span>{{
+                  activity.show_others ? __('Hide') : __('Show')
+                }}</span>
+                <span>+{{ activity.other_notes.length + 1 }}</span>
+                <span>{{ __('note updates from') }}</span>
+                <span>{{ activity.owner_name }}</span>
+                <Button
+                  class="!size-4"
+                  variant="ghost"
+                  :icon="SelectIcon"
+                  @click="activity.show_others = !activity.show_others"
+                />
+              </div>
+              <div
+                v-else
+                class="inline-flex items-center flex-wrap gap-1.5 text-ink-gray-8"
+              >
+                <span class="font-medium">{{ activity.owner_name }}</span>
+                <span class="text-ink-gray-5">{{
+                  noteActionText[activity.data.action]
+                }}</span>
+                <button
+                  class="font-medium hover:underline"
+                  @click="viewNote(activity.data.note)"
+                >
+                  {{ activity.data.title }}
+                </button>
+              </div>
+              <div class="ml-auto whitespace-nowrap">
+                <TimelineTimestamp :date="activity.creation" />
+              </div>
+            </div>
+            <template v-if="activity.other_notes && activity.show_others">
+              <div
+                v-for="a in sortByCreation([activity, ...activity.other_notes])"
+                :key="a.name + a.data.action"
+                class="flex items-center justify-stretch gap-2 py-1.5 text-base"
+              >
+                <div class="inline-flex items-center flex-wrap gap-1.5">
+                  <span class="text-ink-gray-5">{{
+                    noteActionText[a.data.action]
+                  }}</span>
+                  <button
+                    class="font-medium text-ink-gray-8 hover:underline"
+                    @click="viewNote(a.data.note)"
+                  >
+                    {{ a.data.title }}
+                  </button>
+                </div>
+                <div class="ml-auto whitespace-nowrap">
+                  <TimelineTimestamp :date="a.creation" />
+                </div>
+              </div>
+            </template>
           </div>
           <div
             v-else-if="activity.activity_type == 'attachment_log'"
@@ -233,10 +312,10 @@
                   <span>{{ activity.data.file_name }}</span>
                 </a>
                 <span v-else>{{ activity.data.file_name }}</span>
-                <FeatherIcon
+                <span
                   v-if="activity.data.is_private"
-                  name="lock"
-                  class="size-3"
+                  class="lucide-lock size-3"
+                  aria-hidden="true"
                 />
               </div>
               <div class="ml-auto whitespace-nowrap">
@@ -343,9 +422,9 @@
                   >
                     {{ __(a.data.field_label) }}
                   </span>
-                  <FeatherIcon
-                    name="arrow-right"
-                    class="mx-1 h-4 w-4 text-ink-gray-5"
+                  <span
+                    class="lucide-arrow-right mx-1 h-4 w-4 text-ink-gray-5"
+                    aria-hidden="true"
                   />
                   <span v-if="a.type">
                     {{ startCase(__(a.type)) }}
@@ -392,8 +471,13 @@
         </div>
       </template>
     </div>
-    <div v-else-if="title == 'Data'" class="h-full flex flex-col px-3 sm:px-10">
+    <div
+      v-else-if="title == 'Data'"
+      class="flex h-full min-h-0 flex-col overflow-hidden px-3 sm:px-10"
+    >
       <DataFields
+        v-model:fieldLayoutTabIndex="fieldLayoutTabIndex"
+        v-model:fieldLayoutTabName="fieldLayoutTabName"
         :doctype="doctype"
         :docname="docname"
         @beforeSave="(data) => emit('beforeSave', data)"
@@ -408,14 +492,14 @@
       :top="top"
     />
   </FadedScrollableDiv>
-    <!-- <div>
+  <!-- <div>
        <GammaTemplates
       v-if="title == 'Gamma'"
       :doctype="doctype"
       :docname="docname"
     />
    </div> -->
-<!-- Gamma Templates -->
+  <!-- Gamma Templates -->
 
   <div>
     <CommunicationArea
@@ -466,8 +550,10 @@ import EmailArea from '@/components/Activities/EmailArea.vue'
 import CommentArea from '@/components/Activities/CommentArea.vue'
 import CallArea from '@/components/Activities/CallArea.vue'
 import NoteArea from '@/components/Activities/NoteArea.vue'
+import { useNoteView } from '@/composables/noteView'
 import TaskArea from '@/components/Activities/TaskArea.vue'
 import AttachmentArea from '@/components/Activities/AttachmentArea.vue'
+import QuotationsList from '@/components/Activities/QuotationsList.vue'
 import DataFields from '@/components/Activities/DataFields.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import ActivityIcon from '@/components/Icons/ActivityIcon.vue'
@@ -493,7 +579,7 @@ import InboundCallIcon from '@/components/Icons/InboundCallIcon.vue'
 import OutboundCallIcon from '@/components/Icons/OutboundCallIcon.vue'
 import FadedScrollableDiv from '@/components/FadedScrollableDiv.vue'
 import CommunicationArea from '@/components/CommunicationArea.vue'
-import GammaTemplates from '@/components/Activities/GammaTemplates.vue'  
+import GammaTemplates from '@/components/Activities/GammaTemplates.vue'
 import QuotationArea from '@/components/Activities/QuotationArea.vue'
 
 import WhatsappTemplateSelectorModal from '@/components/Modals/WhatsappTemplateSelectorModal.vue'
@@ -503,12 +589,13 @@ import ProjectTaskArea from '@/components/Activities/ProjectTaskArea.vue'
 import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import TimelineTimestamp from '@/components/Activities/TimelineTimestamp.vue'
 import { startCase } from '@/utils'
+import { parseActivityHash } from '@/utils/activityHash'
 import { globalStore } from '@/stores/global'
 import { usersStore } from '@/stores/users'
 import { useTimelinePreferences } from '@/composables/useTimelinePreferences'
 import { whatsappEnabled } from '@/composables/whatsapp'
 import { useDocument } from '@/data/document'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { Button, createResource, toast } from 'frappe-ui'
 import { useElementVisibility } from '@vueuse/core'
 import {
@@ -527,6 +614,17 @@ const { $socket } = globalStore()
 const { getUser } = usersStore()
 const { capture } = useTelemetry()
 const { isNewestFirst } = useTimelinePreferences()
+const { openNote } = useNoteView()
+
+function viewNote(name) {
+  openNote({ name }, { edit: () => modalRef.value.showNote({ name }) })
+}
+
+const noteActionText = {
+  added: __('added a note'),
+  pinned: __('pinned the note'),
+  unpinned: __('unpinned the note'),
+}
 
 const props = defineProps({
   doctype: { type: String, default: 'CRM Lead' },
@@ -539,7 +637,10 @@ const emit = defineEmits(['beforeSave', 'afterSave'])
 const route = useRoute()
 
 const reload = defineModel('reload', { type: Boolean, default: false })
-const tabIndex = defineModel('tabIndex', { type: Number, default: 0 })
+const activeTab = defineModel('activeTab', {
+  type: String,
+  default: 'activity',
+})
 
 const { document: _document } = useDocument(props.doctype, props.docname)
 
@@ -548,7 +649,8 @@ const doc = computed(() => _document.doc || {})
 const reload_email = ref(false)
 const modalRef = ref(null)
 const showFilesUploader = ref(false)
-
+const fieldLayoutTabIndex = ref(0)
+const fieldLayoutTabName = ref('')
 
 // Proxy object to map TaskArea actions to Project-specific modal functions
 const projectModalProxy = {
@@ -557,7 +659,7 @@ const projectModalProxy = {
   updateTaskStatus: (status, task) =>
     modalRef.value?.updateProjectTaskStatus?.(status, task),
 }
- 
+
 const gammaModalProxy = {
   showGammaProposal: (t) => modalRef.value?.showGammaProposal?.(t),
   deleteGammaProposal: (name) => modalRef.value?.deleteGammaProposal?.(name),
@@ -565,24 +667,43 @@ const gammaModalProxy = {
     modalRef.value?.updateGammaProposalStatus?.(status, task),
 }
 
-const title = computed(() => props.tabs?.[tabIndex.value]?.name || 'Activity')
+const title = computed(
+  () =>
+    props.tabs?.find((tab) => tab.value === activeTab.value)?.name ||
+    'Activity',
+)
 
 const changeTabTo = (tabName) => {
-  const tabNames = props.tabs?.map((tab) => tab.name?.toLowerCase())
-  const index = tabNames?.indexOf(tabName)
-  if (index == -1) return
-  tabIndex.value = index
+  if (!props.tabs?.some((tab) => tab.value === tabName)) return
+  activeTab.value = tabName
 }
+
+// Data loads after mount, so the first load is what lands on a linked row.
+let linkedRowOnLoad = linkedRow(route.hash)
 
 const all_activities = createResource({
   url: 'crm.api.activities.get_activities',
   params: { name: props.docname },
   cache: ['activity', props.docname],
   auto: true,
-  transform: ([versions, calls, notes, tasks, attachments, proposals]) => {
+  transform: ([
+    versions = [],
+    calls = [],
+    notes = [],
+    tasks = [],
+    attachments = [],
+    proposals = [],
+  ] = []) => {
     return { versions, calls, notes, tasks, attachments, proposals }
   },
-  onSuccess: () => nextTick(() => scroll()),
+  onSuccess: () =>
+    nextTick(() => {
+      scroll(linkedRowOnLoad)
+      linkedRowOnLoad = null
+    }),
+  onError: (error) => {
+    toast.error(error.messages?.[0] || __('Failed to load activities'))
+  },
 })
 
 const showWhatsappTemplates = ref(false)
@@ -609,9 +730,13 @@ watch(
 
 onBeforeUnmount(() => {
   $socket.off('whatsapp_message')
+  $socket.off('docinfo_update', handleDocinfoUpdate)
+  $socket.emit('doc_unsubscribe', props.doctype, props.docname)
 })
 
 onMounted(() => {
+  $socket.emit('doc_subscribe', props.doctype, props.docname)
+  $socket.on('docinfo_update', handleDocinfoUpdate)
   $socket.on('whatsapp_message', (data) => {
     if (
       data.reference_doctype === props.doctype &&
@@ -623,12 +748,45 @@ onMounted(() => {
 
   nextTick(() => {
     const hash = route.hash.slice(1) || null
-    let tabNames = props.tabs?.map((tab) => tab.name)
+    let tabNames = props.tabs?.map((tab) => tab.value)
     if (!tabNames?.includes(hash)) {
       scroll(hash)
     }
   })
 })
+
+// A hash change no longer remounts the page, so links that point at an
+// activity on the page already open (like a mention notification) scroll here.
+watch(
+  () => route.hash,
+  (hash) => hash && scrollToHash(hash),
+)
+
+function linkedRow(hash) {
+  const { anchor } = parseActivityHash(hash)
+  if (!anchor || props.tabs?.some((tab) => tab.value === anchor)) return null
+  return anchor
+}
+
+function scrollToHash(hash) {
+  const id = parseActivityHash(hash).anchor || null
+  let tabNames = props.tabs?.map((tab) => tab.value)
+  if (!tabNames?.includes(id)) {
+    scroll(id)
+  }
+}
+
+function handleDocinfoUpdate({ doc, key }) {
+  // 'comments' covers comment activity; 'communications' covers new/updated
+  // emails (e.g. a reply arriving, or a read-receipt coming in) so the
+  // timeline reflects them live instead of only after a manual reload.
+  if (key !== 'comments' && key !== 'communications') return
+  if (doc.reference_doctype !== props.doctype) return
+  if (doc.reference_name !== props.docname) return
+
+  all_activities.reload()
+  _document.reload()
+}
 
 function sendTemplate(template) {
   showWhatsappTemplates.value = false
@@ -653,7 +811,7 @@ const replyMessage = ref({})
 
 function get_activities() {
   if (!all_activities.data?.versions) return []
-  if (!all_activities.data?.calls.length)
+  if (!all_activities.data?.calls?.length)
     return all_activities.data.versions || []
   return [...all_activities.data.versions, ...all_activities.data.calls]
 }
@@ -679,19 +837,24 @@ const activities = computed(() => {
     if (!all_activities.data?.tasks) return []
     return sortByModified(all_activities.data.tasks)
   } else if (title.value == 'Project Tasks') {
-    if (!all_activities.data.tasks) return []
+    if (!all_activities.data?.tasks) return []
     return sortByModified(all_activities.data.tasks)
   } else if (title.value == 'Notes') {
     if (!all_activities.data?.notes) return []
-    return sortByModified(all_activities.data.notes)
+    // pinned notes first, then newest; sort a copy so the source list isn't reordered
+    return [...all_activities.data.notes].sort(
+      (a, b) =>
+        (b.pinned || 0) - (a.pinned || 0) ||
+        new Date(b.modified) - new Date(a.modified),
+    )
   } else if (title.value == 'Attachments') {
     if (!all_activities.data?.attachments) return []
     return sortByModified(all_activities.data.attachments)
   } else if (title.value == 'Gamma') {
-    if (!all_activities.data.proposals) return []    
+    if (!all_activities.data?.proposals) return []
     return sortByModified(all_activities.data.proposals)
   } else if (title.value == 'Quotations') {
-    if (!all_activities.data.proposals) return []    
+    if (!all_activities.data?.proposals) return []
     return sortByModified(all_activities.data.proposals)
   }
 
@@ -760,61 +923,71 @@ const top = computed(() => {
 })
 
 const emptyText = computed(() => {
-  let text = 'No Activities Found'
+  let text = __('No Activities Found')
   if (title.value == 'Emails') {
-    text = 'No Emails Found'
+    text = __('No Emails Found')
   } else if (title.value == 'Comments') {
-    text = 'No Comments Found'
+    text = __('No Comments Found')
   } else if (title.value == 'Data') {
-    text = 'No Data Fields Added Yet'
+    text = __('No Data Fields Added Yet')
   } else if (title.value == 'Calls') {
-    text = 'No Call History'
+    text = __('No Call History')
   } else if (title.value == 'Notes') {
-    text = 'No Notes Found'
+    text = __('No Notes Found')
   } else if (title.value == 'Tasks') {
-    text = 'No Tasks Found'
+    text = __('No Tasks Found')
   } else if (title.value == 'Attachments') {
-    text = 'No Attachments Found'
+    text = __('No Attachments Found')
   } else if (title.value == 'WhatsApp') {
-    text = 'No WhatsApp Messages Found'
+    text = __('No WhatsApp Messages Found')
   } else if (title.value == 'Project Tasks') {
-    text = 'No Project Tasks Found'
+    text = __('No Project Tasks Found')
   } else if (title.value == 'Gamma') {
-    text = 'No Gamma Proposals Found'
-  }else if (title.value == 'Quotations') {
-    text = 'No Quotations Found'
+    text = __('No Gamma Proposals Found')
+  } else if (title.value == 'Quotations') {
+    text = __('No Quotations Found')
   }
   return text
 })
 
 const emptyTextDescription = computed(() => {
-  let description =
-    'There are no activities to display here. Go ahead and make some changes.'
+  let description = __(
+    'There are no activities to display here. Go ahead and make some changes.',
+  )
   if (title.value == 'Emails') {
-    description =
-      'No emails found in your inbox. New messages will appear here soon.'
+    description = __(
+      'No emails found in your inbox. New messages will appear here soon.',
+    )
   } else if (title.value == 'Comments') {
-    description = 'Be the first to add one.'
+    description = __('Be the first to add one.')
   } else if (title.value == 'Data') {
-    description = 'No data fields have been added yet.'
+    description = __('No data fields have been added yet.')
   } else if (title.value == 'Calls') {
-    description = 'No recent calls to display. Log a call or call someone now!'
+    description = __(
+      'No recent calls to display. Log a call or call someone now!',
+    )
   } else if (title.value == 'Notes') {
-    description = 'Nothing here for now. Add a note to keep track of things.'
+    description = __(
+      'Nothing here for now. Add a note to keep track of things.',
+    )
   } else if (title.value == 'Tasks') {
-    description =
-      'Nothing to do at the moment. Start organizing by adding one here.'
+    description = __(
+      'Nothing to do at the moment. Start organizing by adding one here.',
+    )
   } else if (title.value == 'Attachments') {
-    description =
-      'No files have been attached yet. Upload files to see them here.'
+    description = __(
+      'No files have been attached yet. Upload files to see them here.',
+    )
   } else if (title.value == 'WhatsApp') {
-    description = 'Start a conversation now!'
+    description = __('Start a conversation now!')
   } else if (title.value == 'Project Tasks') {
-    description = 'No Project Tasks yet. Start adding project tasks now!'
+    description = __('No Project Tasks yet. Start adding project tasks now!')
   } else if (title.value == 'Gamma') {
-    description = 'No Gamma Proposals yet. Start creating AI-generated proposals now!'
-  }else if (title.value == 'Quotations') {
-    description = 'No Quotations yet. Start creating quotations now!'
+    description = __(
+      'No Gamma Proposals yet. Start creating AI-generated proposals now!',
+    )
+  } else if (title.value == 'Quotations') {
+    description = __('No Quotations yet. Start creating quotations now!')
   }
   return description
 })
@@ -837,7 +1010,7 @@ const emptyTextIcon = computed(() => {
     icon = AttachmentIcon
   } else if (title.value == 'WhatsApp') {
     icon = WhatsAppIcon
-  } else  if (title.value == 'Project Tasks') {
+  } else if (title.value == 'Project Tasks') {
     icon = ProjectTaskIcon
   }
   return h(icon, { class: 'text-ink-gray-4' })
@@ -863,6 +1036,9 @@ function timelineIcon(activity_type, is_lead) {
       break
     case 'attachment_log':
       icon = AttachmentIcon
+      break
+    case 'note':
+      icon = NoteIcon
       break
     default:
       icon = DotIcon
@@ -900,5 +1076,5 @@ function scroll(hash) {
   }, 500)
 }
 
-defineExpose({ emailBox, all_activities, changeTabTo })
+defineExpose({ emailBox, all_activities, changeTabTo, modalRef })
 </script>

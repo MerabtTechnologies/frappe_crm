@@ -11,7 +11,7 @@
       <Button
         variant="solid"
         :label="__('Create')"
-        iconLeft="plus"
+        iconLeft="lucide-plus"
         @click="createTask"
       />
     </template>
@@ -46,11 +46,10 @@
           <TaskPriorityIcon :priority="getRow(itemName, titleField).label" />
         </div>
         <div v-else-if="titleField === 'assigned_to'">
-          <Avatar
+          <UserAvatar
             v-if="getRow(itemName, titleField).full_name"
             class="flex items-center"
-            :image="getRow(itemName, titleField).user_image"
-            :label="getRow(itemName, titleField).full_name"
+            :user="getRow(itemName, titleField).name"
             size="sm"
           />
         </div>
@@ -86,11 +85,10 @@
           <TaskPriorityIcon :priority="getRow(itemName, fieldName).label" />
         </div>
         <div v-else-if="fieldName === 'assigned_to'">
-          <Avatar
+          <UserAvatar
             v-if="getRow(itemName, fieldName).full_name"
             class="flex items-center"
-            :image="getRow(itemName, fieldName).user_image"
-            :label="getRow(itemName, fieldName).full_name"
+            :user="getRow(itemName, fieldName).name"
             size="sm"
           />
         </div>
@@ -106,13 +104,14 @@
           v-else-if="fieldName == 'description'"
           class="truncate text-base max-h-44"
         >
-          <TextEditor
+          <!-- content is passed through sanitizeHTML() (DOMPurify) before rendering, so v-html is safe here -->
+          <!-- eslint-disable vue/no-v-html -->
+          <div
             v-if="getRow(itemName, fieldName).label"
-            :content="getRow(itemName, fieldName).label"
-            :editable="false"
-            editor-class="!prose-sm max-w-none focus:outline-none"
-            class="flex-1 overflow-hidden"
+            class="prose-f prose-sm max-w-none flex-1 overflow-hidden"
+            v-html="sanitizeHTML(getRow(itemName, fieldName).label)"
           />
+          <!-- eslint-enable vue/no-v-html -->
         </div>
         <div v-else class="truncate text-base">
           {{ getRow(itemName, fieldName).label }}
@@ -145,9 +144,12 @@
           class="flex items-center gap-2"
           :options="actions(itemName)"
           variant="ghost"
-          @click.stop.prevent
         >
-          <Button icon="more-horizontal" variant="ghost" />
+          <Button
+            icon="lucide-more-horizontal"
+            variant="ghost"
+            @click.stop.prevent
+          />
         </Dropdown>
       </div>
     </template>
@@ -179,43 +181,63 @@
   <EmptyState
     v-else-if="tasks.data && !rows.length"
     name="Tasks"
-    :icon="Email2Icon"
+    :icon="TaskIcon"
+    :title="__('No tasks yet')"
+    :description="
+      __(
+        'Tasks are to-dos for you and your team, like a follow-up call or sending a quote. Add them here or from a lead or deal.',
+      )
+    "
+    :filtered="!!Object.keys(tasks.params?.filters || {}).length"
+    docsLink="https://docs.frappe.io/crm/task"
+    @create="createTask()"
+  />
+  <DeleteLinkedDocModal
+    v-if="showDeleteTaskModal"
+    v-model="showDeleteTaskModal"
+    name="Tasks"
+    doctype="CRM Task"
+    :docname="taskToDelete"
+    :reload="() => tasks.reload()"
   />
 </template>
 
 <script setup>
+import UserAvatar from '@/components/UserAvatar.vue'
 import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import TaskStatusIcon from '@/components/Icons/TaskStatusIcon.vue'
 import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
-import Email2Icon from '@/components/Icons/Email2Icon.vue'
+import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import TasksListView from '@/components/ListViews/TasksListView.vue'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
+import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
 import { useDoctypeModal } from '@/composables/doctypeModal'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
-import { formatDate } from '@/utils'
+import { formatDate, sanitizeHTML } from '@/utils'
 import { timestampCell } from '@/composables/useTimelinePreferences'
-import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
-import { Tooltip, Avatar, TextEditor, Dropdown, call } from 'frappe-ui'
-import { dayjs } from "frappe-ui";
+import { useTelemetry } from '@framework/ui/telemetry'
+import { useCrmOnboarding } from '@/composables/onboarding'
+import { Tooltip, Avatar, Dropdown, call, dayjs } from 'frappe-ui'
 import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta('CRM Task')
 const { getUser } = usersStore()
-const { updateOnboardingStep } = useOnboarding('frappecrm')
+const { completeStep } = useCrmOnboarding()
 const { capture } = useTelemetry()
 
 const router = useRouter()
 const route = useRoute()
 
 const tasksListView = ref(null)
-const now = dayjs();
+const now = dayjs()
 
 // tasks data is loaded in the ViewControls component
 const tasks = ref({})
@@ -223,6 +245,9 @@ const loadMore = ref(1)
 const triggerResize = ref(1)
 const updatedPageCount = ref(20)
 const viewControls = ref(null)
+
+const showDeleteTaskModal = ref(false)
+const taskToDelete = ref(null)
 
 function getRow(name, field) {
   function getValue(value) {
@@ -242,7 +267,9 @@ const rows = computed(() => {
   }
 
   openTaskFromURL()
-  let raw = Array.isArray(tasks.value.data.data) ? [...tasks.value.data.data] : []
+  let raw = Array.isArray(tasks.value.data.data)
+    ? [...tasks.value.data.data]
+    : []
   raw.sort((a, b) => {
     const aDate = new Date(a.modified || a.creation || 0).getTime() || 0
     const bDate = new Date(b.modified || b.creation || 0).getTime() || 0
@@ -329,7 +356,7 @@ const { showModal } = useDoctypeModal()
 const taskCallbacks = {
   afterInsert: () => {
     tasks.value.reload()
-    updateOnboardingStep('create_first_task')
+    completeStep('create_first_task')
     capture('task_created')
   },
   afterUpdate: () => {
@@ -353,7 +380,7 @@ function createTask(column) {
     priority: 'Low',
     reference_doctype: 'CRM Lead',
     reference_docname: '',
-    due_date: now.format("YYYY-MM-DD HH:mm:ss"),
+    due_date: now.format('YYYY-MM-DD HH:mm:ss'),
   }
 
   if (column?.column?.name) {
@@ -374,21 +401,19 @@ function createTask(column) {
 function actions(name) {
   return [
     {
+      label: __('Edit'),
+      icon: 'lucide-edit-2',
+      onClick: () => showTask(name),
+    },
+    {
       label: __('Delete'),
-      icon: 'trash-2',
+      icon: 'lucide-trash-2',
       onClick: () => {
-        deleteTask(name)
-        tasks.value.reload()
+        taskToDelete.value = name
+        showDeleteTaskModal.value = true
       },
     },
   ]
-}
-
-async function deleteTask(name) {
-  await call('frappe.client.delete', {
-    doctype: 'CRM Task',
-    name,
-  })
 }
 
 function redirect(doctype, docname) {
@@ -408,7 +433,9 @@ const openTaskFromURL = () => {
   if (taskName && rows.value?.length) {
     const tryOpen = () => {
       if (!rows.value?.length) return false
-      const found = rows.value.find((row) => String(row.name) === String(taskName))
+      const found = rows.value.find(
+        (row) => String(row.name) === String(taskName),
+      )
       if (found) {
         showTask(found.name)
         searchParams.delete('open')
@@ -430,49 +457,48 @@ const openTaskFromURL = () => {
   }
 }
 
-
 const applyFiltersFromURL = () => {
   const filtersParam = route.query.filters
-  
+
   if (!filtersParam) {
     return
   }
-  
+
   try {
     let filters = []
-    
+
     // Parse the filters from URL
     if (typeof filtersParam === 'string') {
       filters = JSON.parse(filtersParam)
     } else if (Array.isArray(filtersParam)) {
       filters = filtersParam
     }
-    
+
     console.log('Tasks: Raw filters from URL:', filters) // Debug log
-    
+
     if (Array.isArray(filters) && filters.length > 0) {
       const checkAndApply = () => {
         if (!viewControls.value) {
           setTimeout(checkAndApply, 100)
           return
         }
-        
+
         if (!tasks.value || !tasks.value.params) {
           setTimeout(checkAndApply, 100)
           return
         }
-        
+
         // Create new filters object
         const newFilters = {}
-        
+
         // Process each filter from URL
-        filters.forEach(filter => {
+        filters.forEach((filter) => {
           // Check if filter is in object format (fieldname, condition, value)
           if (filter.fieldname && filter.value !== undefined) {
             const fieldname = filter.fieldname
             const condition = filter.condition
             const value = filter.value
-            
+
             // Handle different conditions
             if (condition === 'between') {
               if (Array.isArray(value)) {
@@ -497,13 +523,13 @@ const applyFiltersFromURL = () => {
             } else {
               newFilters[fieldname] = value
             }
-          } 
+          }
           // Handle array format [fieldname, condition, value]
           else if (Array.isArray(filter) && filter.length >= 3) {
             const fieldname = filter[0]
             const condition = filter[1]
             const value = filter[2]
-            
+
             if (condition === '=') {
               newFilters[fieldname] = value
             } else if (condition === 'between') {
@@ -513,12 +539,12 @@ const applyFiltersFromURL = () => {
             }
           }
         })
-        
+
         console.log('Tasks: Processed filters:', newFilters) // Debug log
-        
+
         // Apply the filters
         tasks.value.params.filters = newFilters
-        
+
         // Reload the data
         if (tasks.value.reload) {
           tasks.value.reload()
@@ -526,7 +552,7 @@ const applyFiltersFromURL = () => {
           loadMore.value++
         }
       }
-      
+
       setTimeout(checkAndApply, 500)
     }
   } catch (error) {
@@ -536,5 +562,4 @@ const applyFiltersFromURL = () => {
 onMounted(() => {
   applyFiltersFromURL()
 })
-
 </script>

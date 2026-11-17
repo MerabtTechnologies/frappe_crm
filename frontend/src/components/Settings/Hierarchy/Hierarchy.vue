@@ -3,7 +3,7 @@
     <div class="flex justify-between px-2 pt-2">
       <div class="flex flex-col gap-1 w-9/12">
         <div class="flex gap-2 items-center">
-          <h2 class="flex text-xl font-semibold leading-none h-5">
+          <h2 class="flex text-2xl-semibold leading-none h-5">
             {{ __('Sales Hierarchy') }}
           </h2>
           <Tooltip :text="__('View documentation')">
@@ -34,7 +34,7 @@
         />
         <Button
           :label="__('Add User')"
-          icon-left="plus"
+          icon-left="lucide-plus"
           variant="solid"
           @click="openAddDialog()"
         />
@@ -58,7 +58,7 @@
       >
         <lucide-network class="size-7.5 text-ink-gray-5" />
         <div class="flex flex-col items-center gap-1.5 text-center">
-          <span class="text-lg font-medium text-ink-gray-8">
+          <span class="text-lg-medium text-ink-gray-8">
             {{ __('Enable Sales Hierarchy') }}
           </span>
           <span class="text-center text-p-base text-ink-gray-6">
@@ -85,7 +85,10 @@
           class="w-1/3"
         >
           <template #prefix>
-            <FeatherIcon name="search" class="size-4 text-ink-gray-6" />
+            <span
+              class="lucide-search size-4 text-ink-gray-6"
+              aria-hidden="true"
+            />
           </template>
         </TextInput>
       </div>
@@ -111,7 +114,7 @@
           "
           icon="users"
         />
-        <Tree
+        <HierarchyTree
           v-for="root in visibleRoots"
           :key="root.name"
           :node="root"
@@ -135,14 +138,14 @@
               @move-to-root="(n) => reparent(n.name, null)"
             />
           </template>
-        </Tree>
+        </HierarchyTree>
       </div>
     </div>
 
     <Teleport to="body">
       <div
         v-if="dragLabel"
-        class="fixed pointer-events-none px-2 py-1 rounded-md bg-gray-900 text-white text-xs shadow-lg"
+        class="fixed z-[60] pointer-events-none px-2 py-1 rounded-5 bg-gray-900 text-white text-xs shadow-lg"
         :style="{
           top: `${dragState.y + 25}px`,
           left: `${dragState.x - 25}px`,
@@ -152,21 +155,19 @@
       </div>
     </Teleport>
     <Dialog
-      v-model="showAddDialog"
-      :options="{
-        title: __('Add Users'),
-        actions: [
-          {
-            label: __('Add ({0})', [dialogSelected.length]),
-            variant: 'solid',
-            disabled: !dialogSelected.length,
-            loading: saving,
-            onClick: confirmBulkAdd,
-          },
-        ],
-      }"
+      v-model:open="showAddDialog"
+      :title="__('Add Users')"
+      :actions="[
+        {
+          label: __('Add ({0})', [dialogSelected.length]),
+          variant: 'solid',
+          disabled: !dialogSelected.length,
+          loading: saving,
+          onClick: confirmBulkAdd,
+        },
+      ]"
     >
-      <template #body-content>
+      <template #default>
         <UserMultiSelect
           v-model="dialogSelected"
           :show-mail="true"
@@ -175,18 +176,22 @@
         />
       </template>
     </Dialog>
-    <Dialog v-model="showRemoveDialog" :options="{ size: 'md' }">
-      <template #body>
-        <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
+    <Dialog v-model:open="showRemoveDialog" :size="'md'" bare>
+      <template #default>
+        <div class="bg-surface-elevation-2 px-4 pb-6 pt-5 sm:px-6">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="text-2xl leading-6 text-ink-gray-9 font-semibold">
-              {{ __('Delete') }}
-            </h3>
-            <Button
-              variant="ghost"
-              icon="x"
-              @click="showRemoveDialog = false"
-            />
+            <Dialog.Title as-child>
+              <h3 class="text-3xl-semibold leading-6 text-ink-gray-9">
+                {{ __('Delete') }}
+              </h3>
+            </Dialog.Title>
+            <Dialog.Close as-child>
+              <Button
+                :aria-label="__('Close')"
+                variant="ghost"
+                icon="lucide-x"
+              />
+            </Dialog.Close>
           </div>
           <div class="text-ink-gray-5 text-base">
             <template v-if="checkTargetChild">
@@ -206,12 +211,12 @@
             </template>
           </div>
         </div>
-        <div class="bg-surface-modal px-4 pb-6 pt-0 sm:px-6">
+        <div class="bg-surface-elevation-2 px-4 pb-6 pt-0 sm:px-6">
           <div class="flex w-full justify-end gap-2">
             <template v-if="checkTargetChild">
               <Button
                 :label="__('Unlink & Delete {0} Users', [unlinkCount])"
-                icon-left="trash-2"
+                icon-left="lucide-trash-2"
                 variant="solid"
                 theme="red"
                 :loading="removing === 'cascade'"
@@ -219,7 +224,7 @@
               />
               <Button
                 :label="__('Delete Only User')"
-                icon-left="unlock"
+                icon-left="lucide-unlock"
                 variant="subtle"
                 :loading="removing === 'reassign'"
                 @click="confirmRemove('reassign')"
@@ -228,7 +233,7 @@
             <Button
               v-else
               :label="__('Delete')"
-              icon-left="trash-2"
+              icon-left="lucide-trash-2"
               variant="solid"
               theme="red"
               :loading="removing === 'simple'"
@@ -244,6 +249,7 @@
 <script setup>
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import HierarchyRow from './HierarchyRow.vue'
+import HierarchyTree from './HierarchyTree.vue'
 import UserMultiSelect from './UserMultiSelect.vue'
 import { useRemoveNode } from './useRemoveNode'
 import { useDragDrop } from './useDragDrop'
@@ -254,11 +260,9 @@ import LucideCircleQuestionMark from '~icons/lucide/circle-question-mark'
 import {
   Button,
   Dialog,
-  FeatherIcon,
   LoadingIndicator,
   TextInput,
   Tooltip,
-  Tree,
   call,
   createDocumentResource,
   createListResource,
@@ -300,7 +304,7 @@ const nodes = createListResource({
   doctype: DOCTYPE,
   fields: ['name', 'user', 'full_name', 'reports_to', 'is_group'],
   orderBy: 'lft asc',
-  pageLength: 0,
+  pageLength: 99999,
   auto: true,
 })
 
@@ -320,7 +324,7 @@ function toggleEnable(currentlyEnabled) {
             fcrmSettings.setValue.submit(
               { enable_sales_hierarchy: 0 },
               {
-                onSuccess: () => toast.success(__('Sales Hierarchy disabled')),
+                onSuccess: () => toast.success(__('Sales hierarchy disabled')),
               },
             )
             close()
@@ -331,7 +335,11 @@ function toggleEnable(currentlyEnabled) {
   } else {
     fcrmSettings.setValue.submit(
       { enable_sales_hierarchy: 1 },
-      { onSuccess: () => toast.success(__('Sales Hierarchy enabled')) },
+      {
+        onSuccess: () => {
+          toast.success(__('Sales hierarchy enabled'))
+        },
+      },
     )
   }
 }

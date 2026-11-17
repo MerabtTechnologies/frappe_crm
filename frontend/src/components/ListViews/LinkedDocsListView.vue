@@ -17,7 +17,7 @@
         v-for="column in columns"
         :key="column.key"
         :item="column"
-        @columnWidthUpdated="emit('columnWidthUpdated', column)"
+        @columnWidthUpdated="(e) => onColumnWidthUpdated(e, column)"
       >
       </ListHeaderItem>
     </ListHeader>
@@ -36,9 +36,9 @@
               <span class="max-w-[90%] truncate">
                 {{ label }}
               </span>
-              <FeatherIcon
-                name="external-link"
-                class="h-4 w-4 cursor-pointer"
+              <span
+                class="lucide-external-link h-4 w-4 cursor-pointer"
+                aria-hidden="true"
                 @click.stop="viewLinkedDoc(row)"
               />
             </div>
@@ -57,7 +57,12 @@
 
 <script setup>
 import ListRows from '@/components/ListViews/ListRows.vue'
-import { ListView, ListHeader, ListHeaderItem, ListRowItem } from 'frappe-ui'
+import {
+  ListView,
+  ListHeader,
+  ListHeaderItem,
+  ListRowItem,
+} from 'frappe-ui/experimental'
 import { ref } from 'vue'
 
 defineProps({
@@ -87,6 +92,11 @@ const emit = defineEmits([
 ])
 
 const listViewRef = ref(null)
+
+function onColumnWidthUpdated({ width, save }, column) {
+  column.width = width
+  if (save) emit('columnWidthUpdated', column)
+}
 
 const viewLinkedDoc = (doc) => {
   let page = ''

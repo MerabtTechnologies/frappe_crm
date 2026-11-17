@@ -1,26 +1,17 @@
 <template>
-  <TextEditor
+  <Editor
     ref="textEditor"
-    :editor-class="[
-      'prose-sm max-w-none',
-      editable && 'min-h-[7rem]',
-      '[&_p.reply-to-content]:hidden',
-    ]"
-    :content="content"
-    :starterkit-options="{
-      heading: { levels: [2, 3, 4, 5, 6] },
-      paragraph: false,
-    }"
+    v-model="content"
+    :extensions="extensions"
     :placeholder="placeholder"
     :editable="editable"
-    :extensions="[CustomParagraph]"
-    @change="editable ? (content = $event) : null"
+    :upload-function="(file) => uploadFile(file, doctype, modelValue.name)"
   >
-    <template #top>
+    <div class="relative w-full">
       <div class="flex flex-col gap-3">
         <div
           v-if="from.length"
-          class="sm:mx-10 mx-4 flex items-center gap-2 border-t pt-2.5 h-10"
+          class="mx-4 flex items-center gap-2 border-t pt-2.5 h-10"
         >
           <span class="text-xs text-ink-gray-4">{{ __('FROM') }}:</span>
           <FormControl
@@ -33,15 +24,16 @@
           />
         </div>
         <div
-          class="sm:mx-10 mx-4 flex items-center gap-2"
+          class="mx-4 flex items-center gap-2"
           :class="from.length ? '' : 'border-t pt-2.5'"
         >
           <span class="text-xs text-ink-gray-4 mr-2">{{ __('TO') }}:</span>
-          <MultiSelectEmailInput
+          <EmailMultiSelect
             v-model="toEmails"
             class="flex-1"
             variant="ghost"
             :validate="validateEmail"
+            :fetchContacts="true"
             :error-message="
               (value) => __('{0} is an invalid email address', [value])
             "
@@ -69,9 +61,9 @@
             />
           </div>
         </div>
-        <div v-if="cc" class="sm:mx-10 mx-4 flex items-center gap-2">
+        <div v-if="cc" class="mx-4 flex items-center gap-2">
           <span class="text-xs text-ink-gray-4">{{ __('CC') }}:</span>
-          <MultiSelectEmailInput
+          <EmailMultiSelect
             ref="ccInput"
             v-model="ccEmails"
             class="flex-1"
@@ -83,9 +75,9 @@
             "
           />
         </div>
-        <div v-if="bcc" class="sm:mx-10 mx-4 flex items-center gap-2">
+        <div v-if="bcc" class="mx-4 flex items-center gap-2">
           <span class="text-xs text-ink-gray-4">{{ __('BCC') }}:</span>
-          <MultiSelectEmailInput
+          <EmailMultiSelect
             ref="bccInput"
             v-model="bccEmails"
             class="flex-1"
@@ -97,64 +89,70 @@
             "
           />
         </div>
-        <div class="sm:mx-10 mx-4 flex items-center gap-2 pb-2.5">
+        <div class="mx-4 flex items-center gap-2 pb-2.5">
           <span class="text-xs text-ink-gray-4">{{ __('SUBJECT') }}:</span>
           <input
             v-model="subject"
-            class="flex-1 border-none text-ink-gray-9 text-base bg-surface-white hover:bg-surface-white focus:border-none focus:!shadow-none focus-visible:!ring-0"
+            class="flex-1 border-none text-ink-gray-9 text-base bg-surface-base hover:bg-surface-base focus:border-none focus:!shadow-none focus-visible:!ring-0"
           />
         </div>
       </div>
-    </template>
-    <template #editor="{ editor: _editor }">
       <EditorContent
+        data-resizable-editor
         :class="[
-          editable &&
-            'sm:mx-10 mx-4 max-h-[35vh] overflow-y-auto border-t py-3',
+          'prose-sm max-w-none [&_p.reply-to-content]:hidden',
+          editable && 'mx-4 overflow-y-auto border-t py-3',
+          editable && !height && 'max-h-[35vh]',
         ]"
-        :editor="_editor"
+        :style="editable && height ? { height: `${height}px` } : null"
       />
-    </template>
-    <template #bottom>
+      <EditorTableMenu />
       <div v-if="editable" class="flex flex-col gap-2">
-        <div class="flex flex-wrap gap-2 sm:px-10 px-4">
+        <div
+          v-if="unsubscribedEmails.length"
+          role="status"
+          class="mx-4 flex items-center gap-2 rounded-6 bg-surface-gray-2 px-3 py-2 text-sm text-ink-gray-7"
+        >
+          <span
+            class="lucide-info size-4 shrink-0 text-ink-amber-5"
+            aria-hidden="true"
+          />
+          {{
+            __(
+              "{0} unsubscribed from emails for this record, so they won't receive this email.",
+              [unsubscribedEmails.join(', ')],
+            )
+          }}
+        </div>
+        <div class="flex flex-wrap gap-2 px-4">
           <AttachmentItem
             v-for="a in attachments"
             :key="a.file_url"
             :label="a.file_name"
           >
             <template #suffix>
-              <FeatherIcon
-                class="h-3.5"
-                name="x"
+              <span
+                class="lucide-x h-3.5"
+                aria-hidden="true"
                 @click.stop="removeAttachment(a)"
               />
             </template>
           </AttachmentItem>
         </div>
         <div
-          class="flex justify-between gap-2 overflow-hidden border-t sm:px-10 px-4 py-2.5"
+          class="flex justify-between gap-2 overflow-hidden border-t px-4 py-2.5"
         >
           <div class="flex gap-1 items-center overflow-x-auto">
-            <TextEditorBubbleMenu :buttons="textEditorMenuButtons" />
-            <IconPicker
-              v-slot="{ togglePopover }"
-              v-model="emoji"
-              @update:modelValue="() => appendEmoji()"
-            >
-              <Button
-                :tooltip="__('Insert Emoji')"
-                :icon="SmileIcon"
-                variant="ghost"
-                @click="togglePopover()"
-              />
-            </IconPicker>
+            <Button
+              :tooltip="__('Insert Email Template')"
+              variant="ghost"
+              :icon="EmailTemplateIcon"
+              @click="showEmailTemplateSelectorModal = true"
+            />
             <FileUploader
-              :upload-args="{
-                doctype: doctype,
-                docname: modelValue.name,
-                private: true,
-              }"
+              :doctype="doctype"
+              :docname="modelValue.name"
+              private
               @success="(f) => attachments.push(f)"
             >
               <template #default="{ openFileSelector }">
@@ -166,25 +164,39 @@
                 />
               </template>
             </FileUploader>
-            <Button
-              :tooltip="__('Insert Email Template')"
-              variant="ghost"
-              :icon="EmailTemplateIcon"
-              @click="showEmailTemplateSelectorModal = true"
-            />
+            <EditorFixedMenu :items="fullToolbar" />
+            <IconPicker
+              v-model="emoji"
+              @update:modelValue="() => appendEmoji()"
+            >
+              <Button
+                :tooltip="__('Insert Emoji')"
+                :icon="SmileIcon"
+                variant="ghost"
+              />
+            </IconPicker>
           </div>
           <div class="mt-2 flex items-center justify-end space-x-2 sm:mt-0">
             <Button v-bind="discardButtonProps || {}" :label="__('Discard')" />
-            <Button
-              variant="solid"
-              v-bind="submitButtonProps || {}"
-              :label="__('Send')"
-            />
+            <div class="flex">
+              <Button
+                variant="solid"
+                v-bind="submitButtonProps || {}"
+                :class="{ 'rounded-r-none': scheduleSend }"
+                :disabled="submitButtonProps?.disabled || sendBlocked"
+                :label="`${__('Send')} (${submitShortcutLabel})`"
+              />
+              <ScheduleSendButton
+                v-if="scheduleSend"
+                :disabled="submitButtonProps?.disabled || sendBlocked"
+                @schedule="scheduleSend"
+              />
+            </div>
           </div>
         </div>
       </div>
-    </template>
-  </TextEditor>
+    </div>
+  </Editor>
   <EmailTemplateSelectorModal
     v-model="showEmailTemplateSelectorModal"
     :doctype="doctype"
@@ -194,24 +206,29 @@
 
 <script setup>
 import IconPicker from '@/components/IconPicker.vue'
+import ScheduleSendButton from '@/components/ScheduleSendButton.vue'
 import SmileIcon from '@/components/Icons/SmileIcon.vue'
 import EmailTemplateIcon from '@/components/Icons/EmailTemplateIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
 import AttachmentItem from '@/components/AttachmentItem.vue'
-import MultiSelectEmailInput from '@/components/Controls/MultiSelectEmailInput.vue'
+import EmailMultiSelect from '@/components/Controls/EmailMultiSelect.vue'
 import EmailTemplateSelectorModal from '@/components/Modals/EmailTemplateSelectorModal.vue'
 import {
-  TextEditorBubbleMenu,
-  TextEditor,
-  FileUploader,
-  call,
-  FormControl,
-} from 'frappe-ui'
-import { useTelemetry } from 'frappe-ui/frappe'
+  buildEditorExtensions,
+  fullToolbar,
+  uploadFile,
+} from '@/components/editor/config'
+import { FileUploader, call, FormControl } from 'frappe-ui'
+import {
+  Editor,
+  EditorContent,
+  EditorFixedMenu,
+  EditorTableMenu,
+} from 'frappe-ui/editor'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { useDocument } from '@/data/document'
-import { validateEmail } from '@/utils'
+import { validateEmail, submitShortcutLabel } from '@/utils'
 import Paragraph from '@tiptap/extension-paragraph'
-import { EditorContent } from '@tiptap/vue-3'
 import { ref, computed, nextTick, inject, watch } from 'vue'
 
 const props = defineProps({
@@ -222,6 +239,9 @@ const props = defineProps({
   editorProps: { type: Object, default: () => ({}) },
   submitButtonProps: { type: Object, default: () => ({}) },
   discardButtonProps: { type: Object, default: () => ({}) },
+  // (sendAfter, label, confirmed) => void; shows the schedule-send menu next to Send
+  scheduleSend: { type: Function, default: null },
+  height: { type: Number, default: 0 },
 })
 
 const CustomParagraph = Paragraph.extend({
@@ -266,32 +286,84 @@ const bccEmails = ref([])
 const ccInput = ref(null)
 const bccInput = ref(null)
 
+const extensions = buildEditorExtensions({
+  starterKit: { paragraph: false },
+  extra: [CustomParagraph],
+})
+
 const from = computed(() => {
   if (!user.doc || !user.doc.user_emails?.length) return []
-  let emails = user.doc.user_emails.map((e) => {
-    return {
-      label: e.email_account + ' <' + e.email_id + '>',
-      value: e.email_id,
-    }
-  })
+  // accounts without outgoing can't send; the backend would fall back to the default account
+  let emails = user.doc.user_emails
+    .filter((e) => e.enable_outgoing)
+    .map((e) => {
+      return {
+        label: e.email_account + ' <' + e.email_id + '>',
+        value: e.email_id,
+      }
+    })
 
   if (emails.length == 1 && emails[0].email_id === sessionUser) return []
 
   return emails
 })
 
+const replyAddresses = ref([])
+
 watch(
-  from,
-  (fromOptions) => {
-    if (!fromOptions.find((f) => f.value === fromEmail.value)) {
+  [from, replyAddresses],
+  ([fromOptions, addresses]) => {
+    let match = addresses.find((a) => fromOptions.some((f) => f.value === a))
+    if (match) {
+      fromEmail.value = match
+      replyAddresses.value = []
+    } else if (!fromOptions.find((f) => f.value === fromEmail.value)) {
       fromEmail.value = fromOptions.length ? fromOptions[0].value : ''
     }
   },
   { immediate: true },
 )
 
-const editor = computed(() => {
-  return textEditor.value.editor
+const editor = computed(() => textEditor.value?.editor)
+
+const unsubscribedEmails = ref([])
+const checkingRecipients = ref(false)
+const sendBlocked = computed(
+  () => checkingRecipients.value || !!unsubscribedEmails.value.length,
+)
+
+const allRecipients = computed(() => [
+  ...new Set([...toEmails.value, ...ccEmails.value, ...bccEmails.value]),
+])
+
+watch(
+  [allRecipients, () => modelValue.value.name],
+  async ([emails, name], _, onCleanup) => {
+    let stale = false
+    onCleanup(() => (stale = true))
+    if (!emails.length || !name) {
+      unsubscribedEmails.value = []
+      checkingRecipients.value = false
+      return
+    }
+    checkingRecipients.value = true
+    // Fail open: frappe drops unsubscribed recipients on its own, so a failed
+    // check should not stop every email from being sent.
+    const unsubscribed = await call('crm.api.get_unsubscribed_emails', {
+      emails,
+      doctype: props.doctype,
+      name,
+    }).catch(() => [])
+    if (stale) return
+    unsubscribedEmails.value = unsubscribed
+    checkingRecipients.value = false
+  },
+  { immediate: true },
+)
+
+watch(unsubscribedEmails, (emails) => {
+  if (emails.some((e) => ccEmails.value.includes(e))) cc.value = true
+  if (emails.some((e) => bccEmails.value.includes(e))) bcc.value = true
 })
 
 function removeAttachment(attachment) {
@@ -301,21 +373,23 @@ function removeAttachment(attachment) {
 const showEmailTemplateSelectorModal = ref(false)
 
 async function applyEmailTemplate(template) {
+  let doc = modelValue.value
+
   let data = await call(
     'frappe.email.doctype.email_template.email_template.get_email_template',
     {
       template_name: template.name,
-      doc: modelValue.value,
+      // fields are the template context, so nesting doc lets {{ doc.field }} work too
+      doc: { ...doc, doc },
     },
   )
 
-  if (template.subject) {
+  if (data.subject) {
     subject.value = data.subject
   }
 
-  if (template.response) {
+  if (data.message) {
     content.value = data.message
-    editor.value.commands.setContent(data.message)
   }
   showEmailTemplateSelectorModal.value = false
   capture('email_template_applied', { doctype: props.doctype })
@@ -326,6 +400,12 @@ function appendEmoji() {
   editor.value.commands.focus()
   emoji.value = ''
   capture('emoji_inserted_in_email', { emoji: emoji.value })
+}
+
+// Callable from outside (e.g. the command palette); setting the exposed ref
+// from a parent doesn't write through to .value, so open via a method.
+function openTemplateSelector() {
+  showEmailTemplateSelectorModal.value = true
 }
 
 function toggleCC() {
@@ -340,50 +420,16 @@ function toggleBCC() {
 
 defineExpose({
   editor,
+  showEmailTemplateSelectorModal,
+  openTemplateSelector,
   subject,
   cc,
   bcc,
   fromEmail,
+  replyAddresses,
   toEmails,
   ccEmails,
   bccEmails,
+  sendBlocked,
 })
-
-const textEditorMenuButtons = [
-  'Paragraph',
-  ['Heading 2', 'Heading 3', 'Heading 4', 'Heading 5', 'Heading 6'],
-  'Separator',
-  'Bold',
-  'Italic',
-  'Separator',
-  'Bullet List',
-  'Numbered List',
-  'Separator',
-  'Align Left',
-  'Align Center',
-  'Align Right',
-  'FontColor',
-  'Separator',
-  'Image',
-  'Video',
-  'Link',
-  'Blockquote',
-  'Code',
-  'Horizontal Rule',
-  [
-    'InsertTable',
-    'AddColumnBefore',
-    'AddColumnAfter',
-    'DeleteColumn',
-    'AddRowBefore',
-    'AddRowAfter',
-    'DeleteRow',
-    'MergeCells',
-    'SplitCell',
-    'ToggleHeaderColumn',
-    'ToggleHeaderRow',
-    'ToggleHeaderCell',
-    'DeleteTable',
-  ],
-]
 </script>

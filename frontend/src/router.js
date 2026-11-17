@@ -1,7 +1,53 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { call } from 'frappe-ui'
 import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
 import { viewsStore } from '@/stores/views'
+
+export const listRouteDoctypes = {
+  Leads: 'CRM Lead',
+  Deals: 'CRM Deal',
+  Contacts: 'Contact',
+  Organizations: 'CRM Organization',
+  Notes: 'FCRM Note',
+  Tasks: 'CRM Task',
+  'Call Logs': 'CRM Call Log',
+  'Data Imports': 'Data Import',
+  Quotations: 'Quotation',
+  Gammas: 'Gamma Proposal',
+  Events: 'Event',
+  Projects: 'Smart Project',
+  'Project Tasks': 'Smart Task',
+  'Employee Date Requests': 'Employee Date Request',
+  'Employee Project Assignments': 'Employee Project Assignment',
+  'Smart Timesheets': 'Smart Timesheet',
+  TaskFollowUp: 'CRM Task',
+  Issues: 'Issue',
+}
+
+let setupChecked = false
+export const SETUP_DONE_KEY = 'crm_setup_completed'
+
+async function needsSetup() {
+  // Client-side flag guards against re-prompting if the server persist failed.
+  if (localStorage.getItem(SETUP_DONE_KEY)) return false
+  const completed = await call('frappe.client.get_single_value', {
+    doctype: 'FCRM Settings',
+    field: 'setup_completed',
+  })
+  return !completed
+}
+
+async function getSetupRedirect(to, isAdminUser) {
+  if (to.name === 'Setup') {
+    const allowed = isAdminUser && (await needsSetup().catch(() => false))
+    return allowed ? null : { name: 'Home', query: to.query }
+  }
+  if (!isAdminUser || setupChecked) return null
+  setupChecked = true
+  const required = await needsSetup().catch(() => false)
+  return required ? { name: 'Setup', query: to.query } : null
+}
 
 const routes = [
   {
@@ -85,26 +131,34 @@ const routes = [
     component: () => import('@/pages/CallLogs.vue'),
   },
   {
-    path: '/data-import',
-    name: 'DataImportList',
-    component: () => import('@/pages/DataImport.vue'),
+    alias: '/data-import',
+    path: '/data-import/view/:viewType?',
+    name: 'Data Imports',
+    component: () => import('@/pages/DataImports.vue'),
   },
+  // one page across these routes, so an import stays open when its URL changes
+  // after the first save
   {
-    path: '/data-import/doctype/:doctype',
+    path: '/data-import/doctype/:doctype?',
     name: 'NewDataImport',
     component: () => import('@/pages/DataImport.vue'),
-    props: true,
+    meta: { viewKey: 'data-import' },
   },
   {
     path: '/data-import/:importName',
     name: 'DataImport',
     component: () => import('@/pages/DataImport.vue'),
-    props: true,
+    meta: { viewKey: 'data-import' },
   },
   {
     path: '/welcome',
     name: 'Welcome',
     component: () => import('@/pages/Welcome.vue'),
+  },
+  {
+    path: '/setup',
+    name: 'Setup',
+    component: () => import('@/pages/Setup.vue'),
   },
   {
     path: '/:invalidpath',
@@ -158,7 +212,7 @@ const routes = [
     component: () => import('@/pages/NotPermittedProject.vue'),
   },
   // add Additional routes
-    {
+  {
     alias: '/projects',
     path: '/projects/view/:viewType?',
     name: 'Projects',
@@ -191,7 +245,8 @@ const routes = [
   {
     path: '/employee-date-requests/:requestId',
     name: 'Employee Date Request',
-    component: () => import(`@/pages/${handleMobileView('EmployeeDateRequest')}.vue`),
+    component: () =>
+      import(`@/pages/${handleMobileView('EmployeeDateRequest')}.vue`),
     props: true,
   },
   {
@@ -203,7 +258,8 @@ const routes = [
   {
     path: '/employee-project-assignments/:assignmentId',
     name: 'Employee Project Assignment',
-    component: () => import(`@/pages/${handleMobileView('EmployeeProjectAssignment')}.vue`),
+    component: () =>
+      import(`@/pages/${handleMobileView('EmployeeProjectAssignment')}.vue`),
     props: true,
   },
   {
@@ -215,7 +271,8 @@ const routes = [
   {
     path: '/timesheets/:timesheetId',
     name: 'Smart Timesheet',
-    component: () => import(`@/pages/${handleMobileView('SmartTimesheet')}.vue`),
+    component: () =>
+      import(`@/pages/${handleMobileView('SmartTimesheet')}.vue`),
     props: true,
   },
   {
@@ -224,24 +281,24 @@ const routes = [
     name: 'Project Dashboard',
     component: () => import('@/pages/DashboardProject.vue'),
   },
- 
+
   // router.js
   {
-  path: '/performance-review',
-  name: 'PerformanceReview',
-  component: () => import('@/components/DealPerfomanceSummary.vue'),
+    path: '/performance-review',
+    name: 'PerformanceReview',
+    component: () => import('@/components/DealPerfomanceSummary.vue'),
   },
   {
-  alias: '/task-follow-up',
-  path: '/task-follow-up/view/:viewType?',
-  name: 'TaskFollowUp',
-  component: () => import('@/pages/TaskFollowUp.vue'),
+    alias: '/task-follow-up',
+    path: '/task-follow-up/view/:viewType?',
+    name: 'TaskFollowUp',
+    component: () => import('@/pages/TaskFollowUp.vue'),
   },
   {
-  alias: '/task-issues',
-  path: '/task-issues/view/:viewType?',
-  name: 'Issues',
-  component: () => import('@/pages/TaskIssues.vue'),
+    alias: '/task-issues',
+    path: '/task-issues/view/:viewType?',
+    name: 'Issues',
+    component: () => import('@/pages/TaskIssues.vue'),
   },
   {
     path: '/task-issues/:issueId',
@@ -249,8 +306,6 @@ const routes = [
     component: () => import(`@/pages/TaskIssues.vue`),
     props: true,
   },
-
-
 ]
 
 const handleMobileView = (componentName) => {
@@ -262,65 +317,92 @@ let router = createRouter({
   routes,
 })
 
-router.beforeEach(async (to, from, next) => {
+export async function beforeNavigation(to, from, next) {
   router.previousRoute = from
 
-  const { isLoggedIn } = sessionStore()
-  const { users, isWebsiteUser, isProjectManager, isManager, isCrmUser } = usersStore()
+  const { isLoggedIn, user } = sessionStore()
+  const { users, isProjectManager, isCrmUser, isAdmin } = usersStore()
 
   if (isLoggedIn && !users.fetched) {
     try {
       await users.promise
     } catch (error) {
       console.error('Error loading users', error)
+      if (error?.exc_type !== 'PermissionError') {
+        return next(false)
+      }
     }
+  }
+
+  if (isLoggedIn && isCrmUser()) {
+    const isAdminUser = isAdmin() || user === 'Administrator'
+    const redirect = await getSetupRedirect(to, isAdminUser)
+    if (redirect) return next(redirect)
   }
 
   if (isLoggedIn && to.name !== 'Not Permitted' && !isCrmUser()) {
     next({ name: 'Not Permitted' })
+  } else if (to.name === 'Not Permitted' && isLoggedIn && isCrmUser()) {
+    next({ name: 'Home' })
+  } else if (
+    isLoggedIn &&
+    [
+      'Smart Timesheet',
+      'Smart Timesheets',
+      'Project',
+      'Projects',
+      'Project Task',
+      'Project Tasks',
+      'Employee Date Request',
+      'Employee Date Requests',
+      'Employee Project Assignment',
+      'Employee Project Assignments',
+      'Project Dashboard',
+    ].includes(to.name) &&
+    !isProjectManager()
+  ) {
+    next({ name: 'Not Permitted Project' })
   } else if (to.name === 'Home' && isLoggedIn) {
     const { views, getDefaultView } = viewsStore()
     await views.promise
 
     let defaultView = getDefaultView()
     if (!defaultView) {
-      next({ name: 'Leads' })
+      next({ name: 'Leads', query: to.query })
       return
     }
 
     let { route_name, type, name, is_standard } = defaultView
-    route_name = route_name || 'Leads'
+    if (!listRouteDoctypes[route_name]) {
+      return next({
+        name: 'Leads',
+        params: { viewType: 'list' },
+        query: to.query,
+      })
+    }
 
     if (name && !is_standard) {
       next({
         name: route_name,
         params: { viewType: type },
-        query: { view: name },
+        query: { ...to.query, view: name },
       })
     } else {
-      next({ name: route_name, params: { viewType: type } })
+      next({ name: route_name, params: { viewType: type }, query: to.query })
     }
   } else if (!isLoggedIn) {
     window.location.href = '/login?redirect-to=/crm'
   } else if (to.matched.length === 0) {
     next({ name: 'Invalid Page' })
-  } else if (['Deal', 'Lead','Employee Date Request','Employee Project Assignment','Project','Project Task', 'Smart Timesheet'].includes(to.name) && !to.hash) {
+  } else if (['Deal', 'Lead'].includes(to.name) && !to.hash) {
     let storageKey = to.name === 'Deal' ? 'lastDealTab' : 'lastLeadTab'
-    const activeTab = localStorage.getItem(storageKey) || 'activity'
+    const storedTab = localStorage.getItem(storageKey) || 'activity'
+    const activeTab = /^\d+$/.test(storedTab)
+      ? 'activity'
+      : storedTab.toLowerCase().replace(/\s+/g, '-')
     const hash = '#' + activeTab
     next({ ...to, hash })
-  } else if (
-    [
-      'Leads',
-      'Deals',
-      'Contacts',
-      'Organizations',
-      'Notes',
-      'Tasks',
-      'Call Logs',
-    ].includes(to.name) &&
-    !to.query?.view
-  ) {
+  } else if (listRouteDoctypes[to.name] && !to.query?.view) {
     const { views, standardViews, getDefaultView } = viewsStore()
     await views.promise
 
@@ -328,21 +410,11 @@ router.beforeEach(async (to, from, next) => {
     const standardViewTypes = ['list', 'kanban', 'group_by']
 
     if (!viewType) {
-      const doctypeMap = {
-        Leads: 'CRM Lead',
-        Deals: 'CRM Deal',
-        Contacts: 'Contact',
-        Organizations: 'CRM Organization',
-        Notes: 'FCRM Note',
-        Tasks: 'CRM Task',
-        'Call Logs': 'CRM Call Log',
-      }
-
-      const doctype = doctypeMap[to.name]
+      const doctype = listRouteDoctypes[to.name]
       let defaultViewType = 'list'
 
-      let globalDefault = getDefaultView()
-      if (globalDefault && globalDefault.route_name === to.name) {
+      let globalDefault = getDefaultView(to.name)
+      if (globalDefault) {
         defaultViewType = globalDefault.type || 'list'
         if (globalDefault.name && !globalDefault.is_standard) {
           next({
@@ -355,7 +427,7 @@ router.beforeEach(async (to, from, next) => {
       }
 
       for (const viewType of standardViewTypes) {
-        const standardView = standardViews.value?.[doctype + ' ' + viewType]
+        const standardView = standardViews?.[doctype + ' ' + viewType]
         if (standardView?.is_default) {
           defaultViewType = viewType
           break
@@ -371,7 +443,9 @@ router.beforeEach(async (to, from, next) => {
       const viewNameOrLabel = viewType
 
       let view = views.data?.find(
-        (v) => v.name == viewNameOrLabel || v.label === viewNameOrLabel,
+        (v) =>
+          v.dt === listRouteDoctypes[to.name] &&
+          (v.name == viewNameOrLabel || v.label === viewNameOrLabel),
       )
 
       if (view) {
@@ -387,29 +461,14 @@ router.beforeEach(async (to, from, next) => {
           query: to.query,
         })
       }
-    }  else {
+    } else {
       next()
-    } 
-  } else if (
-     
-              (to.name === 'Smart Timesheet' && !isProjectManager()) || 
-              (to.name === 'Smart Timesheets' && !isProjectManager()) ||
-              (to.name === 'Projects' && !isProjectManager()) ||
-              (to.name === 'Project' && !isProjectManager()) ||
-              (to.name === 'Project Tasks' && !isProjectManager()) ||
-              (to.name === 'Project Task' && !isProjectManager()) ||
-              (to.name === 'Project Plannings' && !isProjectManager()) ||
-              (to.name === 'Project Planning' && !isProjectManager()) ||
-              (to.name === 'Employee Date Requests' && !isProjectManager()) ||
-              (to.name === 'Employee Date Request' && !isProjectManager()) ||
-              (to.name === 'Employee Project Assignments' && !isProjectManager()) ||
-              (to.name === 'Employee Project Assignment' && !isProjectManager()) ||
-              (to.name === 'Project Dashboard' && !isProjectManager()) 
-            ) {
-                next({ name: 'Not Permitted Project' })
+    }
   } else {
     next()
   }
-})
+}
+
+router.beforeEach(beforeNavigation)
 
 export default router

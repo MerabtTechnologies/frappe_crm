@@ -2,31 +2,80 @@
   <FrappeUIProvider>
     <SplashScreen v-if="showSplash" />
     <template v-else>
-      <div v-if="banner.visible" class="bg-yellow-50 border-l-4 border-yellow-400 p-3 flex items-start justify-between gap-4 sticky top-0 z-50">
-        <div class="flex-1 text-sm text-yellow-800">{{ banner.message || 'Welcome to M Nova CRM...' }}</div>
-        <button @click="banner.closeBanner()" aria-label="Close warning" class="text-yellow-700 hover:text-yellow-900 font-bold">✕</button>
+      <div
+        v-if="banner.visible"
+        class="bg-yellow-50 border-l-4 border-yellow-400 p-3 flex items-start justify-between gap-4 sticky top-0 z-50"
+      >
+        <div class="flex-1 text-sm text-yellow-800">
+          {{ banner.message || 'Welcome to M Nova CRM...' }}
+        </div>
+        <button
+          @click="banner.closeBanner()"
+          aria-label="Close warning"
+          class="text-yellow-700 hover:text-yellow-900 font-bold"
+        >
+          ✕
+        </button>
       </div>
 
       <NotPermitted v-if="$route.name === 'Not Permitted'" />
+      <router-view v-else-if="$route.name === 'Setup'" />
       <Layout v-else-if="session.isLoggedIn" class="isolate">
-        <router-view :key="$route.fullPath" />
+        <router-view :key="$route.meta.viewKey || $route.fullPath" />
       </Layout>
-      <Dialog v-model="showModal" :options="{ size: 'sm', title: 'app-root-modal' }" :disable-outside-click-to-close="true">
+      <Dialog
+        v-model="showModal"
+        :options="{ size: 'sm', title: 'app-root-modal' }"
+        :disable-outside-click-to-close="true"
+      >
         <template #body>
           <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
             <div class="mb-2 items-start gap-3 place-items-center">
               <div class="pt-1 mb-6">
-                <LucideFrown v-if="modelData.type === 'bad'" class="size-20 text-red-500" />
-                <LucideSmile v-else-if="modelData.type === 'good'" class="size-20 text-green-500" />
+                <LucideFrown
+                  v-if="modelData.type === 'bad'"
+                  class="size-20 text-red-500"
+                />
+                <LucideSmile
+                  v-else-if="modelData.type === 'good'"
+                  class="size-20 text-green-500"
+                />
                 <LucideBadge v-else class="size-20 text-yellow-500" />
               </div>
               <div>
-                <h2 v-if="modelData.type === 'bad'" class="text-1xl font-bold text-red-500 text-center ">{{ modelData.title }}</h2>
-                <h2 v-else-if="modelData.type === 'good'" class="text-1xl font-bold text-green-600 text-center">{{ modelData.title }}</h2>
-                <h2 v-else class="text-1xl font-bold text-ink-gray-8 text-center">{{ modelData.title }}</h2>
-                <div v-if="modelData.type === 'bad'" class="mt-2 text-lg text-red-500 text-center">{{ modelData.message }}</div>
-                <div v-else-if="modelData.type === 'good'" class="mt-2 text-lg text-green-600 text-center">{{ modelData.message }}</div>
-                <div v-else class="mt-2 text-lg text-ink-gray-7 text-center">{{ modelData.message }}</div>
+                <h2
+                  v-if="modelData.type === 'bad'"
+                  class="text-1xl font-bold text-red-500 text-center"
+                >
+                  {{ modelData.title }}
+                </h2>
+                <h2
+                  v-else-if="modelData.type === 'good'"
+                  class="text-1xl font-bold text-green-600 text-center"
+                >
+                  {{ modelData.title }}
+                </h2>
+                <h2
+                  v-else
+                  class="text-1xl font-bold text-ink-gray-8 text-center"
+                >
+                  {{ modelData.title }}
+                </h2>
+                <div
+                  v-if="modelData.type === 'bad'"
+                  class="mt-2 text-lg text-red-500 text-center"
+                >
+                  {{ modelData.message }}
+                </div>
+                <div
+                  v-else-if="modelData.type === 'good'"
+                  class="mt-2 text-lg text-green-600 text-center"
+                >
+                  {{ modelData.message }}
+                </div>
+                <div v-else class="mt-2 text-lg text-ink-gray-7 text-center">
+                  {{ modelData.message }}
+                </div>
               </div>
             </div>
           </div>
@@ -62,8 +111,15 @@ import DoctypeModals from '@/components/Modals/DoctypeModals.vue'
 import { Dialogs } from '@/utils/dialogs'
 import { sessionStore } from '@/stores/session'
 import { setTheme } from '@/stores/theme'
-import { FrappeUIProvider, setConfig, useTheme } from 'frappe-ui'
-import { computed, defineAsyncComponent, onErrorCaptured, onMounted, onBeforeUnmount, ref, onUnmounted, provide } from 'vue'
+import { FrappeUIProvider, setConfig } from 'frappe-ui'
+import {
+  computed,
+  defineAsyncComponent,
+  onMounted,
+  ref,
+  onUnmounted,
+  provide,
+} from 'vue'
 import { bannerStore } from '@/stores/banner'
 import { useRouter } from 'vue-router'
 
@@ -73,33 +129,29 @@ import LucideFrown from '~icons/lucide/frown'
 import LucideSmile from '~icons/lucide/smile'
 import { usersStore } from '@/stores/users'
 
-
 const _merabtSettingsResource = createResource({
   url: '/api/method/merabt_crm.portal_api.api.get_merabt_settings',
   cache: 'Merabt Settings',
   auto: true,
 })
 
-let interval = null;
+let interval = null
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB-qD0A5E4I224NR-LqvSmrCYUC0cQUG-0",
-  authDomain: "merabtcrm.firebaseapp.com",
-  projectId: "merabtcrm",
-  storageBucket: "merabtcrm.firebasestorage.app",
-  messagingSenderId: "594102127532",
-  appId: "1:594102127532:web:bee57cbafd666a1fb6c809",
-  measurementId: "G-PVXM42V748"
-};
+  apiKey: 'AIzaSyB-qD0A5E4I224NR-LqvSmrCYUC0cQUG-0',
+  authDomain: 'merabtcrm.firebaseapp.com',
+  projectId: 'merabtcrm',
+  storageBucket: 'merabtcrm.firebasestorage.app',
+  messagingSenderId: '594102127532',
+  appId: '1:594102127532:web:bee57cbafd666a1fb6c809',
+  measurementId: 'G-PVXM42V748',
+}
 const { users, getUser } = usersStore()
 
 const session = sessionStore()
 provide('session', session)
 
-const { setTheme: setUiTheme } = useTheme()
-if (!localStorage.getItem('theme')) {
-  setUiTheme('light')
-}
+setTheme()
 
 const NotPermitted = defineAsyncComponent(
   () => import('@/pages/NotPermitted.vue'),
@@ -126,14 +178,14 @@ const salesPerformance = ref('') // This would come from an API in a real app
 const showModal = ref(false)
 const modelData = ref({
   title: 'Welcome to M Nova CRM',
-  message: 'Welcome to M Nova CRM! We are excited to have you on board. Explore the features and let us know if you have any questions.',
+  message:
+    'Welcome to M Nova CRM! We are excited to have you on board. Explore the features and let us know if you have any questions.',
   type: 'good',
   buttons: [
     // { label: 'Update Now', action: updateNow },
     { label: 'Close', action: () => (showModal.value = false) },
   ],
 })
-
 
 // Use banner store for global warnings
 const banner = bannerStore()
@@ -145,10 +197,7 @@ async function initFirebaseMessaging() {
 
   try {
     const [{ initializeApp }, { getMessaging, getToken, onMessage }] =
-      await Promise.all([
-        import('firebase/app'),
-        import('firebase/messaging'),
-      ])
+      await Promise.all([import('firebase/app'), import('firebase/messaging')])
 
     let firebaseApp = null
     try {
@@ -178,7 +227,9 @@ async function initFirebaseMessaging() {
       }
     } else {
       toast.info(
-        __('No registration token available. Request permission to generate one.'),
+        __(
+          'No registration token available. Request permission to generate one.',
+        ),
       )
     }
 
@@ -258,7 +309,7 @@ function closeWarning() {
 // function updateNow() {
 //   // Close modal for now; extend to route to billing/upgrade page if desired
 //   console.log("Clicked Update Now");
-  
+
 //   showModal.value = false
 // }
 
@@ -301,7 +352,14 @@ function stopSalesPerformanceTimer() {
   interval = null
 }
 
-async function refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message) {
+async function refreshPerformanceData(
+  performance_data,
+  merabtSettings,
+  good_title,
+  good_message,
+  poor_title,
+  poor_message,
+) {
   try {
     await performance_data.submit()
   } catch (error) {
@@ -315,19 +373,18 @@ async function refreshPerformanceData(performance_data, merabtSettings, good_tit
       title: poor_title,
       message: poor_message,
       type: 'bad',
-      buttons: [
-        { label: 'Close', action: () => (showModal.value = false) },
-      ],
+      buttons: [{ label: 'Close', action: () => (showModal.value = false) }],
     }
     showModal.value = true
-  } else if (salesPerformance.value === 'good' && merabtSettings.show_good_banner === 1) {
+  } else if (
+    salesPerformance.value === 'good' &&
+    merabtSettings.show_good_banner === 1
+  ) {
     modelData.value = {
       title: good_title,
       message: good_message,
       type: 'good',
-      buttons: [
-        { label: 'Close', action: () => (showModal.value = false) },
-      ],
+      buttons: [{ label: 'Close', action: () => (showModal.value = false) }],
     }
     showModal.value = true
   }
@@ -340,9 +397,10 @@ function startSalesPerformanceTimer(intervalMs, callback) {
 
   const saved = getSavedTimerState()
   const now = Date.now()
-  const nextRunAt = saved?.nextRunAt && saved.intervalMinutes === intervalMs / 60000
-    ? Math.max(saved.nextRunAt, now)
-    : now + intervalMs
+  const nextRunAt =
+    saved?.nextRunAt && saved.intervalMinutes === intervalMs / 60000
+      ? Math.max(saved.nextRunAt, now)
+      : now + intervalMs
   const delay = Math.max(0, nextRunAt - now)
 
   window.__merabtSalesPerformanceTimer = {
@@ -373,17 +431,23 @@ function startSalesPerformanceTimer(intervalMs, callback) {
 onMounted(async () => {
   // checking sales performance on mount
 
-  const {settings: merabtSettings} = await _merabtSettingsResource.submit()
+  const { settings: merabtSettings } = await _merabtSettingsResource.submit()
 
   if (merabtSettings.performance_banner === 0) {
     return
   }
 
   const timeInterval = merabtSettings.performance_interval || 15 // default to 15 minutes if not set
-  const good_title = merabtSettings.good_banner_title || 'Your Performance is Good'
-  const good_message = merabtSettings.good_banner_content || 'Great job! Your sales performance is good. Keep up the good work and continue striving for excellence.'
-  const poor_title = merabtSettings.bad_banner_title || 'Your Performance is Below Expectations'
-  const poor_message = merabtSettings.bad_banner_content || 'Your sales performance is currently below the expected threshold. Please review your sales activities and take necessary actions to improve your performance.'
+  const good_title =
+    merabtSettings.good_banner_title || 'Your Performance is Good'
+  const good_message =
+    merabtSettings.good_banner_content ||
+    'Great job! Your sales performance is good. Keep up the good work and continue striving for excellence.'
+  const poor_title =
+    merabtSettings.bad_banner_title || 'Your Performance is Below Expectations'
+  const poor_message =
+    merabtSettings.bad_banner_content ||
+    'Your sales performance is currently below the expected threshold. Please review your sales activities and take necessary actions to improve your performance.'
 
   const performance_data = await createResource({
     url: 'merabt_crm.portal_api.sales_target.get_sales_user_performance',
@@ -395,9 +459,23 @@ onMounted(async () => {
 
   const intervalMs = timeInterval * 1000 * 60
 
-  await refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message)
+  await refreshPerformanceData(
+    performance_data,
+    merabtSettings,
+    good_title,
+    good_message,
+    poor_title,
+    poor_message,
+  )
   startSalesPerformanceTimer(intervalMs, async () => {
-    await refreshPerformanceData(performance_data, merabtSettings, good_title, good_message, poor_title, poor_message)
+    await refreshPerformanceData(
+      performance_data,
+      merabtSettings,
+      good_title,
+      good_message,
+      poor_title,
+      poor_message,
+    )
   })
 })
 

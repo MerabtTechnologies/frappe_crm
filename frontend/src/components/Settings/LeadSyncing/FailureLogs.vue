@@ -3,7 +3,7 @@
     <div class="flex justify-between items-center">
       <Button
         variant="ghost"
-        icon-left="chevron-left"
+        icon-left="lucide-chevron-left"
         @click="selectedLog = null"
       >
         {{ __('Back to All Logs') }}
@@ -87,10 +87,10 @@ import {
   Badge,
   createListResource,
   Textarea,
-  ListView,
   FormControl,
   toast,
 } from 'frappe-ui'
+import { ListView } from 'frappe-ui/experimental'
 
 const props = defineProps({
   source: { type: String, required: true },
@@ -129,14 +129,14 @@ watch(selectedLog, () => {
       retrySync: {
         method: 'retry_sync',
         onSuccess() {
-          toast.success(__('Sync Successful!'))
+          toast.success(__('Sync successful!'))
         },
         onError(e) {
           toast.error(
             e.message ||
               (e.messages ?? e.messages[0]) ||
               e.exc_type ||
-              __('Error Syncing Lead'),
+              __('Error syncing lead'),
           )
         },
       },

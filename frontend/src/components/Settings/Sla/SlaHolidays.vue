@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center justify-between">
     <div class="flex flex-col gap-1">
-      <div class="text-lg font-semibold text-ink-gray-8">
+      <div class="text-lg-semibold text-ink-gray-8">
         {{ __('Work Schedule & Holidays') }}
       </div>
       <div class="text-p-sm text-ink-gray-6 max-w-lg">
@@ -12,23 +12,23 @@
         }}
       </div>
     </div>
-    <NestedPopover>
-      <template #target="{ open }">
+    <Popover bare :offset="8">
+      <template #trigger="{ open }">
         <Button
           class="text-sm"
-          :icon-right="open ? 'chevron-up' : 'chevron-down'"
+          :icon-right="open ? 'lucide-chevron-up' : 'lucide-chevron-down'"
           :label="slaData.holiday_list || __('Select Holiday List')"
         />
       </template>
-      <template #body>
+      <template #default>
         <div
-          class="my-2 min-w-40 rounded-lg bg-surface-modal shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
+          class="min-w-40 rounded-6 bg-surface-elevation-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
         >
           <div class="max-h-52 overflow-y-auto p-1">
             <div
               v-for="holiday in holidayListData.data"
               :key="holiday.name"
-              class="flex items-center justify-between gap-4 rounded px-2 py-1.5 text-base text-ink-gray-8 cursor-pointer hover:bg-surface-gray-3"
+              class="flex items-center justify-between gap-4 rounded-4 px-2 py-1.5 text-base text-ink-gray-8 cursor-pointer hover:bg-surface-gray-3"
               @click="
                 slaData.holiday_list =
                   slaData.holiday_list === holiday.name ? '' : holiday.name
@@ -45,7 +45,7 @@
               <div class="flex cursor-pointer items-center gap-1">
                 <Button
                   variant="ghost"
-                  icon="edit"
+                  icon="lucide-edit"
                   @click.stop="editHolidayList(holiday)"
                 />
               </div>
@@ -58,22 +58,22 @@
             </div>
           </div>
           <div
-            class="flex flex-col gap-1 border-t border-outline-gray-modals pt-1.5 p-1"
+            class="flex flex-col gap-1 border-t border-outline-elevation-2 pt-1.5 p-1"
           >
             <Button
               class="w-full !justify-start !text-ink-gray-5"
               variant="ghost"
               :label="__('Create New Holiday List')"
-              icon-left="plus"
+              icon-left="lucide-plus"
               @click="createNewHolidayList()"
             />
           </div>
         </div>
       </template>
-    </NestedPopover>
+    </Popover>
   </div>
   <div class="mt-5">
-    <div class="rounded-md border px-2 border-outline-gray-2 text-sm">
+    <div class="rounded-5 border px-2 border-outline-gray-2 text-sm">
       <div
         v-if="slaData.working_hours?.length !== 0"
         class="grid p-3 px-4 items-center"
@@ -121,7 +121,7 @@
             <div v-else class="ml-2">
               <select
                 v-model="row[column.key]"
-                class="w-full h-7 text-base hover:bg-surface-gray-3 rounded-md p-0 pl-2 pr-5 bg-transparent -ml-2 border-0 text-ink-gray-8 focus-visible:!ring-0 bg-none truncate"
+                class="w-full h-7 text-base hover:bg-surface-gray-3 rounded-5 p-0 pl-2 pr-5 bg-transparent -ml-2 border-0 text-ink-gray-8 focus-visible:!ring-0 bg-none truncate"
               >
                 <option
                   v-for="option in workDayOptions"
@@ -135,12 +135,12 @@
             </div>
           </div>
           <div class="flex justify-end">
-            <Dropdown placement="right" :options="dropdownOptions(row)">
-              <Button
-                icon="more-horizontal"
-                variant="ghost"
-                @click="isConfirmingDelete = false"
-              />
+            <Dropdown
+              align="end"
+              :options="dropdownOptions(row)"
+              @update:open="(open) => open && (isConfirmingDelete = false)"
+            >
+              <Button icon="lucide-more-horizontal" variant="ghost" />
             </Dropdown>
           </div>
         </div>
@@ -161,7 +161,7 @@
         v-if="slaData.working_hours?.length < 7"
         variant="subtle"
         :label="__('Add Row')"
-        icon-left="plus"
+        icon-left="lucide-plus"
         @click="addWorkDay"
       />
       <ErrorMessage :message="slaDataErrors.working_hours" />
@@ -176,7 +176,7 @@ import {
   createListResource,
   Dropdown,
   ErrorMessage,
-  NestedPopover,
+  Popover,
 } from 'frappe-ui'
 import { ConfirmDelete, getGridTemplateColumnsForTable } from '../../../utils'
 import { slaData, slaDataErrors } from './utils'
@@ -201,7 +201,7 @@ const dropdownOptions = (workDay) => [
   {
     label: __('Edit'),
     onClick: () => editWorkDay(workDay),
-    icon: 'edit',
+    icon: 'lucide-edit',
   },
   ...ConfirmDelete({
     onConfirmDelete: () => deleteWorkDay(workDay),

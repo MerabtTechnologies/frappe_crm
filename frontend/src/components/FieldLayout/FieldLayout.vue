@@ -2,14 +2,14 @@
   <div
     class="flex flex-col"
     :class="{
-      'border border-outline-gray-1 rounded-lg': hasTabs,
-      'border-outline-gray-modals': hasTabs,
+      'border border-outline-gray-1 rounded-6': hasTabs,
+      'border-outline-elevation-2': hasTabs,
     }"
   >
     <Tabs
-      v-model="tabIndex"
+      v-model="selectedTab"
       as="div"
-    :tabs="tabsUsed"
+      :tabs="tabsUsed"
       :class="[
         !hasTabs ? `[&_[role='tablist']]:hidden` : '',
         `[&_[role='tablist']::-webkit-scrollbar]:h-0 [&_[role='tab']]:shrink-0 [&_[role='tabpanel']]:overflow-visible !overflow-visible`,
@@ -26,13 +26,18 @@
           <template v-else-if="tab.id === 'additional_data'">
             <div class="sections overflow-hidden my-4 sm:my-5">
               <div class="p-4">
-                <div v-if="formattedCustomFields.length" class="flex flex-col gap-2">
+                <div
+                  v-if="formattedCustomFields.length"
+                  class="flex flex-col gap-2"
+                >
                   <div
                     v-for="item in formattedCustomFields"
                     :key="item.k + item.v"
                     class="flex justify-between items-start gap-4 py-2 border-b border-outline-gray-1"
                   >
-                    <div class="w-2/5 text-sm font-medium text-ink-gray-6 break-words">
+                    <div
+                      class="w-2/5 text-sm font-medium text-ink-gray-6 break-words"
+                    >
                       {{ item.k }}
                     </div>
                     <div class="w-3/5 text-sm break-words text-ink-gray-8">
@@ -40,7 +45,9 @@
                     </div>
                   </div>
                 </div>
-                <div v-else class="text-sm text-ink-gray-5">{{ __('No custom fields') }}</div>
+                <div v-else class="text-sm text-ink-gray-5">
+                  {{ __('No custom fields') }}
+                </div>
               </div>
             </div>
           </template>
@@ -60,7 +67,7 @@ import Section from '@/components/FieldLayout/Section.vue'
 import MetaInfo from '@/components/FieldLayout/MetaInfo.vue'
 import { useDocument } from '@/data/document'
 import { Tabs } from 'frappe-ui'
-import { ref, computed, provide } from 'vue'
+import { computed, provide, watch } from 'vue'
 
 // translation helper (safe fallback)
 const __ = typeof window !== 'undefined' && window.__ ? window.__ : (s) => s
@@ -76,7 +83,8 @@ const props = defineProps({
   context: { type: Object, default: null },
 })
 
-const tabIndex = ref(0)
+const tabIndex = defineModel('tabIndex', { type: Number, default: 0 })
+const tabName = defineModel('tabName', { type: String, default: '' })
 
 // The authoritative document name. Prefer the explicit docname prop (known
 // synchronously by the parent modal) over data.name, which is empty while the
@@ -112,6 +120,7 @@ const processedTabs = computed(() => {
       }
     })
     .filter((tab) => !tab.hidden)
+    .map((tab, i) => ({ ...tab, value: tab.name || String(i) }))
 })
 
 const hasTabs = computed(() => {
@@ -121,23 +130,70 @@ const hasTabs = computed(() => {
   )
 })
 
-provide('data', computed(() => props.data))
+const tabsUsed = computed(() => {
+  const base = [...processedTabs.value]
+  const raw = props.data?.custom_custom_form_questions
+  if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
+    base.push({
+      id: 'additional_data',
+      name: 'additional_data',
+      value: 'additional_data',
+      label: __('Additional Data'),
+      sections: [],
+    })
+  }
+  return base
+})
+
+const selectedTab = computed({
+  get() {
+    const tabs = tabsUsed.value
+    const namedTab =
+      tabName.value && tabs.find((tab) => tab.name === tabName.value)
+    return (namedTab || tabs[tabIndex.value])?.value
+  },
+  set(value) {
+    const index = tabsUsed.value.findIndex((tab) => tab.value === value)
+    if (index < 0) return
+    tabIndex.value = index
+    tabName.value = tabsUsed.value[index]?.name || ''
+  },
+})
+
+watch(
+  tabsUsed,
+  (tabs) => {
+    if (!tabs.length) {
+      tabIndex.value = 0
+      tabName.value = ''
+      return
+    }
+    if (tabName.value && tabs.some((tab) => tab.name === tabName.value)) {
+      tabIndex.value = tabs.findIndex((tab) => tab.name === tabName.value)
+      return
+    }
+    if (tabIndex.value < 0 || tabIndex.value >= tabs.length) {
+      tabIndex.value = tabs.length - 1
+    }
+    tabName.value = tabs[tabIndex.value]?.name || ''
+  },
+  { immediate: true },
+)
+
+provide(
+  'data',
+  computed(() => props.data),
+)
 provide('hasTabs', hasTabs)
 provide('doctype', props.doctype)
 provide('docname', resolvedDocname)
 provide('preview', props.preview)
 provide('isGridRow', props.isGridRow)
-provide('rowReadOnly', props.rowReadOnly)
+provide(
+  'rowReadOnly',
+  computed(() => props.rowReadOnly),
+)
 provide('fieldLayoutContext', props.context)
-
-const tabsUsed = computed(() => {
-  const base = Array.isArray(processedTabs.value) ? [...processedTabs.value] : []
-  const raw = props.data?.custom_custom_form_questions
-  if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
-    base.push({ id: 'additional_data', label: __( 'Additional Data' ), sections: [] })
-  }
-  return base
-})
 
 const formattedCustomFields = computed(() => {
   const raw = props.data?.custom_custom_form_questions

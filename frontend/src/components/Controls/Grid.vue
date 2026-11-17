@@ -6,29 +6,30 @@
 
     <div
       v-if="fields?.length"
-      class="rounded border border-outline-gray-modals"
+      class="rounded-4 border border-outline-elevation-2"
     >
       <!-- Header -->
       <div
         class="grid-header flex items-center rounded-t-[7px] bg-surface-gray-2 text-ink-gray-5 truncate"
       >
         <div
-          class="inline-flex items-center justify-center border-r border-outline-gray-2 h-8 p-2 w-12"
+          class="inline-flex items-center justify-center border-r border-outline-gray-2 h-8 p-2 w-12 shrink-0"
         >
           <Checkbox
             class="cursor-pointer duration-300"
-              :modelValue="allRowsSelected"
-              :disabled="!isEditable"
-              @click.stop="toggleSelectAllRows($event.target.checked)"
+            :modelValue="allRowsSelected"
+            :disabled="!isEditable"
+            @click.stop
+            @update:modelValue="toggleSelectAllRows"
           />
         </div>
         <div
-          class="inline-flex items-center justify-center border-r border-outline-gray-2 py-2 px-1 w-12"
+          class="inline-flex items-center justify-center border-r border-outline-gray-2 py-2 px-1 w-12 shrink-0"
         >
           {{ __('No.') }}
         </div>
         <div
-          class="grid w-full truncate"
+          class="grid w-full min-w-0 truncate"
           :style="{ gridTemplateColumns: gridTemplateColumns }"
         >
           <div
@@ -48,18 +49,18 @@
                 field.reqd ||
                 (field.mandatory_depends_on && field.mandatory_via_depends_on)
               "
-              class="text-ink-red-2"
+              class="text-ink-red-4"
               >*</span
             >
           </div>
         </div>
-        <div class="flex items-center justify-center w-12">
+        <div class="flex items-center justify-center w-12 shrink-0">
           <Button
             v-if="isEditable"
-            :tooltip="__('Edit grid fields')"
-            class="rounded !bg-surface-gray-2 border-0 !text-ink-gray-5"
+            :tooltip="__('Edit Grid Fields')"
+            class="rounded-4 !bg-surface-gray-2 border-0 !text-ink-gray-5"
             variant="outline"
-            icon="settings"
+            icon="lucide-settings"
             @click="showGridFieldsEditorModal = true"
           />
         </div>
@@ -77,29 +78,30 @@
         >
           <template #item="{ element: row, index }">
             <div
-              :class="[
-                'grid-row flex items-center border-b border-outline-gray-modals bg-surface-modals last:rounded-b last:border-b-0',
-                { 'cursor-pointer': props.readOnly }
-              ]"
+              class="grid-row flex items-center border-b border-outline-elevation-2 bg-surface-elevation-2 last:rounded-b-4 last:border-b-0"
+              :class="{
+                'cursor-pointer': readOnly || !gridSettings.editable_grid,
+              }"
               @click.stop="onRowClick(index)"
             >
               <div
-                class="grid-row-checkbox inline-flex h-9.5 items-center bg-surface-white justify-center border-r border-outline-gray-modals p-2 w-12"
+                class="grid-row-checkbox inline-flex h-9.5 items-center bg-surface-base justify-center border-r border-outline-elevation-2 p-2 w-12 shrink-0"
               >
                 <Checkbox
                   class="cursor-pointer duration-300"
                   :modelValue="selectedRows.has(row.name)"
                   :disabled="!isEditable"
-                  @click.stop="toggleSelectRow(row)"
+                  @click.stop
+                  @update:modelValue="toggleSelectRow(row)"
                 />
               </div>
               <div
-                class="flex h-9.5 items-center justify-center bg-surface-white border-r border-outline-gray-modals py-2 px-1 text-sm text-ink-gray-8 w-12"
+                class="flex h-9.5 items-center justify-center bg-surface-base border-r border-outline-elevation-2 py-2 px-1 text-sm text-ink-gray-8 w-12 shrink-0"
               >
                 {{ index + 1 }}
               </div>
               <div
-                class="grid w-full h-9.5"
+                class="grid w-full min-w-0 h-9.5"
                 :style="{ gridTemplateColumns: gridTemplateColumns }"
               >
                 <template
@@ -109,7 +111,7 @@
                   <!-- Resolve per-row field overrides -->
                   <div
                     v-if="!getRowFieldObj(baseField, row).hidden"
-                    class="border-r border-outline-gray-modals h-9.5"
+                    class="border-r border-outline-elevation-2 h-9.5"
                   >
                     <template
                       v-for="field in [getRowFieldObj(baseField, row)]"
@@ -151,8 +153,10 @@
                             : row[field.options]
                         "
                         :filters="field.filters"
+                        :disabled="Boolean(field.disabled)"
                         :onCreate="
-                          (value, close) => field.create(v, field, row, close)
+                          (value, close) =>
+                            field.create?.(value, field, row, close)
                         "
                         @change="(v) => fieldChange(v, field, row)"
                       />
@@ -163,6 +167,7 @@
                         :doctype="field.options"
                         :filters="field.filters"
                         :placeholder="field.placeholder"
+                        :disabled="Boolean(field.disabled)"
                         :hideMe="true"
                         @change="(v) => fieldChange(v, field, row)"
                       >
@@ -182,7 +187,7 @@
                         </template>
                         <template #item-label="{ option }">
                           <Tooltip :text="option.value">
-                            <div class="cursor-pointer">
+                            <div class="cursor-pointer text-ink-gray-9">
                               {{ getUser(option.value).full_name }}
                             </div>
                           </Tooltip>
@@ -190,39 +195,45 @@
                       </Link>
                       <div
                         v-else-if="field.fieldtype === 'Check'"
-                        class="flex h-full bg-surface-white justify-center items-center"
+                        class="flex h-full bg-surface-base justify-center items-center"
                       >
                         <Checkbox
-                          v-model="row[field.fieldname]"
+                          :modelValue="Boolean(row[field.fieldname])"
                           class="cursor-pointer duration-300"
-                          :disabled="!gridSettings.editable_grid"
-                          @change="
-                            (e) => fieldChange(e.target.checked, field, row)
+                          :disabled="
+                            !gridSettings.editable_grid ||
+                            Boolean(field.disabled)
+                          "
+                          @update:modelValue="
+                            (value) => fieldChange(value, field, row)
                           "
                         />
                       </div>
                       <TimePicker
                         v-else-if="field.fieldtype === 'Time'"
-                        :value="row[field.fieldname]"
+                        :model-value="row[field.fieldname]"
                         variant="outline"
+                        :disabled="Boolean(field.disabled)"
                         :format="getFormat('', '', false, true, false)"
-                        input-class="border-none text-sm text-ink-gray-8"
+                        class="border-none text-sm text-ink-gray-8"
                         @change="(v) => fieldChange(v, field, row)"
                       />
                       <DatePicker
                         v-else-if="field.fieldtype === 'Date'"
-                        :value="row[field.fieldname]"
+                        :model-value="row[field.fieldname]"
                         variant="outline"
+                        :disabled="Boolean(field.disabled)"
                         :format="getFormat('', '', true, false, false)"
-                        input-class="border-none text-sm text-ink-gray-8"
+                        class="border-none text-sm text-ink-gray-8"
                         @change="(v) => fieldChange(v, field, row)"
                       />
                       <DateTimePicker
                         v-else-if="field.fieldtype === 'Datetime'"
-                        :value="row[field.fieldname]"
+                        :model-value="row[field.fieldname]"
                         variant="outline"
+                        :disabled="Boolean(field.disabled)"
                         :format="getFormat('', '', true, true, false)"
-                        input-class="border-none text-sm text-ink-gray-8"
+                        class="border-none text-sm text-ink-gray-8"
                         @change="(v) => fieldChange(v, field, row)"
                       />
                       <FormControl
@@ -232,6 +243,7 @@
                           )
                         "
                         rows="1"
+                        :disabled="Boolean(field.disabled)"
                         type="textarea"
                         variant="outline"
                         :value="row[field.fieldname]"
@@ -244,13 +256,14 @@
                         type="select"
                         variant="outline"
                         :options="field.options"
+                        :disabled="Boolean(field.disabled)"
                         @update:modelValue="(e) => fieldChange(e, field, row)"
                       />
                       <Password
                         v-else-if="field.fieldtype === 'Password'"
                         variant="outline"
                         :value="row[field.fieldname]"
-                        :disabled="Boolean(field.read_only)"
+                        :disabled="Boolean(field.disabled)"
                         @change="fieldChange($event.target.value, field, row)"
                       />
                       <FormattedInput
@@ -259,7 +272,7 @@
                         type="text"
                         variant="outline"
                         :value="row[field.fieldname] || '0'"
-                        :disabled="Boolean(field.read_only)"
+                        :disabled="Boolean(field.disabled)"
                         @change="fieldChange($event.target.value, field, row)"
                       />
                       <FormattedInput
@@ -269,7 +282,7 @@
                         variant="outline"
                         :value="getFloatWithPrecision(field.fieldname, row)"
                         :formattedValue="(row[field.fieldname] || '0') + '%'"
-                        :disabled="Boolean(field.read_only)"
+                        :disabled="Boolean(field.disabled)"
                         @change="
                           fieldChange(flt($event.target.value), field, row)
                         "
@@ -281,7 +294,7 @@
                         variant="outline"
                         :value="getFloatWithPrecision(field.fieldname, row)"
                         :formattedValue="row[field.fieldname]"
-                        :disabled="Boolean(field.read_only)"
+                        :disabled="Boolean(field.disabled)"
                         @change="
                           fieldChange(flt($event.target.value), field, row)
                         "
@@ -295,7 +308,7 @@
                         :formattedValue="
                           getFormattedCurrency(field.fieldname, row, parentDoc)
                         "
-                        :disabled="Boolean(field.read_only)"
+                        :disabled="Boolean(field.disabled)"
                         @change="
                           fieldChange(flt($event.target.value), field, row)
                         "
@@ -304,7 +317,7 @@
                         v-else-if="field.fieldtype === 'Duration'"
                         :value="row[field.fieldname]"
                         variant="outline"
-                        :disabled="Boolean(field.read_only)"
+                        :disabled="Boolean(field.disabled)"
                         @change="(v) => fieldChange(v, field, row)"
                       />
                       <div
@@ -314,7 +327,7 @@
                         <RatingInput
                           class="flex-nowrap overflow-x-auto px-2"
                           :value="row[field.fieldname]"
-                          :disabled="Boolean(field.read_only)"
+                          :disabled="Boolean(field.disabled)"
                           :max="field.options || 5"
                           @change="(v) => fieldChange(v, field, row)"
                         />
@@ -329,7 +342,7 @@
                           :icon="field.icon"
                           :theme="getButtonTheme(field.button_color)"
                           :variant="getButtonVariant(field.button_color)"
-                          :disabled="Boolean(field.read_only)"
+                          :disabled="Boolean(field.disabled)"
                           @click="handleButtonClick(field, row)"
                         />
                       </div>
@@ -347,7 +360,7 @@
                           :docname="row.name"
                           :fieldname="field.fieldname"
                           :imageOnly="field.fieldtype === 'Attach Image'"
-                          :disabled="Boolean(field.read_only)"
+                          :disabled="Boolean(field.disabled)"
                           @change="(v) => fieldChange(v, field, row)"
                         />
                       </div>
@@ -367,7 +380,7 @@
                           variant="ghost"
                           class="w-full"
                           :value="row[field.fieldname]"
-                          :disabled="Boolean(field.read_only)"
+                          :disabled="Boolean(field.disabled)"
                           @change="(v) => fieldChange(v, field, row)"
                         />
                       </div>
@@ -383,7 +396,7 @@
                           editorClass="w-full !min-h-[38px] !h-[38px]"
                           :value="row[field.fieldname]"
                           :placeholder="field.placeholder"
-                          :disabled="Boolean(field.read_only)"
+                          :disabled="Boolean(field.disabled)"
                           @change="(v) => fieldChange(v, field, row)"
                         />
                       </div>
@@ -394,7 +407,7 @@
                         variant="outline"
                         :options="getOptions(field.options)"
                         :placeholder="field.placeholder"
-                        :disabled="Boolean(field.read_only)"
+                        :disabled="Boolean(field.disabled)"
                         @update:modelValue="(v) => fieldChange(v, field, row)"
                       />
                       <FormControl
@@ -404,17 +417,20 @@
                         type="text"
                         variant="outline"
                         :options="field.options"
+                        :disabled="Boolean(field.disabled)"
                         @change="fieldChange($event.target.value, field, row)"
                       />
                     </template>
                   </div>
                 </template>
               </div>
-              <div class="edit-row flex items-center justify-center w-12">
+              <div
+                class="edit-row flex items-center justify-center w-12 shrink-0"
+              >
                 <Button
                   v-if="isEditable"
-                  :tooltip="__('Edit row')"
-                  class="rounded border-0 !text-ink-gray-7"
+                  :tooltip="__('Edit Row')"
+                  class="rounded-4 border-0 !text-ink-gray-7"
                   variant="outline"
                   :icon="EditIcon"
                   @click="showRowList[index] = true"
@@ -438,7 +454,7 @@
 
       <div
         v-else
-        class="flex flex-col items-center rounded p-5 text-sm text-ink-gray-5"
+        class="flex flex-col items-center rounded-4 p-5 text-sm text-ink-gray-5"
       >
         {{ __('No Data') }}
       </div>
@@ -498,6 +514,7 @@ import { flt } from '@/utils/numberFormat.js'
 import { usersStore } from '@/stores/users'
 import { getMeta } from '@/stores/meta'
 import { parseLinkFilters } from '@/utils/fieldTransforms'
+import { isFetchedFromLink } from '@/utils/fetchFrom'
 import { createDocument } from '@/composables/document'
 import {
   FormControl,
@@ -568,11 +585,16 @@ function getRowFieldObj(field, row) {
   const colOverrides = ov[colKey]
   const rowOverrides = rowKey ? ov[rowKey] : null
 
-  if (!colOverrides && !rowOverrides) return field
-
   let merged = { ...field }
   if (colOverrides) Object.assign(merged, colOverrides)
   if (rowOverrides) Object.assign(merged, rowOverrides)
+
+  merged.disabled = Boolean(
+    props.readOnly ||
+      !gridSettings.value.editable_grid ||
+      merged.read_only ||
+      isFetchedFromLink(merged, row),
+  )
   return merged
 }
 
@@ -583,7 +605,7 @@ const showGridFieldsEditorModal = ref(false)
 const showGridRowFieldsModal = ref(false)
 
 const gridSettings = computed(() => getGridSettings())
-const isEditable = computed(() => !props.readOnly && gridSettings.value.editable_grid)
+const isEditable = computed(() => !props.readOnly)
 
 const fields = computed(() => {
   let gridViewSettings = getGridViewSettings(props.parentDoctype)
@@ -730,7 +752,7 @@ const reorder = () => {
 }
 
 const onRowClick = (index) => {
-  if (props.readOnly) {
+  if (props.readOnly || !gridSettings.value.editable_grid) {
     showRowList.value[index] = true
   }
 }
@@ -744,6 +766,7 @@ async function handleButtonClick(field, row) {
 }
 
 function fieldChange(value, field, row) {
+  if (props.readOnly || field.disabled || field.read_only) return
   value = Array.isArray(value)
     ? value
     : typeof value === 'object' && value !== null && 'value' in value
@@ -789,7 +812,7 @@ const getOptions = (options) => {
     return options
   } else if (typeof options === 'string') {
     return options.split('\n').map((option) => {
-      return { label: option, value: option }
+      return { label: __(option), value: option }
     })
   } else {
     return []
@@ -813,7 +836,8 @@ const getOptions = (options) => {
   box-shadow: none;
 }
 
-:deep(.grid-row input:focus-within) :deep(.grid-row textarea:focus-within) {
+:deep(.grid-row input:focus-within),
+:deep(.grid-row textarea:focus-within) {
   border: 1px solid var(--outline-gray-2);
 }
 
@@ -829,7 +853,7 @@ const getOptions = (options) => {
 :deep(.grid-row .combobox > div > div) {
   border: none;
   border-radius: 0;
-  background-color: var(--surface-white);
+  background-color: var(--surface-base);
   height: 38px;
 }
 
@@ -841,9 +865,10 @@ const getOptions = (options) => {
   border-bottom-right-radius: 7px;
 }
 
-:deep(.grid-row button:focus) :deep(.grid-row button:hover) {
+:deep(.grid-row button:focus),
+:deep(.grid-row button:hover) {
   box-shadow: none;
-  background-color: var(--surface-white);
+  background-color: var(--surface-base);
 }
 
 :deep(.grid-row button:focus-within:not(.rating-star):not(.button-control)) {

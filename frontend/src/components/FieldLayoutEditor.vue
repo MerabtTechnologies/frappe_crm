@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-5.5">
     <div
-      class="flex items-center justify-between gap-2 text-base bg-surface-gray-2 rounded py-2 px-2.5 overflow-x-auto max-w-full"
+      class="flex items-center justify-between gap-2 text-base bg-surface-gray-2 rounded-4 py-2 px-2.5 overflow-x-auto max-w-full"
     >
       <Draggable
         v-if="tabs.length && tabs[tabIndex].label"
@@ -17,11 +17,11 @@
                 if (el) tabItemRefs[i] = el
               }
             "
-            class="flex items-center gap-2 cursor-pointer rounded shrink-0"
+            class="flex items-center gap-2 cursor-pointer rounded-4 shrink-0"
             :class="[
               tabIndex == i
-                ? 'text-ink-gray-9 bg-surface-white shadow-sm'
-                : 'text-ink-gray-5 hover:text-ink-gray-9 hover:bg-surface-white hover:shadow-sm',
+                ? 'text-ink-gray-9 bg-surface-base shadow-sm'
+                : 'text-ink-gray-5 hover:text-ink-gray-9 hover:bg-surface-base hover:shadow-sm',
               tab.editingLabel ? 'p-1' : 'px-2 py-1',
             ]"
             @click="tabIndex = i"
@@ -32,7 +32,7 @@
                 {{ __(tab.label) || __('Untitled') }}
               </div>
               <div v-else class="flex gap-1 items-center">
-                <Input
+                <TextInput
                   v-model="tab.label"
                   @keydown.enter="tab.editingLabel = false"
                   @blur="tab.editingLabel = false"
@@ -40,7 +40,7 @@
                 />
                 <Button
                   v-if="tab.editingLabel"
-                  icon="check"
+                  icon="lucide-check"
                   variant="ghost"
                   @click="tab.editingLabel = false"
                 />
@@ -54,7 +54,7 @@
             >
               <template #default>
                 <Button variant="ghost" class="!p-1 !h-4">
-                  <FeatherIcon name="more-horizontal" class="h-4" />
+                  <span class="lucide-more-horizontal h-4" aria-hidden="true" />
                 </Button>
               </template>
             </Dropdown>
@@ -68,7 +68,7 @@
         @click="addTab"
       >
         <template #[slotName]>
-          <FeatherIcon name="plus" class="h-4" />
+          <span class="lucide-plus h-4" aria-hidden="true" />
         </template>
       </Button>
     </div>
@@ -89,7 +89,7 @@
         handle=".section-drag-handle"
         :class="
           tab.sections.length === 0
-            ? 'rounded border-2 border-dashed border-outline-gray-2 mb-5.5 p-3'
+            ? 'rounded-4 border-2 border-dashed border-outline-gray-2 mb-5.5 p-3'
             : 'flex flex-col gap-5.5'
         "
         @start="isDragging = true"
@@ -99,11 +99,11 @@
         <template #item="{ element: section }">
           <div
             v-if="Array.isArray(section.columns)"
-            class="section flex flex-col gap-1.5 p-2.5 bg-surface-gray-2 rounded"
+            class="section flex flex-col gap-1.5 p-2.5 bg-surface-gray-2 rounded-4"
           >
             <div class="flex items-center justify-between">
               <div
-                class="flex h-7 max-w-fit items-center gap-2 text-base font-medium leading-4 text-ink-gray-9"
+                class="flex h-7 max-w-fit items-center gap-2 text-base-medium leading-4 text-ink-gray-9"
               >
                 <DragVerticalIcon
                   class="section-drag-handle h-3.5 cursor-grab shrink-0 text-ink-gray-3"
@@ -121,14 +121,14 @@
                     }"
                   >
                     {{ __(section.label) || __('No Label') }}
-                    <FeatherIcon
+                    <span
                       v-if="section.collapsible"
-                      name="chevron-down"
-                      class="h-4 transition-all duration-300 ease-in-out"
+                      class="lucide-chevron-down h-4 transition-all duration-300 ease-in-out"
+                      aria-hidden="true"
                     />
                   </div>
                   <div v-else class="flex gap-2 items-center">
-                    <Input
+                    <TextInput
                       v-model="section.label"
                       @keydown.enter="section.editingLabel = false"
                       @blur="section.editingLabel = false"
@@ -136,7 +136,7 @@
                     />
                     <Button
                       v-if="section.editingLabel"
-                      icon="check"
+                      icon="lucide-check"
                       variant="ghost"
                       @click="section.editingLabel = false"
                     />
@@ -148,7 +148,7 @@
                   v-if="
                     section.columns.reduce((n, c) => n + c.fields.length, 0) > 0
                   "
-                  class="text-xs text-ink-gray-4 bg-surface-gray-3 rounded px-1.5 py-0.5 leading-none"
+                  class="text-xs text-ink-gray-4 bg-surface-gray-3 rounded-4 px-1.5 py-0.5 leading-none"
                 >
                   {{ section.columns.reduce((n, c) => n + c.fields.length, 0) }}
                   {{
@@ -161,7 +161,10 @@
                 <Dropdown :options="getSectionOptions(i, section, tab)">
                   <template #default>
                     <Button variant="ghost">
-                      <FeatherIcon name="more-horizontal" class="h-4" />
+                      <span
+                        class="lucide-more-horizontal h-4"
+                        aria-hidden="true"
+                      />
                     </Button>
                   </template>
                 </Dropdown>
@@ -177,7 +180,7 @@
             >
               <template #item="{ element: column }">
                 <div
-                  class="flex flex-col gap-1.5 flex-1 p-2 border border-dashed border-outline-gray-2 rounded bg-surface-modal cursor-grab"
+                  class="flex flex-col gap-1.5 flex-1 p-2 border border-dashed border-outline-gray-2 rounded-4 bg-surface-elevation-2 cursor-grab"
                 >
                   <Draggable
                     :list="column.fields"
@@ -190,7 +193,7 @@
                   >
                     <template #item="{ element: field }">
                       <div
-                        class="field px-2.5 py-2 border border-outline-gray-2 rounded text-base bg-surface-modal text-ink-gray-8 flex items-center leading-4 justify-between gap-2 cursor-auto"
+                        class="field px-2.5 py-2 border border-outline-gray-2 rounded-4 text-base bg-surface-elevation-2 text-ink-gray-8 flex items-center leading-4 justify-between gap-2 cursor-auto"
                       >
                         <div class="flex items-center gap-2 truncate">
                           <DragVerticalIcon
@@ -200,8 +203,8 @@
                         </div>
                         <Button
                           variant="ghost"
-                          class="!size-4 rounded-sm"
-                          icon="x"
+                          class="!size-4 rounded-1"
+                          icon="lucide-x"
                           @click="
                             column.fields.splice(
                               column.fields.indexOf(field),
@@ -212,31 +215,29 @@
                       </div>
                     </template>
                   </Draggable>
-                  <Autocomplete
-                    value=""
+                  <Combobox
+                    :model-value="null"
                     :options="fields"
-                    @change="(e) => addField(column, e)"
+                    @update:selected-option="(e) => addField(column, e)"
                   >
-                    <template #target="{ togglePopover }">
-                      <div class="gap-2 w-full">
-                        <Button
-                          class="w-full !h-8 !bg-surface-modal"
-                          variant="outline"
-                          :label="__('Add Field')"
-                          iconLeft="plus"
-                          @click="togglePopover()"
-                        />
-                      </div>
+                    <template #trigger="{ open, setOpen }">
+                      <Button
+                        class="w-full !h-8 !bg-surface-elevation-2"
+                        variant="outline"
+                        :label="__('Add Field')"
+                        iconLeft="lucide-plus"
+                        @click="setOpen(!open)"
+                      />
                     </template>
-                    <template #item-label="{ option }">
+                    <template #item-label="{ item }">
                       <div class="flex flex-col gap-1 text-ink-gray-9">
-                        <div>{{ option.label }}</div>
+                        <div>{{ item.label }}</div>
                         <div class="text-ink-gray-4 text-sm">
-                          {{ `${option.fieldname} - ${option.fieldtype}` }}
+                          {{ `${item.fieldname} - ${item.fieldtype}` }}
                         </div>
                       </div>
                     </template>
-                  </Autocomplete>
+                  </Combobox>
                 </div>
               </template>
             </Draggable>
@@ -256,7 +257,7 @@
           class="w-full h-8"
           variant="subtle"
           :label="__('Add Section')"
-          iconLeft="plus"
+          iconLeft="lucide-plus"
           @click="
             tabs[tabIndex].sections.push({
               label: '',
@@ -271,13 +272,12 @@
   </div>
 </template>
 <script setup>
-import Autocomplete from '@/components/frappe-ui/Autocomplete.vue'
 import DragVerticalIcon from '@/components/Icons/DragVerticalIcon.vue'
 import Draggable from 'vuedraggable'
 import { getRandom } from '@/utils'
 import { getMeta } from '@/stores/meta'
 import { globalStore } from '@/stores/global'
-import { Dropdown } from 'frappe-ui'
+import { Combobox, Dropdown } from 'frappe-ui'
 import { ref, computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
@@ -412,12 +412,12 @@ function getTabOptions(tab) {
   return [
     {
       label: __('Edit'),
-      icon: 'edit',
+      icon: 'lucide-edit',
       onClick: () => (tab.editingLabel = true),
     },
     {
       label: __('Remove Tab'),
-      icon: 'trash-2',
+      icon: 'lucide-trash-2',
       onClick: () => {
         if (tabs.value.length == 1) {
           tabs.value[0].label = ''
@@ -434,7 +434,7 @@ function getTabOptions(tab) {
               label: __('Remove'),
               variant: 'solid',
               theme: 'red',
-              onClick: (close) => {
+              onClick: ({ close }) => {
                 tabs.value.splice(tabIndex.value, 1)
                 tabIndex.value = tabIndex.value ? tabIndex.value - 1 : 0
                 close()
@@ -452,30 +452,32 @@ function getSectionOptions(i, section, tab) {
   return [
     {
       group: __('Section'),
-      items: [
+      options: [
         {
           label: __('Edit'),
-          icon: 'edit',
+          icon: 'lucide-edit',
           onClick: () => (section.editingLabel = true),
         },
         {
           label: section.collapsible ? __('Uncollapsible') : __('Collapsible'),
-          icon: section.collapsible ? 'chevron-up' : 'chevron-down',
+          icon: section.collapsible
+            ? 'lucide-chevron-up'
+            : 'lucide-chevron-down',
           onClick: () => (section.collapsible = !section.collapsible),
         },
         {
           label: section.hideLabel ? __('Show Label') : __('Hide Label'),
-          icon: section.hideLabel ? 'eye' : 'eye-off',
+          icon: section.hideLabel ? 'lucide-eye' : 'lucide-eye-off',
           onClick: () => (section.hideLabel = !section.hideLabel),
         },
         {
           label: section.hideBorder ? __('Show Border') : __('Hide Border'),
-          icon: 'minus',
+          icon: 'lucide-minus',
           onClick: () => (section.hideBorder = !section.hideBorder),
         },
         {
           label: __('Remove Section'),
-          icon: 'trash-2',
+          icon: 'lucide-trash-2',
           onClick: () => {
             const hasFields = section.columns.some((c) => c.fields.length)
             const doRemove = () =>
@@ -492,7 +494,7 @@ function getSectionOptions(i, section, tab) {
                     label: __('Remove'),
                     variant: 'solid',
                     theme: 'red',
-                    onClick: (close) => {
+                    onClick: ({ close }) => {
                       doRemove()
                       close()
                     },
@@ -509,7 +511,7 @@ function getSectionOptions(i, section, tab) {
           label: __('Remove and move columns to {0} section', [
             i == 0 ? __('next') : __('previous'),
           ]),
-          icon: 'trash-2',
+          icon: 'lucide-trash-2',
           onClick: () => {
             let targetSection = tab.sections[i == 0 ? i + 1 : i - 1]
             if (i == 0) {
@@ -527,7 +529,7 @@ function getSectionOptions(i, section, tab) {
         },
         {
           label: __('Move to Previous Tab'),
-          icon: 'corner-up-left',
+          icon: 'lucide-corner-up-left',
           onClick: () => {
             let previousTab = tabs.value[tabIndex.value - 1]
             previousTab.sections.push(section)
@@ -541,7 +543,7 @@ function getSectionOptions(i, section, tab) {
         },
         {
           label: __('Move to Next Tab'),
-          icon: 'corner-up-right',
+          icon: 'lucide-corner-up-right',
           onClick: () => {
             let nextTab = tabs.value[tabIndex.value + 1]
             nextTab.sections.push(section)
@@ -557,10 +559,10 @@ function getSectionOptions(i, section, tab) {
     },
     {
       group: __('Column'),
-      items: [
+      options: [
         {
           label: __('Add Column'),
-          icon: 'columns',
+          icon: 'lucide-columns',
           onClick: () => {
             section.columns.push({
               label: '',
@@ -572,7 +574,7 @@ function getSectionOptions(i, section, tab) {
         },
         {
           label: __('Remove Last Column'),
-          icon: 'trash-2',
+          icon: 'lucide-trash-2',
           onClick: () => {
             const doRemove = () => section.columns.pop()
             if (column.fields.length) {
@@ -587,7 +589,7 @@ function getSectionOptions(i, section, tab) {
                     label: __('Remove'),
                     variant: 'solid',
                     theme: 'red',
-                    onClick: (close) => {
+                    onClick: ({ close }) => {
                       doRemove()
                       close()
                     },
@@ -602,7 +604,7 @@ function getSectionOptions(i, section, tab) {
         },
         {
           label: __('Remove Last Column (move fields to previous)'),
-          icon: 'trash-2',
+          icon: 'lucide-trash-2',
           onClick: () => {
             let previousColumn = section.columns[section.columns.length - 2]
             previousColumn.fields = previousColumn.fields.concat(column.fields)
@@ -612,7 +614,7 @@ function getSectionOptions(i, section, tab) {
         },
         {
           label: __('Move Last Column to Next Section'),
-          icon: 'corner-up-right',
+          icon: 'lucide-corner-up-right',
           onClick: () => {
             let nextSection = tab.sections[i + 1]
             nextSection.columns.push(column)
@@ -622,7 +624,7 @@ function getSectionOptions(i, section, tab) {
         },
         {
           label: __('Move Last Column to Previous Section'),
-          icon: 'corner-up-left',
+          icon: 'lucide-corner-up-left',
           onClick: () => {
             let previousSection = tab.sections[i - 1]
             previousSection.columns.push(column)
@@ -632,7 +634,7 @@ function getSectionOptions(i, section, tab) {
         },
         {
           label: __('Move Last Column to Previous Tab'),
-          icon: 'corner-up-left',
+          icon: 'lucide-corner-up-left',
           onClick: () => {
             let targetTab = tabs.value[tabIndex.value - 1]
             if (!targetTab.sections.length) {
@@ -652,7 +654,7 @@ function getSectionOptions(i, section, tab) {
         },
         {
           label: __('Move Last Column to Next Tab'),
-          icon: 'corner-up-right',
+          icon: 'lucide-corner-up-right',
           onClick: () => {
             let targetTab = tabs.value[tabIndex.value + 1]
             if (!targetTab.sections.length) {

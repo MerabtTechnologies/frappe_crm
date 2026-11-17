@@ -1,13 +1,28 @@
 <template>
   <SettingsLayoutBase
     :title="__('SLA Policies')"
-    :description="__('Manage your service level agreement policies')"
+    :description="__('Manage your service level agreement policies.')"
   >
+    <template #title>
+      <div class="flex gap-2 items-center">
+        <h2 class="flex text-2xl-semibold leading-none h-5">
+          {{ __('SLA Policies') }}
+        </h2>
+        <Tooltip :text="__('View documentation')">
+          <a
+            href="https://docs.frappe.io/crm/service-level-agreement"
+            target="_blank"
+          >
+            <LucideCircleQuestionMark class="h-4 w-4 text-ink-gray-6" />
+          </a>
+        </Tooltip>
+      </div>
+    </template>
     <template #header-actions>
       <Button
         :label="__('New')"
         variant="solid"
-        icon-left="plus"
+        icon-left="lucide-plus"
         @click="createNewSlaPolicy"
       />
     </template>
@@ -16,19 +31,20 @@
       #header-bottom
     >
       <div class="relative">
-        <Input
-          :model-value="slaSearchQuery"
+        <TextInput
+          v-model="slaSearchQuery"
           :placeholder="__('Search')"
           type="text"
-          class="bg-surface-gray-2 hover:bg-surface-gray-2 focus:ring-0 border-outline-gray-2 rounded"
-          icon-left="search"
-          debounce="300"
-          inputClass="p-4 pr-12"
-          @input="slaSearchQuery = $event"
-        />
+          class="bg-surface-gray-2 hover:bg-surface-gray-2 focus:ring-0 border-outline-gray-2 rounded-4"
+          :debounce="300"
+        >
+          <template #prefix>
+            <span class="lucide-search size-4" aria-hidden="true" />
+          </template>
+        </TextInput>
         <Button
           v-if="slaSearchQuery"
-          icon="x"
+          icon="lucide-x"
           variant="ghost"
           class="absolute right-1 top-1/2 -translate-y-1/2"
           @click="slaSearchQuery = ''"
@@ -70,13 +86,13 @@
             :key="sla.name"
           >
             <div
-              class="grid grid-cols-7 items-center gap-4 cursor-pointer hover:bg-surface-menu-bar rounded"
+              class="grid grid-cols-7 items-center gap-4 cursor-pointer hover:bg-surface-sidebar rounded-4"
             >
               <div
                 class="w-full pl-2 col-span-5 flex items-center h-14 gap-2"
                 @click="updateStep('view', sla, true)"
               >
-                <div class="text-base text-ink-gray-7 font-medium truncate">
+                <div class="text-base-medium text-ink-gray-7 truncate">
                   {{ sla.name }}
                 </div>
                 <Badge v-if="sla.default" color="gray" size="sm">Default</Badge>
@@ -93,12 +109,14 @@
                   />
                 </div>
                 <div>
-                  <Dropdown placement="right" :options="dropdownOptions(sla)">
-                    <Button
-                      icon="more-horizontal"
-                      variant="ghost"
-                      @click="isConfirmingDelete = false"
-                    />
+                  <Dropdown
+                    align="end"
+                    :options="dropdownOptions(sla)"
+                    @update:open="
+                      (open) => open && (isConfirmingDelete = false)
+                    "
+                  >
+                    <Button icon="lucide-more-horizontal" variant="ghost" />
                   </Dropdown>
                 </div>
               </div>
@@ -108,10 +126,10 @@
               class="mx-2 border-outline-gray-2"
             />
             <Dialog
-              v-model="duplicateDialog.show"
-              :options="{ title: __('Duplicate SLA Policy') }"
+              v-model:open="duplicateDialog.show"
+              :title="__('Duplicate SLA Policy')"
             >
-              <template #body-content>
+              <template #default>
                 <div class="flex flex-col gap-4">
                   <FormControl
                     v-model="duplicateDialog.name"
@@ -157,7 +175,9 @@ import {
   LoadingIndicator,
   Switch,
   toast,
+  Tooltip,
 } from 'frappe-ui'
+import LucideCircleQuestionMark from '~icons/lucide/circle-question-mark'
 import { ConfirmDelete } from '@/utils'
 import { resetSlaData } from './utils'
 import { inject, ref, watch } from 'vue'
@@ -187,7 +207,7 @@ const dropdownOptions = (sla) => [
         name: sla.name + ' (Copy)',
       }
     },
-    icon: 'copy',
+    icon: 'lucide-copy',
   },
   ...ConfirmDelete({
     onConfirmDelete: () => deleteSla(sla),
@@ -215,7 +235,7 @@ const duplicate = (sla) => {
         auto: true,
         onSuccess(newSlaData) {
           slaPolicyListResource.reload()
-          toast.success(__('SLA Policy Duplicated'))
+          toast.success(__('SLA policy duplicated'))
           duplicateDialog.value = {
             show: false,
             name: '',
@@ -239,7 +259,7 @@ const deleteSla = (sla) => {
 
   slaPolicyListResource.delete.submit(sla.name, {
     onSuccess: () => {
-      toast.success(__('SLA Policy Deleted'))
+      toast.success(__('SLA policy deleted'))
     },
     onError: (err) => {
       const message =
@@ -251,7 +271,7 @@ const deleteSla = (sla) => {
 
 const onToggle = (sla) => {
   if (sla.default) {
-    toast.error(__('SLA set as default cannot be disabled'))
+    toast.error(__('An SLA set as default cannot be disabled'))
     return
   }
   slaPolicyListResource.setValue.submit(
@@ -261,7 +281,7 @@ const onToggle = (sla) => {
     },
     {
       onSuccess: () => {
-        toast.success(__('SLA Policy Status Updated'))
+        toast.success(__('SLA policy status updated'))
       },
     },
   )

@@ -12,7 +12,7 @@
     >
       <div
         :id="whatsapp.name"
-        class="group/message relative max-w-[90%] rounded-md bg-surface-gray-1 text-ink-gray-9 p-1.5 pl-2 text-base shadow-sm"
+        class="group/message relative max-w-[90%] rounded-5 bg-surface-gray-1 text-ink-gray-9 p-1.5 pl-2 text-base shadow-sm"
       >
         <Badge
           v-if="whatsapp.status == 'failed'"
@@ -22,7 +22,7 @@
         />
         <div
           v-if="whatsapp.is_reply"
-          class="mb-1 cursor-pointer rounded border-0 border-l-4 bg-surface-gray-3 p-2 text-ink-gray-5"
+          class="mb-1 cursor-pointer rounded-4 border-0 border-l-4 bg-surface-gray-3 p-2 text-ink-gray-5"
           :class="
             whatsapp.reply_to_type == 'Incoming'
               ? 'border-green-500'
@@ -31,17 +31,17 @@
           @click="() => scrollToMessage(whatsapp.reply_to)"
         >
           <div
-            class="mb-1 text-sm font-bold"
+            class="mb-1 text-sm-bold"
             :class="
               whatsapp.reply_to_type == 'Incoming'
-                ? 'text-ink-green-2'
+                ? 'text-ink-green-5'
                 : 'text-ink-blue-link'
             "
           >
             {{ whatsapp.reply_to_from || __('You') }}
           </div>
           <div class="flex flex-col gap-2 max-h-12 overflow-hidden">
-            <div v-if="whatsapp.header" class="text-base font-semibold">
+            <div v-if="whatsapp.header" class="text-base-semibold">
               {{ whatsapp.header }}
             </div>
             <div v-html="formatWhatsAppMessage(whatsapp.reply_message)" />
@@ -53,19 +53,22 @@
         <div class="flex gap-2 justify-between">
           <div
             v-if="whatsapp.status != 'failed'"
-            class="absolute -right-0.5 -top-0.5 flex cursor-pointer gap-1 rounded-full bg-surface-white pb-2 pl-2 pr-1.5 pt-1.5 opacity-0 group-hover/message:opacity-100"
+            class="absolute -right-0.5 -top-0.5 flex cursor-pointer gap-1 rounded-full bg-surface-base pb-2 pl-2 pr-1.5 pt-1.5 opacity-0 group-hover/message:opacity-100"
             :style="{
               background:
                 'radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 35%, rgba(238, 130, 238, 0) 100%)',
             }"
           >
             <Dropdown :options="messageOptions(whatsapp)">
-              <FeatherIcon name="chevron-down" class="size-4 text-ink-gray-5" />
+              <span
+                class="lucide-chevron-down size-4 text-ink-gray-5"
+                aria-hidden="true"
+              />
             </Dropdown>
           </div>
           <div
             v-if="whatsapp.reaction"
-            class="absolute -bottom-5 flex gap-1 rounded-full border bg-surface-white p-1 pb-[3px] shadow-sm"
+            class="absolute -bottom-5 flex gap-1 rounded-full border bg-surface-base p-1 pb-[3px] shadow-sm"
           >
             <div class="flex size-4 items-center justify-center">
               {{ whatsapp.reaction }}
@@ -75,7 +78,7 @@
             v-if="whatsapp.message_type == 'Template'"
             class="flex flex-col gap-2"
           >
-            <div v-if="whatsapp.header" class="text-base font-semibold">
+            <div v-if="whatsapp.header" class="text-base-semibold">
               {{ whatsapp.header }}
             </div>
             <div v-html="formatWhatsAppMessage(whatsapp.template)" />
@@ -94,7 +97,7 @@
           <div v-else-if="whatsapp.content_type == 'image'">
             <img
               :src="whatsapp.attach"
-              class="h-40 cursor-pointer rounded-md"
+              class="h-40 cursor-pointer rounded-5"
               @click="() => openFileInAnotherTab(whatsapp.attach)"
             />
             <div
@@ -108,7 +111,7 @@
             class="flex items-center gap-2"
           >
             <DocumentIcon
-              class="size-10 cursor-pointer rounded-md text-ink-gray-4"
+              class="size-10 cursor-pointer rounded-5 text-ink-gray-4"
               @click="() => openFileInAnotherTab(whatsapp.attach)"
             />
             <div class="text-ink-gray-5">Document</div>
@@ -126,7 +129,7 @@
             <video
               :src="whatsapp.attach"
               controls
-              class="h-40 cursor-pointer rounded-md"
+              class="h-40 cursor-pointer rounded-5"
             />
             <div
               v-if="!whatsapp.message.startsWith('/files/')"
@@ -148,7 +151,7 @@
               <DoubleCheckIcon
                 v-else-if="['read', 'delivered'].includes(whatsapp.status)"
                 class="size-4"
-                :class="{ 'text-ink-blue-2': whatsapp.status == 'read' }"
+                :class="{ 'text-ink-blue-5': whatsapp.status == 'read' }"
               />
             </div>
           </div>
@@ -185,7 +188,7 @@ import DoubleCheckIcon from '@/components/Icons/DoubleCheckIcon.vue'
 import DocumentIcon from '@/components/Icons/DocumentIcon.vue'
 import ReactIcon from '@/components/Icons/ReactIcon.vue'
 import { formatDate, sanitizeHTML } from '@/utils'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { Tooltip, Dropdown, createResource, toast } from 'frappe-ui'
 import { ref } from 'vue'
 

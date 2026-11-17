@@ -1,171 +1,257 @@
 <template>
-  <div
-    class="relative flex h-full flex-col justify-between transition-all duration-300 ease-in-out"
-    :class="isSidebarCollapsed ? 'w-12' : 'w-[220px]'"
-  >
-    <div class="p-2">
-      <UserDropdown :isCollapsed="isSidebarCollapsed" />
-    </div>
-    <div class="flex-1 overflow-y-auto">
-      <div class="flex flex-col">
-        <SidebarLink
-          id="notifications-btn"
-          :label="__('Notifications')"
-          :icon="NotificationsIcon"
-          :isCollapsed="isSidebarCollapsed"
-          class="relative mx-2 my-[1.5px]"
-          @click="() => toggleNotificationPanel()"
-        >
-          <template #right>
+  <!-- The notifications panel is absolutely positioned at `left: 100%`, so it
+       needs a positioning context that is not the Sidebar itself (Sidebar sets
+       overflow-x-hidden, which would clip the panel away).
+
+       It also paints the sidebar surface: Sidebar's own `bg-surface-sidebar` is
+       transparent in dark mode, and nothing behind it sets a background, so the
+       column falls through to the white page canvas. The token cannot be
+       overridden on the Sidebar element itself — `bg-surface-sidebar` is emitted
+       after `bg-surface-gray-1` in the utilities layer and would win. -->
+  <div class="relative flex h-full bg-surface-gray-1">
+    <Sidebar
+      v-model:collapsed="isSidebarCollapsed"
+      :collapsible="!mobile"
+      :width="mobile ? '260px' : undefined"
+      class="border-r border-outline-gray-1"
+    >
+      <div class="flex h-full flex-col p-2">
+        <UserDropdown :isCollapsed="isCollapsed" />
+
+        <!-- overflow-y-auto forces overflow-x to clip too, which would slice the
+             active row's shadow. Widen the scroll box to the sidebar edges and
+             pad the content back in so the shadow has room. -->
+        <div class="-mx-2 mt-2 flex flex-1 flex-col gap-1 overflow-y-auto px-2">
+          <SidebarItem :label="__('Search')" @click="onSearchClick">
+            <template #prefix>
+              <LucideSearch class="size-4 text-ink-gray-7" />
+            </template>
+            <span class="flex-1 truncate text-sm leading-tighter">
+              {{ __('Search') }}
+            </span>
+            <KeyboardShortcut v-if="!mobile" class="mr-2" meta bg>
+              K
+            </KeyboardShortcut>
+          </SidebarItem>
+
+          <SidebarItem
+            id="notifications-btn"
+            :label="__('Notifications')"
+            :route="mobile ? { name: 'Notifications' } : undefined"
+            :active="mobile && activeItem === 'Notifications'"
+            @click="onNotificationsClick"
+          >
+            <template #prefix>
+              <span class="relative grid size-4 place-items-center">
+                <NotificationsIcon class="size-4 text-ink-gray-7" />
+                <span
+                  v-if="isCollapsed && unreadNotificationsCount"
+                  class="absolute -right-1 -top-1 size-1.5 rounded-full bg-surface-gray-9 ring-1 ring-[var(--surface-gray-1)]"
+                />
+              </span>
+            </template>
+            <!-- Not in #suffix: that slot sits outside the button, so a click on
+                 the count would not toggle the panel. -->
+            <span class="flex-1 truncate text-sm leading-tighter">
+              {{ __('Notifications') }}
+            </span>
             <Badge
-              v-if="!isSidebarCollapsed && unreadNotificationsCount"
+              v-if="unreadNotificationsCount"
+              class="mr-2"
               :label="unreadNotificationsCount"
               variant="subtle"
             />
-            <div
-              v-else-if="unreadNotificationsCount"
-              class="absolute -left-1.5 top-1 z-20 h-[5px] w-[5px] translate-x-6 translate-y-1 rounded-full bg-surface-gray-6 ring-1 ring-white"
+          </SidebarItem>
+
+          <CollapsibleSection
+            v-for="section in allViews"
+            :key="section.name"
+            :label="section.name"
+            :hideLabel="section.hideLabel"
+            :opened="section.opened"
+          >
+            <template #header="{ opened, hide, toggle }">
+              <SidebarLabel
+                v-if="!hide"
+                divider
+                class="mb-1 mt-4 select-none"
+                :class="!isCollapsed && 'cursor-pointer'"
+                @click="toggle()"
+              >
+                <span class="flex items-center gap-1.5">
+                  <span
+                    class="lucide-chevron-right -ml-0.5 size-4 shrink-0 text-ink-gray-9 transition-transform duration-300 ease-in-out"
+                    :class="{ 'rotate-90': opened }"
+                    aria-hidden="true"
+                  />
+                  <span class="truncate">{{ __(section.name) }}</span>
+                </span>
+              </SidebarLabel>
+            </template>
+            <nav class="flex flex-col gap-1">
+              <SidebarItem
+                v-for="link in section.views"
+                :key="link.key"
+                :route="link.to"
+                :label="__(link.label)"
+                :active="activeItem === link.key"
+                @click="selectItem($event, link.key)"
+              >
+                <template #prefix>
+                  <Icon :icon="link.icon" class="size-4 text-ink-gray-7" />
+                </template>
+                <Tooltip
+                  :text="__(link.label)"
+                  side="right"
+                  :hoverDelay="1500"
+                  :disabled="isCollapsed"
+                >
+                  <span class="truncate text-sm">{{ __(link.label) }}</span>
+                </Tooltip>
+              </SidebarItem>
+            </nav>
+          </CollapsibleSection>
+        </div>
+
+        <div v-if="!mobile" class="mt-auto flex flex-col gap-1 pt-2">
+          <div class="mb-1 flex flex-col gap-2">
+            <SignupBanner
+              v-if="isDemoSite"
+              :isSidebarCollapsed="isCollapsed"
+              :afterSignup="() => capture('signup_from_demo_site')"
             />
-          </template>
-        </SidebarLink>
-      </div>
-
-      <div v-if="!isSidebarCollapsed && currentMonth" class="mx-2 my-2 p-3 bg-white rounded-md shadow-sm border border-gray-100">
-        <div class="flex items-center justify-between">
-          <div class="text-sm text-ink-gray-7 font-medium">{{ __('Targets') }} — {{ currentMonth.label }}</div>
-          <div class="flex items-center gap-2">
-            <!-- <div class="text-xs text-ink-gray-5">{{ currentCurrency }}</div> -->
-            <button @click="refreshCurrentMonth" :disabled="currentLoading" class="p-1 rounded hover:bg-gray-100" aria-label="Refresh targets">
-              <RefreshIcon class="h-4 w-4 text-ink-gray-6" :class="{ 'animate-spin': currentLoading }" />
-            </button>
-          </div>
-        </div>
-        <div class="mt-2 text-sm text-ink-gray-8">
-          <div class="flex justify-between">
-            <span class="text-xs text-ink-gray-5">{{ __('Total Target') }}</span>
-            <span class="font-semibold">{{currentMonthData.calculation_based_on === "Quantity" ? formatToTwoDecimals(currentMonth.target_qty) : formatCurrency(currentMonth.target_amount) }}</span>
-          </div>
-          <div class="flex justify-between mt-1">
-            <span class="text-xs text-ink-gray-5">{{ __('Daily Target') }}</span>
-            <span class="font-semibold">{{ currentMonthData.calculation_based_on === "Quantity" ? formatToTwoDecimals(daily_totals.target_qty) : formatCurrency(daily_totals.target_amount) }}</span>
-          </div>
-          <div class="flex justify-between mt-1">
-            <span class="text-xs text-ink-gray-5">{{ __('Achieved') }}</span>
-            <span class="font-semibold">{{ currentMonthData.calculation_based_on === "Quantity" ? formatToTwoDecimals(currentMonth.achieved_qty) :  formatCurrency(currentMonth.achieved_amount) }}</span>
-          </div>
-          <div class="mt-2">
-            <div class="w-full bg-surface-gray-2 rounded h-2 overflow-hidden">
-              <div class="bg-green-500 h-2" :style="{ width: currentMonthData.calculation_based_on === 'Quantity' ? (formatToTwoDecimals(daily_totals.completion_percentage_qty) || 0 ) + '%' : ((daily_totals.completion_percentage || 0) + '%') }"></div>
-            </div>
-            <div class="text-right text-xs text-ink-gray-5 mt-1">Daily Achieved: {{ currentMonthData.calculation_based_on === "Quantity" ? formatToTwoDecimals(daily_totals.completion_percentage_qty) : (daily_totals.completion_percentage || 0).toFixed(2) }}%</div>
-          </div>
-        </div>
-      </div>
-
-      <div v-for="view in allViews" :key="view.label">
-        <div class="mx-2 my-1.5" />
-        <Section
-          :label="view.name"
-          :hideLabel="view.hideLabel"
-          :opened="view.opened"
-        >
-          <template #header="{ opened, hide, toggle }">
             <div
-              v-if="!hide"
-              class="flex items-center cursor-pointer gap-1.5 text-base text-ink-gray-5 transition-all duration-300 ease-in-out"
-              :class="
-                isSidebarCollapsed
-                  ? 'h-0 overflow-hidden opacity-0'
-                  : 'px-4 pt-[11px] pb-2.5 w-auto opacity-100'
-              "
-              @click="toggle()"
+              v-if="!isCollapsed && currentMonth"
+              class="mx-2 my-2 p-3 bg-white rounded-md shadow-sm border border-gray-100"
             >
-              <FeatherIcon
-                name="chevron-right"
-                class="h-4 text-ink-gray-9 transition-all duration-300 ease-in-out"
-                :class="{ 'rotate-90': opened }"
-              />
-              <span>{{ __(view.name) }}</span>
+              <div class="flex items-center justify-between">
+                <div class="text-sm text-ink-gray-7 font-medium">
+                  {{ __('Targets') }} — {{ currentMonth.label }}
+                </div>
+                <div class="flex items-center gap-2">
+                  <!-- <div class="text-xs text-ink-gray-5">{{ currentCurrency }}</div> -->
+                  <button
+                    @click="refreshCurrentMonth"
+                    :disabled="currentLoading"
+                    class="p-1 rounded hover:bg-gray-100"
+                    aria-label="Refresh targets"
+                  >
+                    <RefreshIcon
+                      class="h-4 w-4 text-ink-gray-6"
+                      :class="{ 'animate-spin': currentLoading }"
+                    />
+                  </button>
+                </div>
+              </div>
+              <div class="mt-2 text-sm text-ink-gray-8">
+                <div class="flex justify-between">
+                  <span class="text-xs text-ink-gray-5">{{
+                    __('Total Target')
+                  }}</span>
+                  <span class="font-semibold">{{
+                    currentMonthData.calculation_based_on === 'Quantity'
+                      ? formatToTwoDecimals(currentMonth.target_qty)
+                      : formatCurrency(currentMonth.target_amount)
+                  }}</span>
+                </div>
+                <div class="flex justify-between mt-1">
+                  <span class="text-xs text-ink-gray-5">{{
+                    __('Daily Target')
+                  }}</span>
+                  <span class="font-semibold">{{
+                    currentMonthData.calculation_based_on === 'Quantity'
+                      ? formatToTwoDecimals(daily_totals.target_qty)
+                      : formatCurrency(daily_totals.target_amount)
+                  }}</span>
+                </div>
+                <div class="flex justify-between mt-1">
+                  <span class="text-xs text-ink-gray-5">{{
+                    __('Achieved')
+                  }}</span>
+                  <span class="font-semibold">{{
+                    currentMonthData.calculation_based_on === 'Quantity'
+                      ? formatToTwoDecimals(currentMonth.achieved_qty)
+                      : formatCurrency(currentMonth.achieved_amount)
+                  }}</span>
+                </div>
+                <div class="mt-2">
+                  <div
+                    class="w-full bg-surface-gray-2 rounded h-2 overflow-hidden"
+                  >
+                    <div
+                      class="bg-green-500 h-2"
+                      :style="{
+                        width:
+                          currentMonthData.calculation_based_on === 'Quantity'
+                            ? (formatToTwoDecimals(
+                                daily_totals.completion_percentage_qty,
+                              ) || 0) + '%'
+                            : (daily_totals.completion_percentage || 0) + '%',
+                      }"
+                    ></div>
+                  </div>
+                  <div class="text-right text-xs text-ink-gray-5 mt-1">
+                    Daily Achieved:
+                    {{
+                      currentMonthData.calculation_based_on === 'Quantity'
+                        ? formatToTwoDecimals(
+                            daily_totals.completion_percentage_qty,
+                          )
+                        : (daily_totals.completion_percentage || 0).toFixed(2)
+                    }}%
+                  </div>
+                </div>
+              </div>
             </div>
-          </template>
-          <nav class="flex flex-col">
-            <SidebarLink
-              v-for="link in view.views"
-              :key="link.label"
-              :icon="link.icon"
-              :label="__(link.label)"
-              :to="link.to"
-              :isCollapsed="isSidebarCollapsed"
-              class="mx-2 my-[1.5px]"
+
+            <TrialBanner
+              v-if="isFCSite && !isCloudSettingsAvailable()"
+              :isSidebarCollapsed="isCollapsed"
+              :afterUpgrade="() => capture('upgrade_plan_from_trial_banner')"
             />
-          </nav>
-        </Section>
-      </div>
-    </div>
-    <div class="m-2 flex flex-col gap-1">
-      <div class="flex flex-col gap-2 mb-1">
-        <SalesHierarchyBanner
-          v-if="showSalesHierarchyBanner"
-          :isSidebarCollapsed="isSidebarCollapsed"
-        />
-        <SignupBanner
-          v-if="isDemoSite"
-          :isSidebarCollapsed="isSidebarCollapsed"
-          :afterSignup="() => capture('signup_from_demo_site')"
-        />
-        <TrialBanner
-          v-if="isFCSite"
-          :isSidebarCollapsed="isSidebarCollapsed"
-          :afterUpgrade="() => capture('upgrade_plan_from_trial_banner')"
-        />
-        <GettingStartedBanner
-          v-if="!isOnboardingStepsCompleted"
-          :isSidebarCollapsed="isSidebarCollapsed"
-        />
-      </div>
-      <SidebarLink
-        v-if="isManager() && isDemoDataCreated"
-        class="text-ink-red-3 hover:bg-surface-red-2 focus:bg-surface-red-2"
-        :label="__('Clear Demo Data')"
-        :isCollapsed="isSidebarCollapsed"
-        @click="() => clearDemoData()"
-      >
-        <template #icon>
-          <BrushCleaningIcon class="h-4 w-4" />
-        </template>
-      </SidebarLink>
-      <SidebarLink
-        v-if="isOnboardingStepsCompleted"
-        :label="__('Help')"
-        :isCollapsed="isSidebarCollapsed"
-        @click="
-          () => {
-            showHelpModal = minimize ? true : !showHelpModal
-            minimize = !showHelpModal
-          }
-        "
-      >
-        <template #icon>
-          <HelpIcon class="h-4 w-4" />
-        </template>
-      </SidebarLink>
-      <SidebarLink
-        :label="isSidebarCollapsed ? __('Expand') : __('Collapse')"
-        :isCollapsed="isSidebarCollapsed"
-        class=""
-        @click="isSidebarCollapsed = !isSidebarCollapsed"
-      >
-        <template #icon>
-          <span class="grid h-4 w-4 flex-shrink-0 place-items-center">
-            <CollapseSidebar
-              class="h-4 w-4 text-ink-gray-7 duration-300 ease-in-out"
-              :class="{ '[transform:rotateY(180deg)]': isSidebarCollapsed }"
+            <TrialCard v-if="!isCollapsed" />
+            <GettingStartedBanner
+              v-if="!isOnboardingStepsCompleted"
+              :isSidebarCollapsed="isCollapsed"
             />
-          </span>
-        </template>
-      </SidebarLink>
-    </div>
-    <Notifications />
+          </div>
+          <SidebarItem
+            v-if="isManager() && isDemoDataCreated"
+            :label="__('Clear Demo Data')"
+            class="!text-ink-red-5 hover:!bg-surface-red-2"
+            @click="() => clearDemoData()"
+          >
+            <template #prefix>
+              <BrushCleaningIcon class="size-4" />
+            </template>
+          </SidebarItem>
+          <SidebarItem
+            v-if="isOnboardingStepsCompleted"
+            :label="__('Help')"
+            @click="toggleHelpModal"
+          >
+            <template #prefix>
+              <HelpIcon class="size-4 text-ink-gray-7" />
+            </template>
+          </SidebarItem>
+          <SidebarItem
+            :label="isCollapsed ? __('Expand') : __('Collapse')"
+            @click="isSidebarCollapsed = !isSidebarCollapsed"
+          >
+            <template #prefix>
+              <CollapseSidebar
+                class="size-4 text-ink-gray-7 duration-300 ease-in-out"
+                :class="{ '[transform:rotateY(180deg)]': isCollapsed }"
+              />
+            </template>
+          </SidebarItem>
+        </div>
+      </div>
+    </Sidebar>
+    <Notifications v-if="!mobile" />
+  </div>
+
+  <template v-if="!mobile">
     <Settings />
     <HelpModal
       v-if="showHelpModal"
@@ -182,48 +268,41 @@
       v-model="showIntermediateModal"
       :currentStep="currentStep"
     />
-  </div>
+  </template>
 </template>
 
 <script setup>
 import BrushCleaningIcon from '~icons/lucide/brush-cleaning'
-import LucideLayoutDashboard from '~icons/lucide/layout-dashboard'
 import CRMLogo from '@/components/Icons/CRMLogo.vue'
 import InviteIcon from '@/components/Icons/InviteIcon.vue'
 import ConvertIcon from '@/components/Icons/ConvertIcon.vue'
-import CommentIcon from '@/components/Icons/CommentIcon.vue'
 import EmailIcon from '@/components/Icons/EmailIcon.vue'
-import StepsIcon from '@/components/Icons/StepsIcon.vue'
-import Section from '@/components/Section.vue'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
+import Icon from '@/components/Icon.vue'
 import PinIcon from '@/components/Icons/PinIcon.vue'
 import DateRequestIcon from '@/components/Icons/DateRequestIcon.vue'
 import ProjectAssignIcon from '@/components/Icons/ProjectAssignIcon.vue'
 import TimesheetIcon from '@/components/Icons/TimesheetIcon.vue'
 import ProjectIcon from '@/components/Icons/ProjectIcon.vue'
 import UserDropdown from '@/components/UserDropdown.vue'
-import SquareAsterisk from '@/components/Icons/SquareAsterisk.vue'
-import LeadsIcon from '@/components/Icons/LeadsIcon.vue'
-import DealsIcon from '@/components/Icons/DealsIcon.vue'
-import QuotationIcon from '../Icons/QuotationIcon.vue'  
-import GammaProposalIcon from '../Icons/GammaProposalIcon.vue'  
-import EventIcon from '../Icons/EventIcon.vue'
+import { getNavigationItems } from '@/utils/navigation'
 import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
-import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
+import DealsIcon from '@/components/Icons/DealsIcon.vue'
+import LeadsIcon from '@/components/Icons/LeadsIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
-import TaskIcon from '@/components/Icons/TaskIcon.vue'
-import ListChecks from '@/components/Icons/ListChecks.vue'
-import IssueIcon from '@/components/Icons/IssueIcon.vue'
 import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
+import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
+import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import CollapseSidebar from '@/components/Icons/CollapseSidebar.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import HelpIcon from '@/components/Icons/HelpIcon.vue'
-import ChartLineIcon from '@/components/Icons/ChartLineIcon.vue'
 import RefreshIcon from '@/components/Icons/RefreshIcon.vue'
-import SidebarLink from '@/components/SidebarLink.vue'
 import Notifications from '@/components/Notifications.vue'
+import KeyboardShortcut from '@/components/KeyboardShortcut.vue'
+import LucideSearch from '~icons/lucide/search'
+import { openCommandPalette } from '@/composables/useCommandPalette'
 import Settings from '@/components/Settings/Settings.vue'
-import SalesHierarchyBanner from '@/components/SalesHierarchyBanner.vue'
 import { viewsStore } from '@/stores/views'
 import {
   unreadNotificationsCount,
@@ -231,26 +310,46 @@ import {
 } from '@/stores/notifications'
 import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
-import { showSettings, activeSettingsPage } from '@/composables/settings'
-import { showChangePasswordModal } from '@/composables/modals'
-import { useBroadcast } from '@/composables/useBroadcast.js'
-import { FeatherIcon, call, createResource } from 'frappe-ui'
 import {
-  SignupBanner,
-  TrialBanner,
+  showSettings,
+  activeSettingsPage,
+  mobileSidebarOpened,
+  closeMobileSidebar,
+} from '@/composables/settings'
+import { useBroadcast } from '@/composables/useBroadcast.js'
+import {
+  call,
+  createResource,
+  Sidebar,
+  SidebarItem,
+  SidebarLabel,
+  Tooltip,
+} from 'frappe-ui'
+import { SignupBanner } from '@framework/ui/components/SignupBanner'
+import { TrialBanner } from '@framework/ui/components/TrialBanner'
+import TrialCard from '@/components/Layouts/TrialCard.vue'
+import { isCloudSettingsAvailable } from '@/composables/cloudSettings'
+import {
   HelpModal,
   GettingStartedBanner,
   useOnboarding,
   showHelpModal,
   minimize,
   IntermediateStepModal,
-  useTelemetry,
-} from 'frappe-ui/frappe'
+} from '@framework/ui/components/Onboarding'
+import { useTelemetry } from '@framework/ui/telemetry'
 import router from '@/router'
 import { useStorage } from '@vueuse/core'
 import { useDemoData } from '@/composables/demoData'
-import { ref, reactive, computed, h, markRaw, onMounted } from 'vue'
-import DotIcon from '../Icons/DotIcon.vue'
+import { useCrmOnboarding } from '@/composables/onboarding'
+import { ref, reactive, computed, markRaw, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+
+const props = defineProps({
+  mobile: { type: Boolean, default: false },
+})
+
+const route = useRoute()
 
 const { getPinnedViews, getPublicViews } = viewsStore()
 const { toggle: toggleNotificationPanel } = notificationsStore()
@@ -268,12 +367,24 @@ const currentMonthResource = createResource({
   },
 })
 
-const currentMonthData = computed(() => (currentMonthResource.data ? currentMonthResource.data : {}))
-const currentMonth = computed(() => (currentMonthResource.data ? currentMonthResource.data.month : null))
-const currentCurrency = computed(() => (currentMonthResource.data ? currentMonthResource.data.currency : 'INR'))
-const currentTotals = computed(() => (currentMonthResource.data ? currentMonthResource.data.totals : {}))
+const currentMonthData = computed(() =>
+  currentMonthResource.data ? currentMonthResource.data : {},
+)
+const currentMonth = computed(() =>
+  currentMonthResource.data ? currentMonthResource.data.month : null,
+)
+const currentCurrency = computed(() =>
+  currentMonthResource.data ? currentMonthResource.data.currency : 'INR',
+)
+const currentTotals = computed(() =>
+  currentMonthResource.data ? currentMonthResource.data.totals : {},
+)
 const currentLoading = computed(() => !!currentMonthResource.loading)
-const daily_totals = computed(() => currentMonthResource.data?.daily_totals ? currentMonthResource.data.daily_totals : {})
+const daily_totals = computed(() =>
+  currentMonthResource.data?.daily_totals
+    ? currentMonthResource.data.daily_totals
+    : {},
+)
 
 function refreshCurrentMonth() {
   try {
@@ -289,133 +400,19 @@ function refreshCurrentMonth() {
   }
 }
 
+// The mobile drawer pins the sidebar open, so it is never visually collapsed
+// even when the stored rail state says otherwise.
+const isCollapsed = computed(() => isSidebarCollapsed.value && !props.mobile)
+
 const isFCSite = ref(window.is_fc_site)
 const isDemoSite = ref(window.is_demo_site)
 
-// onboarding
-const { user } = sessionStore()
-const { users, isManager, isProjectManager } = usersStore()
-const { isOnboardingStepsCompleted, setUp } = useOnboarding('frappecrm')
-
-const showSalesHierarchyBanner = ref(!!window.show_sales_hierarchy_banner)
-
-const links = [
-  {
-    label: 'Dashboard',
-    icon: LucideLayoutDashboard,
-    to: 'Dashboard',
-  },
-  // PErfomance Review
-  {
-    label: 'Performance Review',
-    icon:   ChartLineIcon,
-    to: 'PerformanceReview',
-    // condition: () => isManager(),
-  },
-  {
-    label: 'Leads',
-    icon: LeadsIcon,
-    to: 'Leads',
-  },
-  {
-    label: 'Deals',
-    icon: DealsIcon,
-    to: 'Deals',
-  },
-  {
-    label: 'Contacts',
-    icon: ContactsIcon,
-    to: 'Contacts',
-  },
-  {
-    label: 'Organizations',
-    icon: OrganizationsIcon,
-    to: 'Organizations',
-  },
-  {
-    label: 'Notes',
-    icon: NoteIcon,
-    to: 'Notes',
-  },
-  {
-    label: 'Tasks',
-    icon: TaskIcon,
-    to: 'Tasks',
-  },
-  {
-    label: 'Task Follow Up',
-    icon: ListChecks,
-    to: 'TaskFollowUp',
-  },
-  {
-    label: 'Task Tickets',
-    icon: IssueIcon,
-    to: 'Issues',
-  },
-  {
-    label: 'Call Logs',
-    icon: PhoneIcon,
-    to: 'Call Logs',
-  },
-  {
-    label: 'Quotation',
-    icon: QuotationIcon,
-    to: 'Quotations',
-  },
-  {
-    label: 'Gamma',
-    icon: GammaProposalIcon,
-    to: 'Gammas',
-  },
-  {
-    label:'Event',
-    icon: EventIcon,
-    to:'Events',  
-  },
-   // Project Dashboard
-  {
-    label: 'Project Dashboard',
-    icon: LucideLayoutDashboard,
-    to: 'Project Dashboard',
-    condition: () => isProjectManager(),
-  },
-// add Project Tasks link to sidebar
-  {
-    label: 'Project Tasks',
-    icon: ProjectTaskIcon,
-    to: 'Project Tasks',
-    condition: () => isProjectManager(),
-  },
-// add Projects link to sidebar
-  {
-    label: 'Projects',
-    icon: ProjectIcon,
-    to: 'Projects',
-    condition: () => isProjectManager(),
-  },
-  // add Employee Date Request link to sidebar
-  {
-    label: 'Employee Date Request',
-    icon: DateRequestIcon,
-    to: 'Employee Date Requests',
-    condition: () => isProjectManager(),
-  },
-   // add Employee Project Assignment link to sidebar
-  {
-    label: 'Employee Project Assignment',
-    icon: ProjectAssignIcon,
-    to: 'Employee Project Assignments',
-    condition: () => isProjectManager(),
-  },
-   // add Timesheets link to sidebar
-  {
-    label: 'Timesheets',
-    icon: TimesheetIcon,
-    to: 'Smart Timesheets',
-    condition: () => isProjectManager(),
-  }
-  
-]
+const links = computed(() =>
+  getNavigationItems({
+    mobile: props.mobile,
+    projectManager: isProjectManager(),
+  }),
+)
 
 const allViews = computed(() => {
   let _views = [
@@ -423,12 +420,12 @@ const allViews = computed(() => {
       name: 'All Views',
       hideLabel: true,
       opened: true,
-      views: links.filter((link) => {
-        if (link.condition) {
-          return link.condition()
-        }
-        return true
-      }),
+      views: links.value.map((link) => ({
+        label: link.label,
+        icon: link.icon,
+        key: link.route,
+        to: { name: link.route },
+      })),
     },
   ]
   if (getPublicViews().length) {
@@ -454,6 +451,7 @@ function parseView(views) {
     return {
       label: view.label,
       icon: getIcon(view.route_name, view.icon),
+      key: view.name,
       to: {
         name: view.route_name,
         params: { viewType: view.type || 'list' },
@@ -494,30 +492,172 @@ function getIcon(routeName, icon) {
   }
 }
 
-  function formatCurrency(amount, currency) {
-    if (amount === undefined || amount === null) return '-'
-    try {
-      const curr = currency || (currentCurrency && currentCurrency.value) || 'INR'
-      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: curr }).format(amount)
-    } catch (e) {
-      return amount
-    }
+function formatCurrency(amount, currency) {
+  if (amount === undefined || amount === null) return '-'
+  try {
+    const curr = currency || currentCurrency.value || 'INR'
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: curr,
+    }).format(amount)
+  } catch (e) {
+    return amount
   }
+}
 
-  function formatToTwoDecimals(value) {
-    return Number(value || 0).toFixed(2)
+function formatToTwoDecimals(value) {
+  return Number(value || 0).toFixed(2)
+}
+// A saved view's key is its name; a plain nav item's key is its route name.
+function currentRouteKey() {
+  return route.query.view || route.name
+}
+
+// Set the highlight on click rather than waiting for the route, since route
+// components are lazily imported and the first visit waits on a chunk fetch.
+// Modified clicks open a new tab without navigating this one, so they must not
+// move the highlight here.
+const activeItem = ref(currentRouteKey())
+
+function selectItem(event, key) {
+  if (
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    event.button === 1
+  ) {
+    return
   }
+  activeItem.value = key
+  // Selecting the row for the route already open leaves the URL unchanged, so
+  // the drawer's navigation watcher never fires. Close it here too.
+  if (props.mobile) {
+    mobileSidebarOpened.value = false
+  }
+}
+
+watch(
+  () => [route.name, route.query.view],
+  () => (activeItem.value = currentRouteKey()),
+)
+
+function onSearchClick() {
+  if (props.mobile) closeMobileSidebar(openCommandPalette)
+  else openCommandPalette()
+}
+
+function onNotificationsClick(event) {
+  if (props.mobile) {
+    selectItem(event, 'Notifications')
+  } else {
+    toggleNotificationPanel()
+  }
+}
+
+function toggleHelpModal() {
+  showHelpModal.value = minimize.value ? true : !showHelpModal.value
+  minimize.value = !showHelpModal.value
+}
+
+// onboarding
+const { user } = sessionStore()
+const { users, isManager, isProjectManager } = usersStore()
+const { isOnboardingStepsCompleted, setUp } = useOnboarding('frappecrm')
+const { flushPendingSteps } = useCrmOnboarding()
+
+// The onboarding composable persists the checklist as a positional
+// [{name, completed}] list, seeds it from the current steps ONLY when empty,
+// and never adds newly introduced steps to an existing list. So once a step is
+// added (e.g. connect_your_email), a saved list is missing it — skip / reset
+// / complete become no-ops (findIndex returns -1) and the total is wrong.
+//
+// Reconcile the saved list to the current steps while never losing progress:
+//   - operate on localStorage, the copy the composable actually reads on load
+//     (checking the server instead would let a reconciled browser and a stale
+//     browser keep overwriting each other);
+//   - order the currently-visible steps to match the UI and preserve their
+//     completion by name; new steps start incomplete;
+//   - keep steps that are saved but not currently visible (e.g. role-only steps
+//     when the role is temporarily absent) so a role change can't erase them;
+//   - skip entirely once onboarding is finished, so a completed checklist is
+//     never rewritten or reopened.
+// It is idempotent: an already-reconciled list produces no change.
+const ONBOARDING_KEY = 'frappecrm_onboarding_status'
+
+async function reconcileOnboarding(currentSteps) {
+  // `user` is the unwrapped session user id string (Pinia unwraps the ref on
+  // destructure) — the same key the composable uses. Not user.value.
+  let store
+  try {
+    store = JSON.parse(localStorage.getItem('onboardingStatus') || '{}')
+  } catch {
+    return
+  }
+  const persisted = store?.[user]?.[ONBOARDING_KEY]
+  if (!persisted?.length) return // composable seeds an empty list itself
+  if (persisted.every((s) => s.completed)) return // finished: leave untouched
+
+  const doneByName = new Map(persisted.map((s) => [s.name, s.completed]))
+  const currentNames = new Set(currentSteps.map((s) => s.name))
+  const visible = currentSteps.map((s) => ({
+    name: s.name,
+    completed: doneByName.get(s.name) ?? false,
+  }))
+  // Preserve saved-but-not-visible steps (e.g. manager-only steps for a user
+  // whose role was removed) so their completion survives role changes.
+  // Drop steps that no longer exist so they can't block completion.
+  const knownNames = new Set(steps.map((s) => s.name))
+  const hidden = persisted.filter(
+    (s) => !currentNames.has(s.name) && knownNames.has(s.name),
+  )
+  const merged = [...visible, ...hidden]
+
+  const unchanged =
+    merged.length === persisted.length &&
+    merged.every(
+      (m, i) =>
+        persisted[i]?.name === m.name &&
+        persisted[i]?.completed === m.completed,
+    )
+  if (unchanged) return
+
+  store[user][ONBOARDING_KEY] = merged
+  try {
+    localStorage.setItem('onboardingStatus', JSON.stringify(store))
+    await call('frappe.onboarding.update_user_onboarding_status', {
+      steps: JSON.stringify(merged),
+      appName: 'frappecrm',
+    })
+  } catch {
+    return
+  }
+  // Reload once so the composable re-reads the reconciled list. Only reached
+  // while onboarding is unfinished (completed users returned above), so a
+  // finished checklist is never reopened.
+  window.location.reload()
+}
 
 async function getFirstLead() {
-  let firstLead = localStorage.getItem('firstLead' + user)
-  if (firstLead) return firstLead
-  return await call('crm.api.onboarding.get_first_lead')
+  return await getFirstRecord('firstLead', 'crm.api.onboarding.get_first_lead')
 }
 
 async function getFirstDeal() {
-  let firstDeal = localStorage.getItem('firstDeal' + user)
-  if (firstDeal) return firstDeal
-  return await call('crm.api.onboarding.get_first_deal')
+  return await getFirstRecord('firstDeal', 'crm.api.onboarding.get_first_deal')
+}
+
+// the cached id may point to a record that was deleted (or a lead that was
+// converted) since it was stored, so let the server validate it and fall back
+async function getFirstRecord(key, method) {
+  let storageKey = key + user
+  let cached = localStorage.getItem(storageKey)
+  let name = await call(method, { name: cached })
+  if (name) {
+    localStorage.setItem(storageKey, name)
+  } else {
+    localStorage.removeItem(storageKey)
+  }
+  return name
 }
 
 const showIntermediateModal = ref(false)
@@ -525,19 +665,8 @@ const currentStep = ref({})
 
 const steps = reactive([
   {
-    name: 'setup_your_password',
-    title: __('Setup your password'),
-    icon: markRaw(SquareAsterisk),
-    completed: false,
-    onClick: () => {
-      minimize.value = true
-      showChangePasswordModal.value = true
-      capture('onboarding_step_clicked_setup_password')
-    },
-  },
-  {
     name: 'create_first_lead',
-    title: __('Create your first lead'),
+    title: __('Add your first lead'),
     icon: markRaw(LeadsIcon),
     completed: false,
     onClick: () => {
@@ -546,6 +675,19 @@ const steps = reactive([
       send('trigger_lead_create', true)
       capture('onboarding_step_clicked_create_first_lead')
     },
+  },
+  {
+    name: 'connect_your_email',
+    title: __('Connect your email'),
+    icon: markRaw(EmailIcon),
+    completed: false,
+    onClick: () => {
+      minimize.value = true
+      showSettings.value = true
+      activeSettingsPage.value = __('Accounts')
+      capture('onboarding_step_clicked_connect_your_email')
+    },
+    condition: () => isManager(),
   },
   {
     name: 'invite_your_team',
@@ -590,7 +732,7 @@ const steps = reactive([
   },
   {
     name: 'create_first_task',
-    title: __('Create your first task'),
+    title: __('Schedule a follow-up task'),
     icon: markRaw(TaskIcon),
     completed: false,
     onClick: async () => {
@@ -609,107 +751,11 @@ const steps = reactive([
       }
     },
   },
-  {
-    name: 'create_first_note',
-    title: __('Create your first note'),
-    icon: markRaw(NoteIcon),
-    completed: false,
-    onClick: async () => {
-      minimize.value = true
-      let deal = await getFirstDeal()
-      capture('onboarding_step_clicked_create_first_note')
-
-      if (deal) {
-        router.push({
-          name: 'Deal',
-          params: { dealId: deal },
-          hash: '#notes',
-        })
-      } else {
-        router.push({ name: 'Notes' })
-      }
-    },
-  },
-  {
-    name: 'add_first_comment',
-    title: __('Add your first comment'),
-    icon: markRaw(CommentIcon),
-    completed: false,
-    dependsOn: 'create_first_lead',
-    onClick: async () => {
-      minimize.value = true
-      let deal = await getFirstDeal()
-      capture('onboarding_step_clicked_add_first_comment')
-
-      if (deal) {
-        router.push({
-          name: 'Deal',
-          params: { dealId: deal },
-          hash: '#comments',
-        })
-      } else {
-        router.push({ name: 'Leads' })
-      }
-    },
-  },
-  {
-    name: 'send_first_email',
-    title: __('Send email'),
-    icon: markRaw(EmailIcon),
-    completed: false,
-    dependsOn: 'create_first_lead',
-    onClick: async () => {
-      minimize.value = true
-      let deal = await getFirstDeal()
-      capture('onboarding_step_clicked_send_first_email')
-
-      if (deal) {
-        router.push({
-          name: 'Deal',
-          params: { dealId: deal },
-          hash: '#emails',
-        })
-      } else {
-        router.push({ name: 'Leads' })
-      }
-    },
-  },
-  {
-    name: 'change_deal_status',
-    title: __('Change deal status'),
-    icon: markRaw(StepsIcon),
-    completed: false,
-    dependsOn: 'convert_lead_to_deal',
-    onClick: async () => {
-      minimize.value = true
-      capture('onboarding_step_clicked_change_deal_status')
-
-      currentStep.value = {
-        title: __('Change deal status'),
-        buttonLabel: __('Change'),
-        videoURL: '/assets/crm/videos/changeDealStatus.mov',
-        onClick: async () => {
-          showIntermediateModal.value = false
-          currentStep.value = {}
-
-          let deal = await getFirstDeal()
-          if (deal) {
-            router.push({
-              name: 'Deal',
-              params: { dealId: deal },
-              hash: '#activity',
-            })
-          } else {
-            router.push({ name: 'Leads' })
-          }
-        },
-      }
-      showIntermediateModal.value = true
-    },
-  },
 ])
 
 onMounted(async () => {
+  if (props.mobile) return
+
   await users.promise
 
   const filteredSteps = steps.filter((step) => {
@@ -719,7 +765,11 @@ onMounted(async () => {
     return true
   })
 
+  // Bring an existing saved checklist in line with the current steps (adds
+  // newly introduced steps, preserves completion). No-op when already aligned.
+  await reconcileOnboarding(filteredSteps)
   setUp(filteredSteps)
+  flushPendingSteps()
 })
 
 // help center
@@ -736,10 +786,10 @@ const articles = ref([
     title: __('Settings'),
     opened: false,
     subArticles: [
-      { name: 'profile', title: __('Profile') },
+      { name: 'profile-and-preferences', title: __('Profile') },
       { name: 'custom-branding', title: __('Custom Branding') },
       { name: 'home-actions', title: __('Home Actions') },
-      { name: 'invite-users', title: __('Invite Users') },
+      { name: 'inviting-your-team', title: __('Invite Users') },
     ],
   },
   {
@@ -759,7 +809,7 @@ const articles = ref([
   {
     title: __('Capturing Leads'),
     opened: false,
-    subArticles: [{ name: 'web-form', title: __('Web Form') }],
+    subArticles: [{ name: 'capturing-leads/web-form', title: __('Web Form') }],
   },
   {
     title: __('Views'),

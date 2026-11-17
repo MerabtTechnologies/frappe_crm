@@ -32,14 +32,14 @@
                     ? {
                         options: [
                           {
-                            icon: 'upload',
+                            icon: 'lucide-upload',
                             label: contact.doc.image
                               ? __('Change Image')
                               : __('Upload Image'),
                             onClick: openFileSelector,
                           },
                           {
-                            icon: 'trash-2',
+                            icon: 'lucide-trash-2',
                             label: __('Remove Image'),
                             onClick: () => changeContactImage(''),
                           },
@@ -50,7 +50,7 @@
                 class="!absolute bottom-0 left-0 right-0"
               >
                 <div
-                  class="z-1 absolute bottom-0 left-0 right-0 flex h-14 cursor-pointer items-center justify-center rounded-b-full bg-black bg-opacity-40 pt-5 opacity-0 duration-300 ease-in-out group-hover:opacity-100"
+                  class="z-1 absolute bottom-0 left-0 right-0 flex h-14 cursor-pointer items-center justify-center rounded-b-full bg-black bg-opacity-40 pt-5 duration-300 ease-in-out [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                   style="
                     -webkit-clip-path: inset(22px 0 0 0);
                     clip-path: inset(22px 0 0 0);
@@ -61,7 +61,7 @@
               </component>
             </div>
             <div class="flex flex-col gap-2 truncate">
-              <div class="truncate text-lg font-medium text-ink-gray-9">
+              <div class="truncate text-lg-medium text-ink-gray-9">
                 <span v-if="contact.doc.salutation">
                   {{ contact.doc.salutation + '. ' }}
                 </span>
@@ -80,7 +80,7 @@
                   :label="__('Delete')"
                   theme="red"
                   size="sm"
-                  icon-left="trash-2"
+                  icon-left="lucide-trash-2"
                   @click="deleteContact"
                 />
                 <Avatar
@@ -99,29 +99,21 @@
       </template>
     </FileUploader>
     <Tabs
-      v-model="tabIndex"
+      v-model="activeTab"
       as="div"
       :tabs="tabs"
-      class="flex flex-1 overflow-auto flex-col [&_[role='tablist']]:gap-3 [&_[role='tablist']]:px-4 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
+      class="flex flex-1 overflow-auto flex-col [&_[role='tablist']]:gap-3 [&_[role='tablist']]:px-4 [&>[role='tabpanel']:not([hidden])]:flex [&>[role='tabpanel']:not([hidden])]:grow [&>[data-slot=tab-list]]:overflow-x-auto [&_[data-slot=tab-indicator]]:translate-y-0 [&>[data-slot=tab-panel]]:min-h-0 [&>[data-slot=tab-panel]]:flex-col [&>[data-slot=tab-panel]]:overflow-auto"
     >
-      <template #tab-item="{ tab, selected }">
-        <button
-          v-if="tab.name == 'Deals'"
-          class="group flex items-center gap-2 border-b border-transparent py-2.5 text-base text-ink-gray-5 duration-300 ease-in-out hover:text-ink-gray-9 !px-4"
-          :class="{ 'text-ink-gray-9': selected }"
+      <template #tab-suffix="{ tab, active }">
+        <Badge
+          v-if="tab.value === 'deals'"
+          :class="[active ? 'bg-surface-gray-10' : 'bg-gray-600']"
+          variant="solid"
+          theme="gray"
+          size="sm"
         >
-          <component :is="tab.icon" v-if="tab.icon" class="h-5" />
-          {{ __(tab.label) }}
-          <Badge
-            class="group-hover:bg-surface-gray-7"
-            :class="[selected ? 'bg-surface-gray-7' : 'bg-gray-600']"
-            variant="solid"
-            theme="gray"
-            size="sm"
-          >
-            {{ tab.count }}
-          </Badge>
-        </button>
+          {{ tab.count }}
+        </Badge>
       </template>
       <template #tab-panel="{ tab }">
         <div v-if="tab.name == 'Details'">
@@ -146,10 +138,10 @@
         />
         <div
           v-if="tab.label === 'Deals' && !rows.length"
-          class="grid flex-1 place-items-center text-xl font-medium text-ink-gray-4"
+          class="grid flex-1 place-items-center text-2xl-medium text-ink-gray-4"
         >
           <div class="flex flex-col items-center justify-center space-y-3">
-            <component :is="tab.icon" class="!h-10 !w-10" />
+            <component :is="tab.iconLeft" class="!h-10 !w-10" />
             <div>{{ __('No {0} found', [__(tab.label.toLowerCase())]) }}</div>
           </div>
         </div>
@@ -168,6 +160,7 @@ import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import DealsListView from '@/components/ListViews/DealsListView.vue'
 import { validateIsImageFile } from '@/utils'
+import { useContactFields } from '@/composables/useContactFields'
 import { timestampCell } from '@/composables/useTimelinePreferences'
 import { getView } from '@/utils/view'
 import { useDocument } from '@/data/document'
@@ -190,7 +183,7 @@ import {
   toast,
 } from 'frappe-ui'
 import { useDoctypeModal } from '@/composables/doctypeModal'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { ref, computed, h, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -218,6 +211,8 @@ const {
 
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
+const transformField = useContactFields(contact)
+
 onMounted(async () => {
   if (contact.doc) await triggerOnRender()
 })
@@ -242,7 +237,11 @@ const breadcrumbs = computed(() => {
 
   items.push({
     label: title.value,
-    route: { name: 'Contact', params: { contactId: props.contactId } },
+    route: {
+      name: 'Contact',
+      params: { contactId: props.contactId },
+      query: route.query,
+    },
   })
   return items
 })
@@ -277,7 +276,7 @@ async function deleteContact() {
         label: __('Delete'),
         theme: 'red',
         variant: 'solid',
-        async onClick(close) {
+        async onClick({ close }) {
           await call('frappe.client.delete', {
             doctype: 'Contact',
             name: props.contactId,
@@ -290,17 +289,19 @@ async function deleteContact() {
   })
 }
 
-const tabIndex = ref(0)
+const activeTab = ref('details')
 const tabs = [
   {
     name: 'Details',
+    value: 'details',
     label: __('Details'),
-    icon: DetailsIcon,
+    iconLeft: DetailsIcon,
   },
   {
     name: 'Deals',
+    value: 'deals',
     label: __('Deals'),
-    icon: h(DealsIcon, { class: 'h-4 w-4' }),
+    iconLeft: h(DealsIcon, { class: 'h-4 w-4' }),
     count: computed(() => deals.data?.length),
   },
 ]
@@ -329,157 +330,13 @@ const sections = createResource({
 function getParsedSections(_sections) {
   return _sections.map((section) => {
     section.columns = section.columns.map((column) => {
-      column.fields = column.fields.map((field) => {
-        if (field.fieldname === 'email_id') {
-          return {
-            ...field,
-            type: 'dropdown',
-            options:
-              contact.doc?.email_ids?.map((email) => {
-                return {
-                  name: email.name,
-                  value: email.email_id,
-                  selected: email.email_id === contact.doc.email_id,
-                  placeholder: 'john@doe.com',
-                  onClick: () => {
-                    setAsPrimary('email', email.email_id)
-                  },
-                  onSave: (option, isNew) => {
-                    if (isNew) {
-                      createNew('email', option.value)
-                    } else {
-                      editOption(
-                        'Contact Email',
-                        option.name,
-                        'email_id',
-                        option.value,
-                      )
-                    }
-                  },
-                  onDelete: async (option, isNew) => {
-                    contact.doc.email_ids = contact.doc.email_ids.filter(
-                      (email) => email.name !== option.name,
-                    )
-                    if (!isNew) await deleteOption('Contact Email', option.name)
-                  },
-                }
-              }) || [],
-            create: () => {
-              contact.doc?.email_ids?.push({
-                name: 'new-1',
-                value: '',
-                selected: false,
-                isNew: true,
-              })
-            },
-          }
-        } else if (field.name === 'mobile_no') {
-          return {
-            ...field,
-            read_only: false,
-            fieldtype: 'dropdown',
-            options:
-              contact.doc?.phone_nos?.map((phone) => {
-                return {
-                  name: phone.name,
-                  value: phone.phone,
-                  selected: phone.phone === contact.doc.mobile_no,
-                  onClick: () => {
-                    setAsPrimary('mobile_no', phone.phone)
-                  },
-                  onSave: (option, isNew) => {
-                    if (isNew) {
-                      createNew('phone', option.value)
-                    } else {
-                      editOption(
-                        'Contact Phone',
-                        option.name,
-                        'phone',
-                        option.value,
-                      )
-                    }
-                  },
-                  onDelete: async (option, isNew) => {
-                    contact.doc.phone_nos = contact.doc.phone_nos.filter(
-                      (phone) => phone.name !== option.name,
-                    )
-                    if (!isNew) await deleteOption('Contact Phone', option.name)
-                  },
-                }
-              }) || [],
-            create: () => {
-              contact.doc?.phone_nos?.push({
-                name: 'new-1',
-                value: '',
-                selected: false,
-                isNew: true,
-              })
-            },
-          }
-        } else if (field.name === 'address') {
-          return {
-            ...field,
-            create: (value, close) => {
-              showAddressModal()
-              close()
-            },
-            edit: (address) => showAddressModal(address),
-          }
-        } else {
-          return field
-        }
-      })
+      column.fields = column.fields.map((field) =>
+        transformField(field, { showAddressModal }),
+      )
       return column
     })
     return section
   })
-}
-
-async function setAsPrimary(field, value) {
-  let d = await call('crm.api.contact.set_as_primary', {
-    contact: contact.doc.name,
-    field,
-    value,
-  })
-  if (d) {
-    contact.reload()
-    toast.success(__('Contact Updated'))
-  }
-}
-
-async function createNew(field, value) {
-  if (!value) return
-  let d = await call('crm.api.contact.create_new', {
-    contact: contact.doc.name,
-    field,
-    value,
-  })
-  if (d) {
-    contact.reload()
-    toast.success(__('Contact Updated'))
-  }
-}
-
-async function editOption(doctype, name, fieldname, value) {
-  let d = await call('frappe.client.set_value', {
-    doctype,
-    name,
-    fieldname,
-    value,
-  })
-  if (d) {
-    contact.reload()
-    toast.success(__('Contact Updated'))
-  }
-}
-
-async function deleteOption(doctype, name) {
-  await call('frappe.client.delete', {
-    doctype,
-    name,
-  })
-  await contact.reload()
-  toast.success(__('Contact Updated'))
 }
 
 const { getFormattedCurrency } = getMeta('CRM Deal')
@@ -493,7 +350,7 @@ function getDealRowObject(deal) {
       label: deal.organization,
       logo: getOrganization(deal.organization)?.organization_logo,
     },
-    annual_revenue: getFormattedCurrency('annual_revenue', deal),
+    deal_value: getFormattedCurrency('deal_value', deal),
     status: {
       label: deal.status,
       color: getDealStatus(deal.status)?.color,
@@ -516,7 +373,7 @@ const dealColumns = [
   },
   {
     label: __('Amount'),
-    key: 'annual_revenue',
+    key: 'deal_value',
     align: 'right',
     width: '9rem',
   },
@@ -531,7 +388,7 @@ const dealColumns = [
     width: '12rem',
   },
   {
-    label: __('Mobile No.'),
+    label: __('Mobile Number'),
     key: 'mobile_no',
     width: '11rem',
   },

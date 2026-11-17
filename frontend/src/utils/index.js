@@ -1,4 +1,3 @@
-import LucideCheck from '~icons/lucide/check'
 import TaskStatusIcon from '@/components/Icons/TaskStatusIcon.vue'
 import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ProjectTaskStatusIcon from '@/components/Icons/ProjectTaskStatusIcon.vue'
@@ -6,7 +5,8 @@ import { usersStore } from '@/stores/users'
 import { getMeta } from '@/stores/meta'
 import { gemoji } from 'gemoji'
 import DOMPurify from 'dompurify'
-import { toast, dayjsLocal, dayjs, getConfig, FeatherIcon } from 'frappe-ui'
+import { createToast, scriptToast } from '@/utils/scriptToast'
+import { toast, dayjsLocal, dayjs, getConfig } from 'frappe-ui'
 import { h } from 'vue'
 
 export function formatTime(seconds) {
@@ -102,15 +102,14 @@ export function toServerDatetime(date) {
 
   // console.log('Input Date (raw):', date, typeof date)
 
-const formatted = dayjs(date)
+  const formatted = dayjs(date)
     // .utc()
     .format('YYYY-MM-DD HH:mm:ss')
-     // console.log('Output Date: ', formatted)
+  // console.log('Output Date: ', formatted)
   // DateTimePicker already gives UTC Date
 
   return formatted
 }
- 
 
 export function timeAgo(date) {
   return prettyDate(date)
@@ -303,7 +302,6 @@ export function projectTaskPriorityOptions(action, data) {
   })
 }
 
-
 export function taskPriorityOptions(action, data) {
   let options = ['Low', 'Medium', 'High']
   let priorityMeta = getMeta('CRM Task')
@@ -376,6 +374,14 @@ export function htmlToText(html) {
   return div.textContent || div.innerText || ''
 }
 
+export function isContentEmpty(html) {
+  if (!html) return true
+  // Media/embeds are content even without text, so they post fine.
+  if (/<(img|video|iframe|table|hr)\b/i.test(html)) return false
+  // .trim() also strips U+00A0 (nbsp), so whitespace-only content reads empty.
+  return htmlToText(html).trim() === ''
+}
+
 export function startCase(str) {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
@@ -399,6 +405,19 @@ export function validateEmail(email) {
   return regExp.test(email)
 }
 
+export function validatePhone(phone) {
+  let value = String(phone).trim()
+  return /^\+?[\d\s()-]+$/.test(value) && /\d/.test(value)
+}
+
+export const isMac =
+  typeof navigator !== 'undefined' &&
+  /Mac|iPod|iPhone|iPad/i.test(
+    navigator.userAgentData?.platform || navigator.platform || '',
+  )
+
+export const submitShortcutLabel = isMac ? '⌘⏎' : 'Ctrl+⏎'
+
 export function parseAssignees(assignees) {
   let { getUser } = usersStore()
   return assignees.map((user) => ({
@@ -410,16 +429,22 @@ export function parseAssignees(assignees) {
 
 async function getFormScript(script, obj) {
   try {
-    let scriptFn = new Function(`${script}\nreturn typeof setupForm === 'function' ? setupForm : null`)()
+    let scriptFn = new Function(
+      `${script}\nreturn typeof setupForm === 'function' ? setupForm : null`,
+    )()
     if (typeof scriptFn !== 'function') {
       return {}
     }
-    let formScript = await scriptFn(obj)
+    let formScript = await scriptFn(withScriptToast(obj))
     return formScript || {}
   } catch (error) {
     console.error('Failed to evaluate form customization script', error)
     return {}
   }
+}
+
+function withScriptToast(obj) {
+  return { ...obj, toast: scriptToast, createToast }
 }
 
 export async function setupCustomizations(scripts, obj) {
@@ -439,7 +464,7 @@ export async function setupCustomizations(scripts, obj) {
 
 async function getListScript(script, obj) {
   let scriptFn = new Function(script + '\nreturn setupList')()
-  let listScript = await scriptFn(obj)
+  let listScript = await scriptFn(withScriptToast(obj))
   return listScript || {}
 }
 
@@ -500,7 +525,9 @@ export const colors = [
 ]
 
 export function parseColor(color) {
-  const normalizedColor = String(color || 'gray').trim().toLowerCase()
+  const normalizedColor = String(color || 'gray')
+    .trim()
+    .toLowerCase()
   const colorName = normalizedColor === 'grey' ? 'gray' : normalizedColor
 
   let textColor = `!text-${colorName}-600`
@@ -551,10 +578,10 @@ export function convertSize(size) {
   return `${size?.toFixed(2)} ${units[unitIndex]}`
 }
 
-export function isImage(extention) {
-  if (!extention) return false
+export function isImage(extension) {
+  if (!extension) return false
   return ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'webp'].includes(
-    extention.toLowerCase(),
+    extension.toLowerCase(),
   )
 }
 
@@ -593,35 +620,6 @@ export function runSequentially(functions) {
   return functions.reduce((promise, fn) => {
     return promise.then(() => fn())
   }, Promise.resolve())
-}
-
-export function DropdownOption({ option, icon, selected, onClick }) {
-  return h(
-    'button',
-    {
-      class:
-        'group flex w-full text-ink-gray-8 justify-between items-center rounded-md px-2 py-2 text-sm hover:bg-surface-gray-2',
-      onClick,
-    },
-    [
-      h('div', { class: 'flex gap-2' }, [
-        icon
-          ? h(FeatherIcon, {
-              name: icon,
-              class: ['h-4 w-4 shrink-0'],
-              'aria-hidden': true,
-            })
-          : null,
-        h('span', { class: 'whitespace-nowrap' }, option),
-      ]),
-      selected
-        ? h(LucideCheck, {
-            class: ['h-4 w-4 shrink-0 text-ink-gray-7'],
-            'aria-hidden': true,
-          })
-        : null,
-    ],
-  )
 }
 
 export function deepClone(obj) {
@@ -846,30 +844,6 @@ export function orderSensitiveEqual(a, b) {
   return true
 }
 
-export function TemplateOption({ active, option, variant, icon, onClick }) {
-  return h(
-    'button',
-    {
-      class: [
-        active ? 'bg-surface-gray-2' : 'text-ink-gray-7',
-        'group flex w-full gap-2 items-center rounded-md px-2 py-2 text-base hover:bg-surface-gray-3',
-        variant == 'danger' ? 'text-ink-red-3 hover:bg-ink-red-1' : '',
-      ],
-      onClick: onClick,
-    },
-    [
-      icon
-        ? h(FeatherIcon, {
-            name: icon,
-            class: ['h-4 w-4 shrink-0'],
-            'aria-hidden': true,
-          })
-        : null,
-      h('span', { class: 'whitespace-nowrap' }, option),
-    ],
-  )
-}
-
 /**
  * @param {Ref<boolean>} isConfirmingDelete - Ref to track confirmation state
  * @param {Function} onConfirmDelete - Callback when delete is confirmed
@@ -884,34 +858,22 @@ export function ConfirmDelete({
   return [
     {
       label,
-      component: (props) =>
-        TemplateOption({
-          option: label,
-          icon: 'trash-2',
-          active: props.active,
-          variant: 'grey',
-          onClick: (event) => {
-            event.preventDefault()
-            event.stopImmediatePropagation()
-            isConfirmingDelete.value = true
-          },
-        }),
+      icon: 'lucide-trash-2',
+      // preventDefault keeps the menu open so the confirm row can replace this one
+      onClick: (event) => {
+        event.preventDefault()
+        isConfirmingDelete.value = true
+      },
       condition: () => !isConfirmingDelete.value,
     },
     {
       label: __('Confirm {0}', [label]),
-      component: (props) =>
-        TemplateOption({
-          option: __('Confirm {0}', [label]),
-          icon: 'trash-2',
-          active: props.active,
-          variant: 'danger',
-          onClick: () => {
-            onConfirmDelete()
-            // Reset state after confirming
-            isConfirmingDelete.value = false
-          },
-        }),
+      icon: 'lucide-trash-2',
+      theme: 'red',
+      onClick: () => {
+        onConfirmDelete()
+        isConfirmingDelete.value = false
+      },
       condition: () => isConfirmingDelete.value,
     },
   ]

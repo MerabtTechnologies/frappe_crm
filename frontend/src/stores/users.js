@@ -2,13 +2,11 @@ import { defineStore } from 'pinia'
 import { createResource } from 'frappe-ui'
 import { sessionStore } from './session'
 import { computed, reactive } from 'vue'
-import { useRouter } from 'vue-router'
 
 export const usersStore = defineStore('crm-users', () => {
   const session = sessionStore()
 
   let usersByName = reactive({})
-  const router = useRouter()
 
   // Fast initial fetch — returns only the ~few CRM users so the UI is
   // interactive immediately. Non-CRM user profile data is filled in
@@ -20,6 +18,8 @@ export const usersStore = defineStore('crm-users', () => {
     initialData: [],
     auto: true,
     transform([allUsers, crmUsers]) {
+      allUsers = normalizeUsers(allUsers)
+      crmUsers = normalizeUsers(crmUsers)
       for (let user of allUsers) {
         usersByName[user.name] = user
         if (user.name === 'Administrator') {
@@ -30,7 +30,7 @@ export const usersStore = defineStore('crm-users', () => {
     },
     onError(error) {
       if (error && error.exc_type === 'AuthenticationError') {
-        router.push('/login')
+        window.location.href = '/login?redirect-to=/crm'
       }
     },
     onSuccess() {
@@ -49,6 +49,7 @@ export const usersStore = defineStore('crm-users', () => {
     cache: 'crm-users-full',
     auto: false,
     transform([allUsers]) {
+      allUsers = normalizeUsers(allUsers)
       for (let user of allUsers) {
         // upgrade partial get_user_info so always full record is used
         const existing = usersByName[user.name]
@@ -99,7 +100,7 @@ export const usersStore = defineStore('crm-users', () => {
         auto: false,
       })
       const records = await r.fetch()
-      for (const u of records || []) {
+      for (const u of normalizeUsers(records || [])) {
         usersByName[u.name] = { ...usersByName[u.name], ...u }
       }
     } catch (e) {
@@ -188,3 +189,20 @@ export const usersStore = defineStore('crm-users', () => {
     isSalesMasterManager
   }
 })
+
+function normalizeUsers(users) {
+  return (users || []).filter(Boolean).map((user) => normalizeUser(user))
+}
+
+function normalizeUser(user) {
+  const name = user.name || user.email || ''
+  const email = user.email || name
+  const fallbackName = name || email
+
+  return {
+    ...user,
+    name,
+    email,
+    full_name: user.full_name?.trim() || fallbackName,
+  }
+}
