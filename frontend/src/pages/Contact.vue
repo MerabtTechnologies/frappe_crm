@@ -12,6 +12,11 @@
         v-if="contact._actions?.length"
         :actions="contact._actions"
       />
+      <Button
+        :label="__('New Deal')"
+        iconLeft="lucide-plus"
+        @click="openDealModal"
+      />
     </template>
   </LayoutHeader>
   <div v-if="contact.doc" ref="parentRef" class="flex h-full">
@@ -42,14 +47,14 @@
                         ? {
                             options: [
                               {
-                                icon: 'upload',
+                                icon: 'lucide-upload',
                                 label: contact.doc.image
                                   ? __('Change Image')
                                   : __('Upload Image'),
                                 onClick: openFileSelector,
                               },
                               {
-                                icon: 'trash-2',
+                                icon: 'lucide-trash-2',
                                 label: __('Remove Image'),
                                 onClick: () => changeContactImage(''),
                               },
@@ -71,7 +76,7 @@
                   </component>
                 </div>
                 <div class="flex flex-col gap-2 truncate text-ink-gray-9">
-                  <div class="truncate text-2xl font-medium">
+                  <div class="truncate text-3xl-medium">
                     <span v-if="contact.doc.salutation">
                       {{ contact.doc.salutation + ' ' }}
                     </span>
@@ -99,7 +104,7 @@
                   :label="__('Delete')"
                   theme="red"
                   size="sm"
-                  iconLeft="trash-2"
+                  iconLeft="lucide-trash-2"
                   @click="deleteContact()"
                 />
               </div>
@@ -120,28 +125,21 @@
       </div>
     </Resizer>
     <Tabs
-      v-model="tabIndex"
+      v-model="activeTab"
       as="div"
       :tabs="tabs"
-      class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-0 [&_[role='tab']]:shrink-0 [&_[role='tablist']]:px-5 [&_[role='tablist']::-webkit-scrollbar]:h-0 [&_[role='tablist']]:min-h-[45px] [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
+      class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-1 [&_[role='tab']]:shrink-0 [&_[role='tablist']]:px-5 [&_[role='tablist']::-webkit-scrollbar]:h-0 [&_[role='tablist']]:min-h-[45px] [&_[role='tablist']]:gap-[22px] [&>[role='tabpanel']:not([hidden])]:flex [&>[role='tabpanel']:not([hidden])]:grow [&>[data-slot=tab-list]]:overflow-x-auto [&_[data-slot=tab-indicator]]:translate-y-0 [&>[data-slot=tab-panel]]:min-h-0 [&>[data-slot=tab-panel]]:flex-col [&>[data-slot=tab-panel]]:overflow-auto"
     >
-      <template #tab-item="{ tab, selected }">
-        <button
-          class="group flex items-center gap-2 border-b border-transparent py-2.5 text-base text-ink-gray-5 duration-300 ease-in-out hover:text-ink-gray-9"
-          :class="{ 'text-ink-gray-9': selected }"
+      <template #tab-label="{ tab }">{{ __(tab.label) }}</template>
+      <template #tab-suffix="{ tab, active }">
+        <Badge
+          :class="[active ? 'bg-surface-gray-10' : 'bg-gray-600']"
+          variant="solid"
+          theme="gray"
+          size="sm"
         >
-          <component :is="tab.icon" v-if="tab.icon" class="h-5" />
-          {{ __(tab.label) }}
-          <Badge
-            class="group-hover:bg-surface-gray-7"
-            :class="[selected ? 'bg-surface-gray-7' : 'bg-gray-600']"
-            variant="solid"
-            theme="gray"
-            size="sm"
-          >
-            {{ tab.count }}
-          </Badge>
-        </button>
+          {{ tab.count }}
+        </Badge>
       </template>
       <template #tab-panel="{ tab }">
         <DealsListView
@@ -151,7 +149,13 @@
           :columns="columns"
           :options="{ selectable: false, showTooltip: false }"
         />
-        <EmptyState v-if="!rows.length" :icon="tab.icon" name="Deals" />
+
+        <EmptyState
+          v-if="!rows.length"
+          :icon="tab.iconLeft"
+          name="Deals"
+          :description="__('Use New Deal to create a deal for this contact.')"
+        />
       </template>
     </Tabs>
   </div>
@@ -167,6 +171,11 @@
     :docname="contact.doc.name"
     name="Contacts"
   />
+  <DealModal
+    v-if="showDealModal"
+    v-model="showDealModal"
+    :defaults="dealDefaults"
+  />
 </template>
 
 <script setup>
@@ -179,8 +188,10 @@ import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import DealsListView from '@/components/ListViews/DealsListView.vue'
+import DealModal from '@/components/Modals/DealModal.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import { validateIsImageFile, setupCustomizations } from '@/utils'
+import { useContactFields } from '@/composables/useContactFields'
 import { timestampCell } from '@/composables/useTimelinePreferences'
 import { getView } from '@/utils/view'
 import { useDocument } from '@/data/document'
@@ -203,7 +214,7 @@ import {
   toast,
 } from 'frappe-ui'
 import { useDoctypeModal } from '@/composables/doctypeModal'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
@@ -236,6 +247,8 @@ const {
 
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
+const transformField = useContactFields(contact)
+
 onMounted(async () => {
   if (contact.doc) await triggerOnRender()
 })
@@ -260,7 +273,11 @@ const breadcrumbs = computed(() => {
 
   items.push({
     label: title.value,
-    route: { name: 'Contact', params: { contactId: props.contactId } },
+    route: {
+      name: 'Contact',
+      params: { contactId: props.contactId },
+      query: route.query,
+    },
   })
   return items
 })
@@ -277,6 +294,26 @@ usePageMeta(() => {
   }
 })
 const showDeleteLinkedDocModal = ref(false)
+const showDealModal = ref(false)
+const dealDefaults = ref({})
+
+// company_name is free text, so only pick an existing organization; otherwise the deal creates one
+async function openDealModal() {
+  const company = contact.doc.company_name
+  const isOrganization =
+    company &&
+    (await call('frappe.client.get_count', {
+      doctype: 'CRM Organization',
+      filters: { name: company },
+    }))
+  dealDefaults.value = {
+    contact: contact.doc.name,
+    ...(isOrganization
+      ? { organization: company }
+      : { organization_name: company }),
+  }
+  showDealModal.value = true
+}
 
 async function deleteContact() {
   showDeleteLinkedDocModal.value = true
@@ -291,11 +328,12 @@ function changeContactImage(file) {
   })
 }
 
-const tabIndex = ref(0)
+const activeTab = ref('deals')
 const tabs = [
   {
+    value: 'deals',
     label: 'Deals',
-    icon: DealsIcon,
+    iconLeft: DealsIcon,
     count: computed(() => deals.data?.length),
   },
 ]
@@ -330,98 +368,7 @@ const parsedSections = computed(() => {
         field.label = fieldLabelMap[field.fieldname] || field.label
         field.placeholder =
           fieldPlaceholderMap[field.fieldname] || field.placeholder
-
-        if (field.fieldname === 'email_id') {
-          return {
-            ...field,
-            read_only: false,
-            fieldtype: 'Dropdown',
-            options: (contact.doc?.email_ids || []).map((email) => ({
-              name: email.name,
-              value: email.email_id,
-              selected: email.email_id === contact.doc.email_id,
-              placeholder: 'john@doe.com',
-              onClick: () => setAsPrimary('email', email.email_id),
-              onSave: (option, isNew) =>
-                isNew
-                  ? createNew('email', option.value)
-                  : editOption(
-                      'Contact Email',
-                      option.name,
-                      'email_id',
-                      option.value,
-                    ),
-              onDelete: async (option, isNew) => {
-                contact.doc.email_ids = contact.doc.email_ids.filter(
-                  (e) => e.name !== option.name,
-                )
-                if (!isNew) await deleteOption('Contact Email', option.name)
-              },
-            })),
-            create: () => {
-              // Add a temporary new option locally (mirrors original behavior)
-              contact.doc.email_ids = [
-                ...(contact.doc.email_ids || []),
-                {
-                  name: 'new-1',
-                  value: '',
-                  selected: false,
-                  isNew: true,
-                },
-              ]
-            },
-          }
-        }
-        if (field.fieldname === 'mobile_no') {
-          return {
-            ...field,
-            read_only: false,
-            fieldtype: 'Dropdown',
-            options: (contact.doc?.phone_nos || []).map((phone) => ({
-              name: phone.name,
-              value: phone.phone,
-              selected: phone.phone === contact.doc.mobile_no,
-              onClick: () => setAsPrimary('mobile_no', phone.phone),
-              onSave: (option, isNew) =>
-                isNew
-                  ? createNew('phone', option.value)
-                  : editOption(
-                      'Contact Phone',
-                      option.name,
-                      'phone',
-                      option.value,
-                    ),
-              onDelete: async (option, isNew) => {
-                contact.doc.phone_nos = contact.doc.phone_nos.filter(
-                  (p) => p.name !== option.name,
-                )
-                if (!isNew) await deleteOption('Contact Phone', option.name)
-              },
-            })),
-            create: () => {
-              contact.doc.phone_nos = [
-                ...(contact.doc.phone_nos || []),
-                {
-                  name: 'new-1',
-                  value: '',
-                  selected: false,
-                  isNew: true,
-                },
-              ]
-            },
-          }
-        }
-        if (field.fieldname === 'address') {
-          return {
-            ...field,
-            create: (_value, close) => {
-              showAddressModal()
-              close?.()
-            },
-            edit: (address) => showAddressModal(address),
-          }
-        }
-        return field
+        return transformField(field, { showAddressModal })
       }),
     })),
   }))
@@ -437,53 +384,6 @@ const fieldPlaceholderMap = {
   company_name: __('Add Organization...'),
 }
 
-async function setAsPrimary(field, value) {
-  let d = await call('crm.api.contact.set_as_primary', {
-    contact: contact.doc.name,
-    field,
-    value,
-  })
-  if (d) {
-    contact.reload()
-    toast.success(__('Contact Updated'))
-  }
-}
-
-async function createNew(field, value) {
-  if (!value) return
-  let d = await call('crm.api.contact.create_new', {
-    contact: contact.doc.name,
-    field,
-    value,
-  })
-  if (d) {
-    contact.reload()
-    toast.success(__('Contact Updated'))
-  }
-}
-
-async function editOption(doctype, name, fieldname, value) {
-  let d = await call('frappe.client.set_value', {
-    doctype,
-    name,
-    fieldname,
-    value,
-  })
-  if (d) {
-    contact.reload()
-    toast.success(__('Contact Updated'))
-  }
-}
-
-async function deleteOption(doctype, name) {
-  await call('frappe.client.delete', {
-    doctype,
-    name,
-  })
-  await contact.reload()
-  toast.success(__('Contact Updated'))
-}
-
 const { getFormattedCurrency } = getMeta('CRM Deal')
 
 const columns = computed(() => dealColumns)
@@ -495,7 +395,7 @@ function getDealRowObject(deal) {
       label: deal.organization,
       logo: getOrganization(deal.organization)?.organization_logo,
     },
-    annual_revenue: getFormattedCurrency('annual_revenue', deal),
+    deal_value: getFormattedCurrency('deal_value', deal),
     status: {
       label: deal.status,
       color: getDealStatus(deal.status)?.color,
@@ -533,7 +433,7 @@ const dealColumns = [
     width: '12rem',
   },
   {
-    label: __('Mobile No.'),
+    label: __('Mobile Number'),
     key: 'mobile_no',
     width: '11rem',
   },
@@ -575,9 +475,7 @@ watch(
         $dialog,
         $socket,
         router,
-        toast,
         updateField: contact.setValue.submit,
-        createToast: toast.create,
         deleteDoc: deleteContact,
         call,
       })

@@ -1,20 +1,20 @@
 <template>
-  <Popover transition="default">
-    <template #target="{ togglePopover, isOpen }">
-      <slot v-bind="{ isOpen, togglePopover }">
+  <Popover bare>
+    <template #trigger="slotProps">
+      <slot v-bind="slotProps">
         <span class="text-base"> {{ modelValue || '' }} </span>
       </slot>
     </template>
-    <template #body="{ togglePopover }">
+    <template #default="{ close }">
       <div
         v-if="reaction"
-        class="px-2 py-1 flex items-center justify-center gap-2 rounded-full bg-surface-modal shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
+        class="px-2 py-1 flex items-center justify-center gap-2 rounded-full bg-surface-elevation-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
       >
         <div
           v-for="r in reactionEmojis"
           :key="r"
-          class="size-5 cursor-pointer rounded-full bg-surface-transparent text-xl"
-          @click="() => (emoji = r) && togglePopover()"
+          class="size-5 cursor-pointer rounded-full bg-surface-transparent text-2xl"
+          @click="() => (emoji = r) && close()"
         >
           <button>
             {{ r }}
@@ -22,16 +22,13 @@
         </div>
         <Button
           class="rounded-full"
-          icon="plus"
+          icon="lucide-plus"
           @click.stop="() => (reaction = false)"
         />
       </div>
-      <div
-        v-else
-        class="my-3 max-w-max transform bg-surface-white px-4 sm:px-0"
-      >
+      <div v-else class="my-3 max-w-max transform bg-surface-base px-4 sm:px-0">
         <div
-          class="relative max-h-96 pb-3 overflow-y-auto min-w-40 rounded-lg bg-surface-modal shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
+          class="relative max-h-96 pb-3 overflow-y-auto min-w-40 rounded-6 bg-surface-elevation-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
         >
           <div class="flex gap-2 px-3 pb-1 pt-3">
             <div class="flex-1">
@@ -47,7 +44,7 @@
           <div class="w-96"></div>
           <div v-for="(emojis, group) in emojiGroups" :key="group" class="px-3">
             <div
-              class="sticky top-0 bg-surface-modal pb-2 pt-3 text-sm text-ink-gray-7"
+              class="sticky top-0 bg-surface-elevation-2 pb-2 pt-3 text-sm text-ink-gray-7"
             >
               {{ group }}
             </div>
@@ -55,9 +52,9 @@
               <button
                 v-for="_emoji in emojis"
                 :key="_emoji.description"
-                class="h-8 w-8 rounded-md p-1 text-2xl hover:bg-surface-gray-2 focus:outline-none focus:ring focus:ring-blue-200"
+                class="h-8 w-8 rounded-5 p-1 text-3xl hover:bg-surface-gray-2 focus:outline-none focus:ring focus:ring-blue-200"
                 :title="_emoji.description"
-                @click="() => (emoji = _emoji.emoji) && togglePopover()"
+                @click="() => (emoji = _emoji.emoji) && close()"
               >
                 {{ _emoji.emoji }}
               </button>

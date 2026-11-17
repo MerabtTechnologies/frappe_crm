@@ -3,16 +3,14 @@
     <!-- Header -->
     <div class="flex justify-between px-2 pt-2">
       <div class="flex flex-col gap-1 w-9/12">
-        <h2
-          class="flex gap-2 text-xl font-semibold leading-none h-5 items-center"
-        >
+        <h2 class="flex gap-2 text-2xl-semibold leading-none h-5 items-center">
           {{ __('Lead Sources') }}
-          <Badge theme="orange" size="sm">Beta</Badge>
+          <Badge theme="amber" size="sm">Beta</Badge>
         </h2>
         <p class="text-p-base text-ink-gray-6">
           {{
             __(
-              'Add, edit, and manage sources for automatic lead syncing to your CRM',
+              'Add, edit, and manage sources for automatic lead syncing to your CRM.',
             )
           }}
         </p>
@@ -20,7 +18,7 @@
       <div class="flex item-center space-x-2 w-3/12 justify-end">
         <Button
           :label="__('New')"
-          icon-left="plus"
+          icon-left="lucide-plus"
           variant="solid"
           @click="emit('updateStep', 'new-source')"
         />
@@ -44,7 +42,7 @@
     <EmptyState
       v-if="!sources.loading && !sources.data?.length"
       name="Lead Sources"
-      description="Manage your lead sources here. Add new sources to start syncing leads automatically."
+      description="Add and manage your lead sources here."
       icon="refresh-cw"
     />
 
@@ -58,21 +56,21 @@
         <div class="w-1/6">{{ __('Source') }}</div>
         <div class="w-1/6">{{ __('Enabled') }}</div>
       </div>
-      <div class="h-px border-t mx-4 border-outline-gray-modals" />
+      <div class="h-px border-t mx-4 border-outline-elevation-2" />
       <ul class="overflow-y-auto px-2">
         <template v-for="(source, i) in sourcesList" :key="source.name">
           <li
-            class="flex items-center justify-between p-3 cursor-pointer hover:bg-surface-menu-bar rounded"
+            class="flex items-center justify-between p-3 cursor-pointer hover:bg-surface-sidebar rounded-4"
             @click="() => emit('updateStep', 'edit-source', { ...source })"
           >
             <div class="flex flex-col w-4/6 pr-5">
-              <div class="text-p-base font-medium text-ink-gray-7 truncate">
+              <div class="text-p-base-medium text-ink-gray-7 truncate">
                 {{ source.name }}
               </div>
             </div>
 
             <div class="flex flex-col w-1/6 pr-5">
-              <div class="text-p-base font-medium text-ink-gray-7 truncate">
+              <div class="text-p-base-medium text-ink-gray-7 truncate">
                 {{ source.type }}
               </div>
             </div>
@@ -87,9 +85,9 @@
               <Dropdown
                 class=""
                 :options="getDropdownOptions(source)"
-                placement="right"
+                align="end"
                 :button="{
-                  icon: 'more-horizontal',
+                  icon: 'lucide-more-horizontal',
                   variant: 'ghost',
                   onblur: (e) => {
                     e.stopPropagation()
@@ -102,7 +100,7 @@
           </li>
           <div
             v-if="sourcesList.length !== i + 1"
-            class="h-px border-t mx-2 border-outline-gray-modals"
+            class="h-px border-t mx-2 border-outline-elevation-2"
           />
         </template>
         <!-- Load More Button -->
@@ -114,7 +112,7 @@
             class="mt-3.5 p-2"
             :loading="sources.loading"
             :label="__('Load More')"
-            icon-left="refresh-cw"
+            icon-left="lucide-refresh-cw"
             @click="() => sources.next()"
           />
         </div>
@@ -186,7 +184,7 @@ function getDropdownOptions(source) {
   let options = [
     {
       label: __('Duplicate'),
-      icon: 'copy',
+      icon: 'lucide-copy',
       onClick: () => emit('updateStep', 'new-source', { ...source }),
     },
     ...ConfirmDelete({

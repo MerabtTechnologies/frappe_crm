@@ -3,7 +3,7 @@
   <div
     v-if="visible"
     ref="target"
-    class="absolute z-20 h-screen bg-surface-white transition-all duration-300 ease-in-out"
+    class="absolute z-20 h-screen bg-surface-base transition-all duration-300 ease-in-out"
     :style="{
       'box-shadow': '8px 0px 8px rgba(0, 0, 0, 0.1)',
       'max-width': '350px',
@@ -12,12 +12,13 @@
     }"
   >
     <div class="flex h-screen flex-col text-ink-gray-9">
-      <div
-        class="z-20 flex items-center justify-between border-b bg-surface-white px-5 py-2.5"
-      >
-        <div class="text-base font-medium">{{ __('Notifications') }}</div>
+      <div class="z-20 flex items-center justify-between border-b px-4 py-2.5">
+        <div class="text-lg-medium text-ink-gray-8">
+          {{ __('Notifications') }}
+        </div>
         <div class="flex gap-1">
           <Button
+            v-if="notifications.data?.length"
             :tooltip="__('Mark all as read')"
             :icon="MarkAsDoneIcon"
             variant="ghost"
@@ -25,7 +26,7 @@
           />
           <Button
             :tooltip="__('Close')"
-            icon="x"
+            icon="lucide-x"
             variant="ghost"
             @click="() => toggle()"
           />
@@ -33,7 +34,7 @@
       </div>
       <div
         v-if="notifications.data?.length"
-        class="divide-y divide-outline-gray-modals overflow-auto text-base"
+        class="divide-y divide-outline-elevation-2 overflow-auto text-base"
       >
         <RouterLink
           v-for="n in notifications.data"
@@ -45,7 +46,7 @@
           <div class="mt-1 flex items-center gap-2.5">
             <div
               class="size-[5px] rounded-full"
-              :class="[n.read ? 'bg-transparent' : 'bg-surface-gray-7']"
+              :class="[n.read ? 'bg-transparent' : 'bg-surface-gray-10']"
             />
             <WhatsAppIcon v-if="n.type == 'WhatsApp'" class="size-7" />
             <UserAvatar v-else :user="n.from_user.name" size="lg" />
@@ -96,7 +97,7 @@ import {
 import { globalStore } from '@/stores/global'
 import { timeAgo, sanitizeHTML } from '@/utils'
 import { onClickOutside } from '@vueuse/core'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const { $socket } = globalStore()

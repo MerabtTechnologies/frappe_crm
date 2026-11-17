@@ -23,9 +23,13 @@ def get_item_price_rate(item_code: str, uom: str | None = None):
 	price_list = frappe.db.get_single_value("Selling Settings", "selling_price_list")
 	if not price_list:
 		return None
-	pctx = {"price_list": price_list, "uom": uom, "transaction_date": frappe.utils.nowdate()}
+	pctx = frappe._dict({"price_list": price_list, "uom": uom, "transaction_date": frappe.utils.nowdate()})
 	rows = get_item_price(pctx, item_code)
-	return rows[0].price_list_rate if rows else None
+	if not rows:
+		return None
+	row = rows[0]
+
+	return row.price_list_rate if isinstance(row, dict) else row[1]
 
 
 def _catalogue_data(doc) -> dict:
@@ -35,6 +39,9 @@ def _catalogue_data(doc) -> dict:
 	rate = get_item_price_rate(doc.name, doc.get("stock_uom"))
 	if rate is not None:
 		data["standard_rate"] = rate
+	# standard_rate is a NOT NULL Currency column and frappe.db.set_value writes
+	# raw values (no flt coercion, unlike doc.insert), so never pass None through
+	data["standard_rate"] = frappe.utils.flt(data["standard_rate"])
 	return data
 
 

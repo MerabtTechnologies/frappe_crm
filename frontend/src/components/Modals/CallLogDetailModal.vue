@@ -1,13 +1,15 @@
 <!-- eslint-disable vue/no-v-html -->
 <template>
-  <Dialog v-model="show">
-    <template #body>
-      <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
+  <Dialog v-model:open="show" bare>
+    <template #default>
+      <div class="bg-surface-elevation-2 px-4 pb-6 pt-5 sm:px-6">
         <div class="mb-5 flex items-center justify-between">
           <div>
-            <h3 class="text-2xl font-semibold leading-6 text-ink-gray-9">
-              {{ __('Call Details') }}
-            </h3>
+            <Dialog.Title as-child>
+              <h3 class="text-3xl-semibold leading-6 text-ink-gray-9">
+                {{ __('Call Details') }}
+              </h3>
+            </Dialog.Title>
           </div>
           <div class="flex items-center gap-1">
             <Dropdown
@@ -15,7 +17,7 @@
                 {
                   group: __('Options'),
                   hideLabel: true,
-                  items: [
+                  options: [
                     {
                       label: note ? __('Edit Note') : __('Add Note'),
                       icon: NoteIcon,
@@ -31,7 +33,11 @@
               ]"
             >
               <template #default>
-                <Button variant="ghost" icon="more-horizontal" />
+                <Button
+                  variant="ghost"
+                  icon="lucide-more-horizontal"
+                  :disabled="!callLog?.data"
+                />
               </template>
             </Dropdown>
             <Button
@@ -42,12 +48,14 @@
               class="w-7"
               @click="openCallLogModal"
             />
-            <Button
-              icon="x"
-              variant="ghost"
-              class="w-7"
-              @click="show = false"
-            />
+            <Dialog.Close as-child>
+              <Button
+                :aria-label="__('Close')"
+                icon="lucide-x"
+                variant="ghost"
+                class="w-7"
+              />
+            </Dialog.Close>
           </div>
         </div>
         <div class="flex flex-col gap-3.5">
@@ -72,9 +80,9 @@
                 <div class="ml-1 flex flex-col gap-1">
                   {{ field.value.caller.label }}
                 </div>
-                <FeatherIcon
-                  name="arrow-right"
-                  class="mx-1 h-4 w-4 text-ink-gray-5"
+                <span
+                  class="lucide-arrow-right mx-1 h-4 w-4 text-ink-gray-5"
+                  aria-hidden="true"
                 />
                 <Avatar
                   :image="field.value.receiver.image"
@@ -93,14 +101,22 @@
                 class="w-full"
               >
                 <audio
+                  v-if="!recordingError"
                   class="audio-control w-full"
                   controls
                   :src="field.value"
+                  @error="recordingError = true"
                 ></audio>
+                <div
+                  v-else
+                  class="flex h-9 items-center text-base text-ink-gray-5"
+                >
+                  {{ __('Recording not available') }}
+                </div>
               </div>
               <div
                 v-else-if="field.name == 'note'"
-                class="w-full cursor-pointer rounded border px-2 pt-1.5 text-base text-ink-gray-7"
+                class="w-full cursor-pointer rounded-4 border px-2 pt-1.5 text-base text-ink-gray-7"
                 @click="() => showNote(field.value?.name)"
               >
                 <FadedScrollableDiv class="max-h-24 min-h-16 overflow-y-auto">
@@ -117,7 +133,7 @@
               </div>
               <div
                 v-else-if="field.name == 'task'"
-                class="w-full cursor-pointer rounded border px-2 pt-1.5 text-base text-ink-gray-7"
+                class="w-full cursor-pointer rounded-4 border px-2 pt-1.5 text-base text-ink-gray-7"
                 @click="() => showTask(field.value?.name)"
               >
                 <FadedScrollableDiv class="max-h-24 min-h-16 overflow-y-auto">
@@ -172,13 +188,15 @@ import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import CheckCircleIcon from '@/components/Icons/CheckCircleIcon.vue'
 import FadedScrollableDiv from '@/components/FadedScrollableDiv.vue'
+import Icon from '@/components/Icon.vue'
 import { getCallLogDetail } from '@/utils/callLog'
 import { sanitizeHTML } from '@/utils'
 import { isMobileView } from '@/composables/settings'
 import { useDoctypeModal } from '@/composables/doctypeModal'
 import { useDocument } from '@/data/document'
-import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
-import { FeatherIcon, Dropdown, Avatar, Tooltip, call, toast } from 'frappe-ui'
+import { useTelemetry } from '@framework/ui/telemetry'
+import { useCrmOnboarding } from '@/composables/onboarding'
+import { Dialog, Dropdown, Avatar, Tooltip, call, toast } from 'frappe-ui'
 import { ref, computed, h, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -188,18 +206,32 @@ const show = defineModel({ type: Boolean })
 
 const callLog = defineModel('callLog', { type: Object })
 
-const { updateOnboardingStep } = useOnboarding('frappecrm')
+const { completeStep } = useCrmOnboarding()
 const { capture } = useTelemetry()
 const { showModal } = useDoctypeModal()
 
 const note = ref('')
 const task = ref('')
+// a call log can carry a recording_url that no longer resolves to a playable file
+// (recording never made / expired) — track load failure to show a fallback instead
+// of a dead 0:00 player
+const recordingError = ref(false)
+
+function referenceDefaults() {
+  const data = callLog.value?.data
+  if (data?._lead)
+    return { reference_doctype: 'CRM Lead', reference_docname: data._lead }
+  if (data?._deal)
+    return { reference_doctype: 'CRM Deal', reference_docname: data._deal }
+  return {}
+}
 
 function showNote(name) {
   showModal({
     name,
     doctype: 'FCRM Note',
     title: 'Note',
+    defaults: name ? {} : referenceDefaults(),
     callbacks: {
       afterInsert: (d) => addNoteToCallLog(d, true),
       afterUpdate: (d) => addNoteToCallLog(d, false),
@@ -212,7 +244,9 @@ function showTask(name) {
     name,
     doctype: 'CRM Task',
     title: 'Task',
-    defaults: { status: 'Backlog', priority: 'Low' },
+    defaults: name
+      ? {}
+      : { status: 'Backlog', priority: 'Low', ...referenceDefaults() },
     callbacks: {
       afterInsert: (d) => addTaskToCallLog(d, true),
       afterUpdate: (d) => addTaskToCallLog(d, false),
@@ -226,7 +260,6 @@ async function addNoteToCallLog(_note, isInsert = false) {
       call_sid: callLog.value?.data?.id,
       note: _note,
     })
-    updateOnboardingStep('create_first_note')
     capture('note_created')
   } else {
     capture('note_updated')
@@ -240,7 +273,7 @@ async function addTaskToCallLog(_task, isInsert = false) {
       call_sid: callLog.value?.data?.id,
       task: _task,
     })
-    updateOnboardingStep('create_first_task')
+    completeStep('create_first_task')
     capture('task_created')
   } else {
     capture('task_updated')
@@ -258,8 +291,8 @@ const detailFields = computed(() => {
   }
   let details = [
     {
-      icon: h(FeatherIcon, {
-        name: data.type.icon,
+      icon: h(Icon, {
+        icon: data.type.icon,
         class: 'h-3.5 w-3.5',
       }),
       name: 'type',
@@ -310,9 +343,9 @@ const detailFields = computed(() => {
       color: data.status.color,
     },
     {
-      icon: h(FeatherIcon, {
-        name: 'play-circle',
-        class: 'h-4 w-4 mt-2',
+      icon: h('span', {
+        class: 'lucide-play-circle h-4 w-4 mt-2',
+        'aria-hidden': true,
       }),
       name: 'recording_url_path',
       value: data.recording_url_path,
@@ -389,7 +422,25 @@ watch(
   () => callLog.value?.data?.name,
   (value) => {
     if (!value) return
+    recordingError.value = false
     d.value = useDocument('CRM Call Log', value)
+  },
+)
+
+// also reset when the modal reopens — the name watch above won't fire when the
+// same call log is opened again, which would otherwise keep a stale error state
+// and hide a now-playable recording behind "Recording not available"
+watch(show, (value) => {
+  if (value) recordingError.value = false
+})
+
+// and reset when the recording source changes — a reload (e.g. afterUpdate)
+// can make a previously-missing recording available while the modal stays open,
+// leaving name and show unchanged so neither watch above fires
+watch(
+  () => callLog.value?.data?.recording_url_path,
+  () => {
+    recordingError.value = false
   },
 )
 </script>

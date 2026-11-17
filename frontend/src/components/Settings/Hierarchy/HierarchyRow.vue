@@ -5,18 +5,19 @@
   >
     <div
       v-if="hasChildren"
-      class="z-10 size-5 shrink-0 flex items-center justify-center rounded-full border border-outline-gray-modals bg-white text-ink-gray-1 cursor-pointer hover:bg-surface-gray-2"
+      class="z-10 size-5 shrink-0 flex items-center justify-center rounded-full border border-outline-elevation-2 bg-white text-ink-gray-1 cursor-pointer hover:bg-surface-gray-2"
       @click.stop="emit('toggle', $event)"
     >
-      <FeatherIcon
-        :name="isCollapsed ? 'chevron-right' : 'chevron-down'"
-        class="size-3 stroke-2 stroke-ink-gray-5"
+      <span
+        :class="isCollapsed ? 'lucide-chevron-right' : 'lucide-chevron-down'"
+        class="size-3 text-ink-gray-5"
+        aria-hidden="true"
       />
     </div>
     <span v-else class="size-5 shrink-0"></span>
 
     <div
-      class="group relative flex-1 flex items-center gap-2 px-2 py-1.5 text-base rounded-md select-none after:content-[''] after:absolute after:bottom-0 after:left-1 after:right-3 after:border-outline-gray-modals"
+      class="group relative flex-1 flex items-center gap-2 px-2 py-1.5 text-base rounded-5 select-none after:content-[''] after:absolute after:bottom-0 after:left-1 after:right-3 after:border-outline-elevation-2"
       :class="[
         rowClass,
         canEdit ? 'cursor-grab' : 'cursor-pointer',
@@ -31,12 +32,7 @@
       @drop.prevent="canEdit && handlers.onDrop(node)"
       @click="hasChildren && emit('toggle', $event)"
     >
-      <Avatar
-        :image="node.user_image"
-        :label="node.full_name"
-        size="lg"
-        class="shrink-0"
-      />
+      <UserAvatar :user="node.user" size="lg" class="shrink-0" />
 
       <span class="text-ink-gray-8 truncate">
         {{ node.full_name }}
@@ -58,20 +54,23 @@
         "
         @click.stop
       >
-        <Popover placement="bottom-end" @update:show="popoverOpen = $event">
-          <template #target="{ togglePopover }">
-            <Tooltip :text="__('Add direct reports')">
-              <Button
-                variant="ghost"
-                size="sm"
-                icon="plus"
-                @click="togglePopover()"
-              />
-            </Tooltip>
+        <Popover
+          side="bottom"
+          align="end"
+          bare
+          @update:open="popoverOpen = $event"
+        >
+          <template #trigger>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="lucide-plus"
+              :tooltip="__('Add direct reports')"
+            />
           </template>
-          <template #body="{ togglePopover }">
+          <template #default="{ close }">
             <div
-              class="mt-1 rounded-lg bg-surface-white shadow-2xl w-72 border border-outline-gray-2"
+              class="mt-1 rounded-6 bg-surface-base shadow-2xl w-72 border border-outline-gray-2"
             >
               <UserMultiSelect
                 v-model="selected"
@@ -83,18 +82,18 @@
                   variant="solid"
                   :disabled="!selected.length"
                   :label="__('Add ({0})', [selected.length])"
-                  @click="commit(togglePopover)"
+                  @click="commit(close)"
                 />
               </div>
             </div>
           </template>
         </Popover>
-        <Dropdown :options="moreOptions" placement="right">
+        <Dropdown :options="moreOptions" align="end">
           <template #default="{ open }">
             <Button
               variant="ghost"
               size="sm"
-              icon="more-horizontal"
+              icon="lucide-more-horizontal"
               :class="syncDropdown(open)"
             />
           </template>
@@ -105,16 +104,9 @@
 </template>
 
 <script setup>
+import UserAvatar from '@/components/UserAvatar.vue'
 import UserMultiSelect from './UserMultiSelect.vue'
-import {
-  Avatar,
-  Badge,
-  Button,
-  Dropdown,
-  FeatherIcon,
-  Popover,
-  Tooltip,
-} from 'frappe-ui'
+import { Badge, Button, Dropdown, Popover } from 'frappe-ui'
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
@@ -146,11 +138,11 @@ watch(popoverOpen, (open) => {
   if (!open) selected.value = []
 })
 
-function commit(togglePopover) {
+function commit(close) {
   if (!selected.value.length) return
   emit('bulk-add', { parent: props.node, userIds: selected.value })
   selected.value = []
-  togglePopover()
+  close()
 }
 
 const moreOptions = computed(() => {
@@ -158,13 +150,13 @@ const moreOptions = computed(() => {
   if (props.node.reports_to) {
     opts.push({
       label: __('Move to top level'),
-      icon: 'corner-up-left',
+      icon: 'lucide-corner-up-left',
       onClick: () => emit('move-to-root', props.node),
     })
   }
   opts.push({
     label: __('Delete'),
-    icon: 'trash-2',
+    icon: 'lucide-trash-2',
     onClick: () => emit('remove', props.node),
   })
   return opts
@@ -182,7 +174,7 @@ li:has(> .hierarchy-tree-row)::before {
   left: -18px;
   top: -8px;
   bottom: -4px;
-  border-left: 1px solid var(--outline-gray-modals);
+  border-left: 1px solid var(--outline-elevation-2);
 }
 
 li:has(> .hierarchy-tree-row)::after {
@@ -191,7 +183,7 @@ li:has(> .hierarchy-tree-row)::after {
   left: -18px;
   top: 20px;
   width: 42px;
-  border-bottom: 1px solid var(--outline-gray-modals);
+  border-bottom: 1px solid var(--outline-elevation-2);
 }
 
 li:has(> [data-has-children='true'])::after {
@@ -202,7 +194,7 @@ li:has(> .hierarchy-tree-row):last-child::before {
   bottom: auto;
   height: 30px;
   width: 16px;
-  border-bottom: 1px solid var(--outline-gray-modals);
+  border-bottom: 1px solid var(--outline-elevation-2);
   border-bottom-left-radius: 6px;
 }
 

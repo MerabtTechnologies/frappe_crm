@@ -5,7 +5,11 @@
     :class="[containerClasses, 'cursor-pointer']"
     @click="openModal"
   >
-    <FeatherIcon name="map-pin" :class="[iconClasses, 'text-ink-gray-5']" />
+    <span
+      class="lucide-map-pin size-4"
+      :class="[iconClasses, 'text-ink-gray-5']"
+      aria-hidden="true"
+    />
     <span class="whitespace-nowrap text-ink-gray-4">{{
       __('Set location…')
     }}</span>
@@ -22,30 +26,32 @@
     :class="[containerClasses, '!pr-1', 'cursor-pointer']"
     @click="openModal"
   >
-    <FeatherIcon name="map-pin" :class="[iconClasses, 'text-ink-gray-7']" />
+    <span
+      class="lucide-map-pin size-4"
+      :class="[iconClasses, 'text-ink-gray-7']"
+      aria-hidden="true"
+    />
     <span class="min-w-0 flex-1 truncate text-ink-gray-8 text-sm">
       {{ coordinateSummary }}
     </span>
     <button
       v-if="!disabled"
-      class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-gray-4 hover:bg-surface-gray-2 hover:text-ink-gray-7 dark:hover:bg-surface-gray-4"
+      class="flex h-5 w-5 shrink-0 items-center justify-center rounded-4 text-ink-gray-4 hover:bg-surface-gray-2 hover:text-ink-gray-7 dark:hover:bg-surface-gray-4"
       :title="__('Clear')"
       @click.prevent="clearLocation"
     >
-      <FeatherIcon name="x" class="h-3 w-3" />
+      <span class="lucide-x h-3 w-3" aria-hidden="true" />
     </button>
   </div>
 
   <!-- Map Dialog -->
   <Dialog
-    v-model="showModal"
-    :options="{
-      title: disabled ? __('View Location') : __('Set Location'),
-      size: '4xl',
-    }"
+    v-model:open="showModal"
+    :title="disabled ? __('View Location') : __('Set Location')"
+    :size="'4xl'"
   >
-    <template #body-content>
-      <div :id="mapId" class="h-[500px] w-full rounded" />
+    <template #default>
+      <div :id="mapId" class="h-[500px] w-full rounded-4" />
     </template>
     <template #actions>
       <div class="flex items-center justify-end gap-2">
@@ -71,7 +77,7 @@ import leafletIconUrl from 'leaflet/dist/images/marker-icon.png?url'
 import leafletIconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png?url'
 import leafletShadowUrl from 'leaflet/dist/images/marker-shadow.png?url'
 import { useGeolocation } from '@vueuse/core'
-import { FeatherIcon, Dialog, Button } from 'frappe-ui'
+import { Dialog, Button } from 'frappe-ui'
 import { ref, computed, watch, nextTick, useAttrs, onBeforeUnmount } from 'vue'
 
 defineOptions({ inheritAttrs: false })
@@ -122,10 +128,10 @@ const coordinateSummary = computed(() => {
 const sizeClasses = computed(
   () =>
     ({
-      sm: 'h-7 text-base rounded',
-      md: 'h-8 text-base rounded',
-      lg: 'h-10 text-lg rounded-md',
-      xl: 'h-10 text-xl rounded-md',
+      sm: 'h-7 text-base rounded-4',
+      md: 'h-8 text-base rounded-4',
+      lg: 'h-10 text-lg rounded-5',
+      xl: 'h-10 text-2xl rounded-5',
     })[attrs.size || 'sm'],
 )
 
@@ -150,9 +156,9 @@ const variantClasses = computed(() => {
   }
   return {
     subtle:
-      'border border-[--surface-gray-2] bg-surface-gray-2 hover:border-outline-gray-modals hover:bg-surface-gray-3',
+      'border border-[--surface-gray-2] bg-surface-gray-2 hover:border-outline-elevation-2 hover:bg-surface-gray-3',
     outline:
-      'border border-outline-gray-2 bg-surface-white hover:border-outline-gray-3 hover:shadow-sm',
+      'border border-outline-gray-2 bg-surface-base hover:border-outline-gray-3 hover:shadow-sm',
     ghost: 'border-0',
   }[attrs.variant || 'subtle']
 })

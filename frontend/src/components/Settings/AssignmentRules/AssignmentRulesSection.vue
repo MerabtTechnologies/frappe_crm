@@ -8,7 +8,7 @@
   />
   <div
     v-if="conditions.length == 0"
-    class="flex p-4 items-center cursor-pointer justify-center gap-2 text-sm border border-outline-gray-2 text-ink-gray-5 rounded-md"
+    class="flex p-4 items-center cursor-pointer justify-center gap-2 text-sm border border-outline-gray-2 text-ink-gray-5 rounded-5"
     @click="
       () => {
         conditions.push(['', '', ''])
@@ -16,7 +16,7 @@
       }
     "
   >
-    <FeatherIcon name="plus" class="h-4" />
+    <span class="lucide-plus h-4" aria-hidden="true" />
     {{ __('Add a Condition') }}
   </div>
   <div class="flex items-center justify-between mt-2">
@@ -24,7 +24,7 @@
       <Dropdown v-slot="{ open }" :options="dropdownOptions">
         <Button
           :disabled="props.errors !== ''"
-          :icon-right="open ? 'chevron-up' : 'chevron-down'"
+          :icon-right="open ? 'lucide-chevron-up' : 'lucide-chevron-down'"
           :label="__('Add Condition')"
         />
       </Dropdown>
@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { Button, Dropdown, ErrorMessage, FeatherIcon } from 'frappe-ui'
+import { Button, Dropdown, ErrorMessage } from 'frappe-ui'
 import { watchDebounced } from '@vueuse/core'
 import { validateConditions } from '@/utils'
 import CFConditions from '../../ConditionsFilter/CFConditions.vue'

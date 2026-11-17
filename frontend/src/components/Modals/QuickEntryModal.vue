@@ -1,19 +1,19 @@
 <template>
-  <Dialog v-model="show" :options="{ size: '4xl' }">
-    <template #body-title>
+  <Dialog v-model:open="show" :size="'4xl'">
+    <template #title>
       <h3
-        class="flex items-center gap-2 text-2xl font-semibold leading-6 text-ink-gray-9"
+        class="flex items-center gap-2 text-3xl-semibold leading-6 text-ink-gray-9"
       >
         <div>{{ __('Edit Quick Entry Layout') }}</div>
         <Badge
           v-if="dirty"
           :label="__('Not Saved')"
           variant="subtle"
-          theme="orange"
+          theme="amber"
         />
       </h3>
     </template>
-    <template #body-content>
+    <template #default>
       <div class="flex flex-col gap-3">
         <div class="flex justify-between gap-2">
           <Button
@@ -47,7 +47,7 @@
 import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import FieldLayoutEditor from '@/components/FieldLayoutEditor.vue'
 import { useDebounceFn } from '@vueuse/core'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { Dialog, Badge, call, createResource } from 'frappe-ui'
 import { ref, watch, onMounted, nextTick } from 'vue'
 

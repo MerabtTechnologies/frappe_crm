@@ -1,10 +1,6 @@
 <template>
-  <Dialog
-    v-model="show"
-    :options="{ title: __('Lost Reason') }"
-    @close="cancel"
-  >
-    <template #body-content>
+  <Dialog v-model:open="show" :title="__('Lost Reason')" @close="cancel">
+    <template #default>
       <div class="-mt-3 mb-4 text-p-base text-ink-gray-7">
         {{
           __('Please provide a reason for marking this {0} as lost', [
@@ -16,7 +12,7 @@
         <div>
           <div class="mb-2 text-sm text-ink-gray-5">
             {{ __('Lost Reason') }}
-            <span class="text-ink-red-2">*</span>
+            <span class="text-ink-red-4">*</span>
           </div>
           <Link
             ref="linkRef"
@@ -30,7 +26,7 @@
         <div>
           <div class="mb-2 text-sm text-ink-gray-5">
             {{ __('Lost Notes') }}
-            <span v-if="lostReason == 'Other'" class="text-ink-red-2">*</span>
+            <span v-if="lostReason == 'Other'" class="text-ink-red-4">*</span>
           </div>
           <FormControl
             class="form-control flex-1 truncate"
@@ -60,15 +56,17 @@ import { ref } from 'vue'
 
 const props = defineProps({
   doctype: { type: String, default: 'CRM Lead' },
-  document: { type: Object, required: true },
+  document: { type: Object, default: null },
 })
+
+const emit = defineEmits(['save', 'cancel'])
 
 const show = defineModel({ type: Boolean })
 
 const linkRef = ref(null)
-const doc = props.document.doc
-const lostReason = ref(doc.lost_reason || '')
-const lostNotes = ref(doc.lost_notes || '')
+const doc = props.document?.doc
+const lostReason = ref(doc?.lost_reason || '')
+const lostNotes = ref(doc?.lost_notes || '')
 const error = ref('')
 
 function cancel() {
@@ -76,7 +74,10 @@ function cancel() {
   error.value = ''
   lostReason.value = ''
   lostNotes.value = ''
-  doc.status = props.document.originalDoc.status
+  if (doc) {
+    doc.status = props.document.originalDoc.status
+  }
+  emit('cancel')
 }
 
 function save() {
@@ -92,9 +93,14 @@ function save() {
   error.value = ''
   show.value = false
 
-  doc.lost_reason = lostReason.value
-  doc.lost_notes = lostNotes.value
-  props.document.save.submit()
+  if (doc) {
+    doc.lost_reason = lostReason.value
+    doc.lost_notes = lostNotes.value
+    props.document.save.submit()
+  }
+  emit('save', { lost_reason: lostReason.value, lost_notes: lostNotes.value })
+  lostReason.value = ''
+  lostNotes.value = ''
 }
 
 function onCreate(value, close) {

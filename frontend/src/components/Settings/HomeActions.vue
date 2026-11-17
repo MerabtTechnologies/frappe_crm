@@ -3,11 +3,11 @@
     <!-- Header -->
     <div class="flex justify-between text-ink-gray-8">
       <div class="flex flex-col gap-1">
-        <h2 class="flex gap-2 text-xl font-semibold leading-none h-5">
+        <h2 class="flex gap-2 text-2xl-semibold leading-none h-5">
           {{ __('Home Actions') }}
         </h2>
         <p class="text-p-base text-ink-gray-6">
-          {{ __('Configure actions that appear on the home dropdown') }}
+          {{ __('Configure actions that appear on the home dropdown.') }}
         </p>
       </div>
       <div class="flex item-center space-x-2 w-3/12 justify-end">

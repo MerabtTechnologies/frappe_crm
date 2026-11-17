@@ -3,13 +3,13 @@
     <!-- header -->
     <div class="flex justify-between text-ink-gray-8">
       <div class="flex flex-col gap-1 w-9/12">
-        <h2 class="flex gap-2 text-xl font-semibold leading-none h-5">
+        <h2 class="flex gap-2 text-2xl-semibold leading-none h-5">
           {{ __('Email Accounts') }}
         </h2>
         <p class="text-p-base text-ink-gray-6">
           {{
             __(
-              'Manage your email accounts to send and receive emails directly from CRM. You can add multiple accounts and set one as default for incoming and outgoing emails.',
+              'Connect email accounts to send and receive emails from CRM. Set one as the default for incoming and outgoing emails.',
             )
           }}
         </p>
@@ -19,7 +19,7 @@
           :label="__('Add Account')"
           theme="gray"
           variant="solid"
-          icon-left="plus"
+          icon-left="lucide-plus"
           @click="emit('update:step', 'email-add')"
         />
       </div>
@@ -40,7 +40,7 @@
         />
         <div
           v-if="emailAccounts.data.length !== i + 1"
-          class="h-px border-t mx-2 border-outline-gray-modals"
+          class="h-px border-t mx-2 border-outline-elevation-2"
         />
       </div>
     </div>
@@ -78,6 +78,9 @@ const emailAccounts = createListResource({
       account.enable_outgoing = Boolean(account.enable_outgoing)
       account.default_incoming = Boolean(account.default_incoming)
       account.default_outgoing = Boolean(account.default_outgoing)
+      account.create_lead_from_incoming_email = Boolean(
+        account.create_lead_from_incoming_email,
+      )
     })
   },
 })

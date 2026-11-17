@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="flex flex-col gap-1">
-      <span class="text-lg font-semibold text-ink-gray-8">{{
+      <span class="text-lg-semibold text-ink-gray-8">{{
         __('Assignee Rules')
       }}</span>
       <span class="text-p-sm text-ink-gray-6">
@@ -12,7 +12,7 @@
     </div>
     <div class="mt-8 flex items-center justify-between gap-2">
       <div>
-        <div class="text-base font-medium text-ink-gray-8">
+        <div class="text-base-medium text-ink-gray-8">
           {{
             __('{0} routing', [
               assignmentRuleData.documentType == 'CRM Lead'
@@ -30,11 +30,10 @@
         </div>
       </div>
       <div>
-        <Popover placement="bottom-end">
-          <template #target="{ togglePopover }">
+        <Popover side="bottom" align="end" bare>
+          <template #trigger>
             <div
-              class="flex items-center justify-between text-base rounded h-7 py-1.5 pl-2 pr-2 border border-outline-gray-2 bg-surface-gray-2 placeholder-ink-gray-4 hover:border-outline-gray-modals hover:bg-surface-gray-3 focus:bg-surface-white focus:border-outline-gray-4 focus:shadow-sm focus:ring-0 focus-visible:ring-2 focus-visible:ring-outline-gray-3 text-ink-gray-8 transition-colors w-full dark:[color-scheme:dark] select-none min-w-40"
-              @click="togglePopover()"
+              class="flex items-center justify-between text-base rounded-4 h-7 py-1.5 pl-2 pr-2 border border-outline-gray-2 bg-surface-gray-2 placeholder-ink-gray-4 hover:border-outline-elevation-2 hover:bg-surface-gray-3 focus:bg-surface-base focus:border-outline-gray-4 focus:ring-0 focus-visible:ring-2 focus-visible:ring-outline-gray-3 text-ink-gray-8 transition-colors w-full dark:[color-scheme:dark] select-none min-w-40"
             >
               <div>
                 {{
@@ -43,31 +42,31 @@
                   )?.label
                 }}
               </div>
-              <FeatherIcon name="chevron-down" class="size-4" />
+              <span class="lucide-chevron-down size-4" aria-hidden="true" />
             </div>
           </template>
-          <template #body="{ togglePopover }">
+          <template #default="{ close }">
             <div
-              class="p-1 text-ink-gray-7 mt-1 w-48 bg-white shadow-xl rounded"
+              class="p-1 text-ink-gray-7 mt-1 w-48 bg-white shadow-xl rounded-4"
             >
               <div
                 v-for="option in documentRoutingOptions"
                 :key="option.value"
-                class="p-2 cursor-pointer hover:bg-surface-gray-1 text-sm flex items-center justify-between rounded"
+                class="p-2 cursor-pointer hover:bg-surface-gray-1 text-sm flex items-center justify-between rounded-4"
                 @click="
                   () => {
                     assignmentRuleData.rule = option.value
-                    togglePopover()
+                    close()
                   }
                 "
               >
                 <span>
                   {{ option.label }}
                 </span>
-                <FeatherIcon
+                <span
                   v-if="assignmentRuleData.rule == option.value"
-                  name="check"
-                  class="size-4"
+                  class="lucide-check size-4"
+                  aria-hidden="true"
                 />
               </div>
             </div>
@@ -77,7 +76,7 @@
     </div>
     <div class="mt-7 flex items-center justify-between gap-2">
       <div>
-        <div class="text-base font-medium text-ink-gray-8">
+        <div class="text-base-medium text-ink-gray-8">
           {{ __('Assignees') }}
         </div>
         <div class="text-p-sm text-ink-gray-6 mt-1">
@@ -90,17 +89,16 @@
       <div
         v-for="user in users"
         :key="user.name"
-        class="flex items-center gap-2 text-sm bg-surface-gray-2 rounded-md p-1 w-max px-2 select-none"
+        class="flex items-center gap-2 text-sm bg-surface-gray-2 rounded-5 p-1 w-max px-2 select-none"
       >
-        <Avatar :image="user.user_image" :label="user.full_name" size="sm" />
+        <UserAvatar :user="user.email" size="sm" />
         <div class="text-ink-gray-7">
           {{ user.full_name }}
         </div>
         <Tooltip
           v-if="user.email == assignmentRuleData.lastUser"
           :text="__('Last user assigned by this rule')"
-          :hover-delay="0.35"
-          :placement="'top'"
+          :hover-delay="350"
         >
           <div
             class="text-xs rounded-full select-none bg-blue-600 text-white p-0.5 px-2"
@@ -108,7 +106,11 @@
             {{ __('Last') }}
           </div>
         </Tooltip>
-        <Button variant="ghost" icon="x" @click="removeAssignedUser(user)" />
+        <Button
+          variant="ghost"
+          icon="lucide-x"
+          @click="removeAssignedUser(user)"
+        />
       </div>
     </div>
     <ErrorMessage :message="assignmentRuleErrors.users" />
@@ -116,7 +118,8 @@
 </template>
 
 <script setup>
-import { Avatar, Button, ErrorMessage, Popover, Tooltip } from 'frappe-ui'
+import UserAvatar from '@/components/UserAvatar.vue'
+import { Button, ErrorMessage, Popover, Tooltip } from 'frappe-ui'
 import AssigneeSearch from './AssigneeSearch.vue'
 import { computed, inject } from 'vue'
 import { usersStore } from '@/stores/users'
