@@ -45,6 +45,29 @@ export function unmarkDocumentAsDeleted(doctype, docname) {
   intentionallyDeletedDocs.delete(`${doctype}:${docname}`)
 }
 
+// Auto-fetching resources reject while being created, before the caller can
+// observe the promise. Fetch them explicitly instead; errors still reach
+// onError and render the error page. Cached reloads (page revisits, socket
+// updates) stay quiet for the same reason.
+function quietFetchResource(resource) {
+  const fetch = resource.fetch
+  const quiet = (...args) =>
+    Promise.resolve(fetch.apply(resource, args)).catch(() => {})
+  resource.fetch = quiet
+  resource.reload = quiet
+  resource.submit = quiet
+  resource.auto = true
+  return quiet()
+}
+
+function quietDocumentReload(resource) {
+  const reload = resource.reload
+  resource.reload = (...args) =>
+    Promise.resolve(reload.apply(resource, args)).catch(() => {})
+  resource.auto = true
+  return resource.reload()
+}
+
 export function useDocument(doctype, docname, resourceOverrides = {}) {
   if (typeof docname === 'number') docname = String(docname)
   const { setupScript, scripts } = getScript(doctype)
@@ -63,6 +86,9 @@ export function useDocument(doctype, docname, resourceOverrides = {}) {
     if (docname) {
       documentsCache[doctype][docname] = createDocumentResource(
         {
+          // Auto-fetching rejects before callers can observe the promise. A
+          // missing or forbidden doc already renders the error page via onError.
+          auto: false,
           realtime: Boolean(vm?.$socket),
           doctype: doctype,
           name: docname,
@@ -131,6 +157,9 @@ export function useDocument(doctype, docname, resourceOverrides = {}) {
         documentsCache[doctype][docname].fieldPropertyOverrides = {}
       }
 
+      // Observe the load rejection; onError still renders the error page.
+      quietDocumentReload(documentsCache[doctype][docname])
+
       // Override the submit function to trigger validation before submitting
       // TODO: fix validate function to return error message instead of throwing error in frappe-ui and remove try-catch block here
       const _save = documentsCache[doctype][docname].save
@@ -161,13 +190,15 @@ export function useDocument(doctype, docname, resourceOverrides = {}) {
     assigneesCache[doctype][docname || ''] = createResource({
       url: 'crm.api.doc.get_assigned_users',
       cache: `assignees:${doctype}:${docname}`,
-      auto: docname ? true : false,
+      // Fetched below so a missing doc does not reject unobserved.
+      auto: false,
       params: {
         doctype: doctype,
         name: docname,
       },
       transform: (data) => parseAssignees(data),
     })
+    if (docname) quietFetchResource(assigneesCache[doctype][docname])
   }
 
   permissionsCache[doctype] = permissionsCache[doctype] || {}
@@ -176,13 +207,15 @@ export function useDocument(doctype, docname, resourceOverrides = {}) {
     permissionsCache[doctype][docname || ''] = createResource({
       url: 'frappe.client.get_doc_permissions',
       cache: `permissions:${doctype}:${docname}`,
-      auto: docname ? true : false,
+      // Fetched below so a missing doc does not reject unobserved.
+      auto: false,
       params: {
         doctype: doctype,
         docname: docname,
       },
       initialData: { permissions: {} },
     })
+    if (docname) quietFetchResource(permissionsCache[doctype][docname])
   }
 
   async function setupFormScript() {

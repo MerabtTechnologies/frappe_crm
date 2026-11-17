@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import { computed, ref, unref } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Execute the actual component handlers with isolated resources, without network or UI writes.
 function handlers(path, names, context) {
@@ -25,6 +25,112 @@ function handlers(path, names, context) {
     `${code}; return { ${names.join(',')} }`,
   )(...Object.values(context))
 }
+
+describe('notification service worker readiness', () => {
+  const workerUrl =
+    'https://crm.example.test/assets/crm/frontend/firebase-messaging-sw.js'
+
+  function setup(registration) {
+    const navigator = {
+      serviceWorker: { register: vi.fn().mockResolvedValue(registration) },
+    }
+    return {
+      navigator,
+      ...handlers('App.vue', ['getMessagingRegistration'], { navigator }),
+    }
+  }
+
+  afterEach(() => vi.useRealTimers())
+
+  it('uses the CRM worker with a separate push scope and an active registration', async () => {
+    const registration = { active: { state: 'activated' } }
+    const { navigator, getMessagingRegistration } = setup(registration)
+    await expect(getMessagingRegistration(workerUrl)).resolves.toBe(
+      registration,
+    )
+    expect(navigator.serviceWorker.register).toHaveBeenCalledWith(workerUrl, {
+      scope: '/assets/crm/frontend/firebase-cloud-messaging-push-scope',
+    })
+  })
+
+  it('waits for activation before allowing push subscription', async () => {
+    const worker = Object.assign(new EventTarget(), { state: 'installing' })
+    const removeListener = vi.spyOn(worker, 'removeEventListener')
+    const registration = { installing: worker }
+    const { getMessagingRegistration } = setup(registration)
+    const ready = vi.fn()
+    const result = getMessagingRegistration(workerUrl).then(ready)
+    await Promise.resolve()
+    expect(ready).not.toHaveBeenCalled()
+    worker.state = 'activated'
+    worker.dispatchEvent(new Event('statechange'))
+    await result
+    expect(ready).toHaveBeenCalledWith(registration)
+    expect(removeListener).toHaveBeenCalledWith(
+      'statechange',
+      expect.any(Function),
+    )
+  })
+
+  it('rejects a failed worker and cleans up its listener', async () => {
+    const worker = Object.assign(new EventTarget(), { state: 'installing' })
+    const removeListener = vi.spyOn(worker, 'removeEventListener')
+    const { getMessagingRegistration } = setup({ installing: worker })
+    const result = getMessagingRegistration(workerUrl)
+    const rejected = expect(result).rejects.toThrow('failed to activate')
+    await Promise.resolve()
+    worker.state = 'redundant'
+    worker.dispatchEvent(new Event('statechange'))
+    await rejected
+    expect(removeListener).toHaveBeenCalled()
+  })
+
+  it('bounds activation waits and removes abandoned listeners', async () => {
+    vi.useFakeTimers()
+    const worker = Object.assign(new EventTarget(), { state: 'installing' })
+    const removeListener = vi.spyOn(worker, 'removeEventListener')
+    const { getMessagingRegistration } = setup({ installing: worker })
+    const result = getMessagingRegistration(workerUrl)
+    const rejected = expect(result).rejects.toThrow('activation timed out')
+    await vi.advanceTimersByTimeAsync(10000)
+    await rejected
+    expect(removeListener).toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('rejects registrations that have no worker', async () => {
+    const { getMessagingRegistration } = setup({})
+    await expect(getMessagingRegistration(workerUrl)).rejects.toThrow(
+      'unavailable',
+    )
+  })
+
+  it.each([
+    ['messaging/token-unsubscribe-failed', ''],
+    ['messaging/token-subscribe-failed', ''],
+    ['messaging/failed-service-worker-registration', ''],
+    ['', 'Request failed: Permission denied'],
+    ['', 'Application has been suspended'],
+    ['', 'push service not available'],
+  ])('treats environmental push failure as a warning: %s %s', (code, msg) => {
+    const { isIgnorableFcmError } = handlers(
+      'App.vue',
+      ['isIgnorableFcmError'],
+      {},
+    )
+    expect(isIgnorableFcmError(code, msg)).toBe(true)
+  })
+
+  it('still surfaces actionable notification errors', () => {
+    const { isIgnorableFcmError } = handlers(
+      'App.vue',
+      ['isIgnorableFcmError'],
+      {},
+    )
+    expect(isIgnorableFcmError('messaging/permission-blocked', '')).toBe(false)
+    expect(isIgnorableFcmError('', 'Unknown server failure')).toBe(false)
+  })
+})
 
 function chart(name, editing = false, user = 'Sales User') {
   const context = {

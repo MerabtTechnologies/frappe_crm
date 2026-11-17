@@ -191,13 +191,76 @@ const modelData = ref({
 const banner = bannerStore()
 const router = useRouter()
 
+async function getMessagingRegistration(workerUrl) {
+  const registration = await navigator.serviceWorker.register(workerUrl, {
+    scope: new URL('./firebase-cloud-messaging-push-scope', workerUrl).pathname,
+  })
+  if (registration.active?.state === 'activated') return registration
+
+  const worker =
+    registration.installing || registration.waiting || registration.active
+  if (!worker) throw new Error('Notification service worker is unavailable')
+
+  await new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer)
+      worker.removeEventListener('statechange', onStateChange)
+    }
+    const onStateChange = () => {
+      if (worker.state === 'activated') {
+        cleanup()
+        resolve()
+      } else if (worker.state === 'redundant') {
+        cleanup()
+        reject(new Error('Notification service worker failed to activate'))
+      }
+    }
+    const timer = setTimeout(() => {
+      cleanup()
+      reject(new Error('Notification service worker activation timed out'))
+    }, 10000)
+    worker.addEventListener('statechange', onStateChange)
+    onStateChange()
+  })
+  return registration
+}
+
+function isIgnorableFcmError(code, msg) {
+  // Environmental push failures (unsupported browsers, headless shells, revoked
+  // tokens) are not actionable for the user and must not block every page load.
+  return (
+    code === 'messaging/token-unsubscribe-failed' ||
+    code === 'messaging/token-subscribe-failed' ||
+    code === 'messaging/failed-service-worker-registration' ||
+    msg.includes('Permission denied') ||
+    msg.includes('has been suspended') ||
+    msg.includes('token-unsubscribe-failed') ||
+    msg.includes('push service not available')
+  )
+}
+
 async function initFirebaseMessaging() {
   if (typeof window === 'undefined') return
-  if (!('Notification' in window)) return
+  if (!session.isLoggedIn || !window.isSecureContext) return
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return
+  // Permission prompts belong to an explicit user action, never app startup.
+  if (window.Notification.permission !== 'granted') return
 
   try {
-    const [{ initializeApp }, { getMessaging, getToken, onMessage }] =
-      await Promise.all([import('firebase/app'), import('firebase/messaging')])
+    const [
+      { initializeApp },
+      { getMessaging, getToken, onMessage, isSupported },
+    ] = await Promise.all([
+      import('firebase/app'),
+      import('firebase/messaging'),
+    ])
+    if (!(await isSupported())) return
+
+    const workerUrl = new URL(
+      `${import.meta.env.BASE_URL}firebase-messaging-sw.js`,
+      window.location.origin,
+    ).href
+    const serviceWorkerRegistration = await getMessagingRegistration(workerUrl)
 
     let firebaseApp = null
     try {
@@ -208,6 +271,7 @@ async function initFirebaseMessaging() {
 
     const messaging = getMessaging(firebaseApp || undefined)
     const currentToken = await getToken(messaging, {
+      serviceWorkerRegistration,
       vapidKey:
         'BCVG3-dOFvV09zxecE0uHqK1fXzIxXw0aGKzFNb9Ukzz3_jhySXEvnGMEFvsOtUgrnXAe2eOQn1aflh5LQ80ZGo',
     })
@@ -246,12 +310,7 @@ async function initFirebaseMessaging() {
   } catch (err) {
     const msg = err && err.message ? String(err.message) : ''
     const code = err && err.code ? String(err.code) : ''
-    if (
-      code === 'messaging/token-unsubscribe-failed' ||
-      msg.includes('Permission denied') ||
-      msg.includes('has been suspended') ||
-      msg.includes('token-unsubscribe-failed')
-    ) {
+    if (isIgnorableFcmError(code, msg)) {
       console.warn('FCM token issue (ignored):', code || msg)
       return
     }

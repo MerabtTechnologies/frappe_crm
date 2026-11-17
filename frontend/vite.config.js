@@ -131,6 +131,10 @@ export default defineConfig(() => {
           manualChunks(id) {
             if (!id.includes('node_modules')) return
 
+            // Preserve the dynamic import order of Leaflet and its global plugins.
+            // Grouping them with eager marker assets runs Draw before window.L exists.
+            if (id.includes('/leaflet')) return
+
             if (
               id.includes('/echarts/') ||
               id.includes('/zrender/') ||
@@ -153,10 +157,6 @@ export default defineConfig(() => {
 
             if (id.includes('/frappe-ui/')) {
               return 'vendor-frappe-ui'
-            }
-
-            if (id.includes('/leaflet')) {
-              return 'vendor-leaflet'
             }
 
             return 'vendor-misc'

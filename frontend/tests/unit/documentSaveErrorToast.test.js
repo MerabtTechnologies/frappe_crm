@@ -1,6 +1,16 @@
 // useDocument pulls in stores, composables and a live createDocumentResource
 // that aren't wired up for vitest — stub them so this test exercises only the
 // save-error toast selection in setValue.onError (regression for #1703).
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
+
 vi.mock('@/data/script', () => ({
   getScript: () => ({ setupScript: vi.fn(), scripts: {} }),
 }))
@@ -37,10 +47,14 @@ const { toast, captured } = vi.hoisted(() => ({
 vi.mock('frappe-ui', () => ({
   call: vi.fn(),
   toast,
-  createResource: () => ({}),
+  createResource: () => ({ fetch: vi.fn().mockResolvedValue(null) }),
   createDocumentResource: (options) => {
     captured.options = options
-    return { doc: {}, save: { submit: vi.fn() } }
+    return {
+      doc: {},
+      reload: vi.fn().mockResolvedValue(null),
+      save: { submit: vi.fn() },
+    }
   },
 }))
 
