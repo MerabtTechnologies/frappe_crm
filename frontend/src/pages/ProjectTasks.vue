@@ -193,7 +193,8 @@
     v-if="showTaskModal"
     v-model="showTaskModal"
     v-model:reloadTasks="tasks"
-    :task="task" />
+    :task="task"
+  />
 
   <!-- Old Project Task Modal -->
   <!-- <CreateNewProjectTaskModal
@@ -202,7 +203,6 @@
     v-model:reloadTasks="tasks"
     :task="task"
   /> -->
-
 </template>
 
 <script setup>
@@ -220,7 +220,8 @@ import CreateNewProjectTaskModal from '@/components/Modals/CreateNewProjectTaskM
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
-import { Tooltip, Avatar, TextEditor, Dropdown, call } from 'frappe-ui'
+import { Tooltip, Avatar, Dropdown, call } from 'frappe-ui'
+import { TextEditor } from 'frappe-ui/experimental'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -392,7 +393,7 @@ async function deletetask(name) {
 
 function redirect(doctype, docname) {
   if (!docname) return
-  let name = "Project"
+  let name = 'Project'
   let params = { projectId: docname }
 
   router.push({ name: name, params: params })

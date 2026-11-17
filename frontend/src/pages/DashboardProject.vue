@@ -5,7 +5,11 @@
         <ViewBreadcrumbs routeName="Projects" />
       </template>
       <template #right-header>
-        <Button :label="__('Refresh')" iconLeft="refresh-ccw" @click="reloadAll" />
+        <Button
+          :label="__('Refresh')"
+          iconLeft="refresh-ccw"
+          @click="reloadAll"
+        />
       </template>
     </LayoutHeader>
 
@@ -15,21 +19,37 @@
       </div>
 
       <div v-else>
-        <div class="grid gap-4 mb-6" style="grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
-          <div class="card p-4 card-clickable" v-for="card in statCards" :key="card.key" @click="cardClick(card)" role="button" tabindex="0" @keydown.enter.prevent="cardClick(card)" @keydown.space.prevent="cardClick(card)">
+        <div
+          class="grid gap-4 mb-6"
+          style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))"
+        >
+          <div
+            class="card p-4 card-clickable"
+            v-for="card in statCards"
+            :key="card.key"
+            @click="cardClick(card)"
+            role="button"
+            tabindex="0"
+            @keydown.enter.prevent="cardClick(card)"
+            @keydown.space.prevent="cardClick(card)"
+          >
             <div class="flex items-center justify-between">
               <div>
                 <div class="text-sm text-ink-gray-6">{{ __(card.label) }}</div>
                 <div class="text-2xl font-semibold">{{ card.value }}</div>
               </div>
-              <div v-if="card.meta" class="text-sm text-ink-gray-5">{{ card.meta }}</div>
+              <div v-if="card.meta" class="text-sm text-ink-gray-5">
+                {{ card.meta }}
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Task status subheading / badges -->
         <div class="mb-4">
-          <div class="text-sm text-ink-gray-6 mb-2">{{ __('Task Statuses') }}</div>
+          <div class="text-sm text-ink-gray-6 mb-2">
+            {{ __('Task Statuses') }}
+          </div>
           <div class="flex flex-wrap gap-2">
             <span
               v-for="(count, status) in taskStatusCounts"
@@ -72,7 +92,8 @@
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
-import { Button, AxisChart, DonutChart, createResource, toast } from 'frappe-ui'
+import { Button, createResource, toast } from 'frappe-ui'
+import { AxisChart, DonutChart } from 'frappe-ui/experimental'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -91,13 +112,14 @@ const requestsRes = createResource({
   auto: true,
 })
 
-const loading = computed(() => projectsRes.loading || tasksRes.loading || requestsRes.loading)
+const loading = computed(
+  () => projectsRes.loading || tasksRes.loading || requestsRes.loading,
+)
 
 const projects = computed(() => projectsRes.data || [])
 const tasks = computed(() => tasksRes.data || [])
 const requests = computed(() => requestsRes.data || [])
 const router = useRouter()
-
 
 function reloadAll() {
   projectsRes.reload()
@@ -125,20 +147,39 @@ const statCards = computed(() => {
   const t = normalizeList(tasks.value)
   const req = normalizeList(requests.value)
   return [
-    { key: 'projects', label: 'Projects', value: proj.length, meta: `${proj.filter(p => p.status === 'Active').length} ${__('Active')}` },
-    { key: 'tasks', label: 'Tasks', value: t.length, meta: `${t.filter(x => x.status === 'Open').length} ${__('Open')}` },
+    {
+      key: 'projects',
+      label: 'Projects',
+      value: proj.length,
+      meta: `${proj.filter((p) => p.status === 'Active').length} ${__('Active')}`,
+    },
+    {
+      key: 'tasks',
+      label: 'Tasks',
+      value: t.length,
+      meta: `${t.filter((x) => x.status === 'Open').length} ${__('Open')}`,
+    },
     { key: 'requests', label: 'Date Requests', value: req.length, meta: null },
   ]
 })
 
 const taskStatusCounts = computed(() => {
   const list = normalizeList(tasks.value)
-  const statuses = ['Active','Open','Working','Completed','Pending Approval','Pending Review','On Hold','Cancelled']
+  const statuses = [
+    'Active',
+    'Open',
+    'Working',
+    'Completed',
+    'Pending Approval',
+    'Pending Review',
+    'On Hold',
+    'Cancelled',
+  ]
   const map = {}
-  statuses.forEach(s => map[s] = 0)
-  list.forEach(t => {
+  statuses.forEach((s) => (map[s] = 0))
+  list.forEach((t) => {
     const s = t.status || 'Unknown'
-    if (!map.hasOwnProperty(s)) map[s] = 0
+    if (!Object.hasOwn(map, s)) map[s] = 0
     map[s] = (map[s] || 0) + 1
   })
   return map
@@ -158,7 +199,7 @@ function buildCharts() {
     const tlist = normalizeList(tasks.value)
     // group by creation day
     const counts = {}
-    tlist.forEach(tt => {
+    tlist.forEach((tt) => {
       const d = tt.creation ? tt.creation.split('T')[0] : null
       if (!d) return
       counts[d] = (counts[d] || 0) + 1
@@ -166,9 +207,12 @@ function buildCharts() {
     const labels = Object.keys(counts)
     // ensure labels is an array before sorting
     const sortedLabels = Array.isArray(labels) ? labels.sort() : []
-    const values = sortedLabels.map(l => counts[l])
+    const values = sortedLabels.map((l) => counts[l])
     if (sortedLabels.length) {
-      axisConfig.value = { data: { labels: sortedLabels, datasets: [{ name: 'Tasks', values }] }, type: 'line' }
+      axisConfig.value = {
+        data: { labels: sortedLabels, datasets: [{ name: 'Tasks', values }] },
+        type: 'line',
+      }
       axisLabel.value = `${sortedLabels.length} ${__('days')}`
     } else {
       axisConfig.value = null
@@ -177,10 +221,22 @@ function buildCharts() {
 
     // donut by status
     const statusMap = {}
-    tlist.forEach(tt => { const st = tt.status || 'Unknown'; statusMap[st] = (statusMap[st] || 0) + 1 })
+    tlist.forEach((tt) => {
+      const st = tt.status || 'Unknown'
+      statusMap[st] = (statusMap[st] || 0) + 1
+    })
     const dlabels = Object.keys(statusMap)
-    const dvalues = Array.isArray(dlabels) ? dlabels.map(l => statusMap[l]) : []
-    donutConfig.value = dlabels.length ? { data: { labels: dlabels, datasets: [{ name: 'Status', values: dvalues }] } } : null
+    const dvalues = Array.isArray(dlabels)
+      ? dlabels.map((l) => statusMap[l])
+      : []
+    donutConfig.value = dlabels.length
+      ? {
+          data: {
+            labels: dlabels,
+            datasets: [{ name: 'Status', values: dvalues }],
+          },
+        }
+      : null
   } catch (e) {
     console.error('buildCharts error', e)
   }
@@ -215,26 +271,87 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.card { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.p-4 { padding: 1rem }
-.text-muted { color: var(--muted); }
+.card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.p-4 {
+  padding: 1rem;
+}
+.text-muted {
+  color: var(--muted);
+}
 
 /* Task status pills */
-.status-pill { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 999px; font-size: 0.75rem; background: #f1f5f9; color: #1f2937; }
-.status-active { background: #d1fae5; color: #065f46; }
-.status-open { background: #dbeafe; color: #1e3a8a; }
-.status-working { background: #fef3c7; color: #92400e; }
-.status-completed { background: #e6e6e6; color: #374151; }
-.status-pending-approval, .status-pending-review { background: #fef3c7; color: #92400e; }
-.status-on-hold { background: #fed7aa; color: #7c2d12; }
-.status-cancelled { background: #fecaca; color: #7f1d1d; }
-.status-unknown { background: #e5e7eb; color: #374151; }
-.status-pill { cursor: pointer; user-select: none; }
-.status-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.06); }
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: #f1f5f9;
+  color: #1f2937;
+}
+.status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+.status-open {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+.status-working {
+  background: #fef3c7;
+  color: #92400e;
+}
+.status-completed {
+  background: #e6e6e6;
+  color: #374151;
+}
+.status-pending-approval,
+.status-pending-review {
+  background: #fef3c7;
+  color: #92400e;
+}
+.status-on-hold {
+  background: #fed7aa;
+  color: #7c2d12;
+}
+.status-cancelled {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+.status-unknown {
+  background: #e5e7eb;
+  color: #374151;
+}
+.status-pill {
+  cursor: pointer;
+  user-select: none;
+}
+.status-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+}
 
 /* Clickable stat card styles */
-.card-clickable { cursor: pointer; transition: transform 160ms ease, box-shadow 160ms ease; }
-.card-clickable:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(2,6,23,0.08); }
-.card-clickable:active { transform: translateY(-2px); }
-.card-clickable:focus { outline: 3px solid rgba(59,130,246,0.12); outline-offset: 2px; }
+.card-clickable {
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+.card-clickable:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.08);
+}
+.card-clickable:active {
+  transform: translateY(-2px);
+}
+.card-clickable:focus {
+  outline: 3px solid rgba(59, 130, 246, 0.12);
+  outline-offset: 2px;
+}
 </style>

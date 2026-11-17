@@ -37,11 +37,7 @@
         </Button>
       </ListHeaderItem>
     </ListHeader>
-    <ListRows
-      :rows="rows"
-      v-slot="{ idx, column, item, row }"
-      doctype="Event"
-    >
+    <ListRows :rows="rows" v-slot="{ idx, column, item, row }" doctype="Event">
       <div v-if="column.key === '_assign'" class="flex items-center">
         <MultipleAvatar
           :avatars="item"
@@ -203,17 +199,15 @@ import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import ListBulkActions from '@/components/ListBulkActions.vue'
 import ListRows from '@/components/ListViews/ListRows.vue'
+import { Avatar, Dropdown, Tooltip } from 'frappe-ui'
 import {
-  Avatar,
   ListView,
   ListHeader,
   ListHeaderItem,
   ListRowItem,
   ListSelectBanner,
   ListFooter,
-  Dropdown,
-  Tooltip,
-} from 'frappe-ui'
+} from 'frappe-ui/experimental'
 import { sessionStore } from '@/stores/session'
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'

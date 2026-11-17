@@ -282,7 +282,9 @@ function contextualCommands(tracked) {
 }
 
 function navigationCommands(tracked) {
-  return getNavigationItems().map((item) =>
+  return getNavigationItems({
+    projectManager: usersStore().isProjectManager(),
+  }).map((item) =>
     tracked(
       {
         id: `navigate-${item.route}`,

@@ -1,6 +1,8 @@
 <template>
   <LayoutHeader>
-    <header class="relative flex h-10.5 items-center justify-between gap-2 py-2.5 pl-2">
+    <header
+      class="relative flex h-10.5 items-center justify-between gap-2 py-2.5 pl-2"
+    >
       <Breadcrumbs :items="breadcrumbs">
         <template #prefix="{ item }">
           <Icon v-if="item.icon" :icon="item.icon" class="mr-2 h-4" />
@@ -16,17 +18,30 @@
       </div>
     </header>
   </LayoutHeader>
-  <div v-if="doc.name" class="flex h-12 items-center justify-between gap-2 border-b px-3 py-2.5">
-    <AssignTo v-model="assignees.data" doctype="Employee Project Assignment" :docname="assignmentId" />
+  <div
+    v-if="doc.name"
+    class="flex h-12 items-center justify-between gap-2 border-b px-3 py-2.5"
+  >
+    <AssignTo
+      v-model="assignees.data"
+      doctype="Employee Project Assignment"
+      :docname="assignmentId"
+    />
     <div class="flex items-center gap-2">
-      <CustomActions v-if="document._actions?.length" :actions="document._actions" />
-      <CustomActions v-if="document.actions?.length" :actions="document.actions" />
+      <CustomActions
+        v-if="document._actions?.length"
+        :actions="document._actions"
+      />
+      <CustomActions
+        v-if="document.actions?.length"
+        :actions="document.actions"
+      />
     </div>
   </div>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
     <Tabs
       as="div"
-      v-model="tabIndex"
+      v-model="activeTab"
       :tabs="tabs"
       class="flex flex-1 overflow-auto flex-col [&_[role='tab']]:px-0 [&_[role='tablist']]:px-3 [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
@@ -56,19 +71,31 @@
           :docname="assignmentId"
           :tabs="tabs"
           v-model:reload="reload"
-          v-model:tabIndex="tabIndex"
-          @beforeSave="saveChanges"
+          v-model:activeTab="activeTab"
+          @beforeSave="beforeStatusChange"
           @afterSave="reloadAssignees"
         />
       </template>
     </Tabs>
   </div>
-  <ErrorPage v-else-if="errorTitle" :errorTitle="errorTitle" :errorMessage="errorMessage" />
+  <ErrorPage
+    v-else-if="errorTitle"
+    :errorTitle="errorTitle"
+    :errorMessage="errorMessage"
+  />
 
-
-  <DeleteLinkedDocModal v-if="showDeleteLinkedDocModal" v-model="showDeleteLinkedDocModal"
-    :doctype="'Employee Project Assignment'" :docname="assignmentId" name="Employee Project Assignments" />
-  <LostReasonModal v-if="showLostReasonModal" v-model="showLostReasonModal" :deal="document" />
+  <DeleteLinkedDocModal
+    v-if="showDeleteLinkedDocModal"
+    v-model="showDeleteLinkedDocModal"
+    :doctype="'Employee Project Assignment'"
+    :docname="assignmentId"
+    name="Employee Project Assignments"
+  />
+  <LostReasonModal
+    v-if="showLostReasonModal"
+    v-model="showLostReasonModal"
+    :deal="document"
+  />
 </template>
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
@@ -93,8 +120,6 @@ import Activities from '@/components/Activities/Activities.vue'
 
 import LostReasonModal from '@/components/Modals/LostReasonModal.vue'
 import AssignTo from '@/components/AssignTo.vue'
-
-
 
 import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SLASection from '@/components/SLASection.vue'
@@ -121,7 +146,7 @@ import {
   usePageMeta,
   toast,
 } from 'frappe-ui'
-import { ref, computed, h, watch } from 'vue'
+import { ref, computed, h, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const { brand } = getSettings()
@@ -138,16 +163,25 @@ const props = defineProps({
   },
 })
 
+const reload = ref(false)
 const errorTitle = ref('')
 const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 
-const { triggerOnChange, assignees, document, scripts, error } = useDocument(
-  'Employee Project Assignment',
-  props.assignmentId,
-)
+const {
+  triggerOnChange,
+  triggerOnRender,
+  assignees,
+  document,
+  scripts,
+  error,
+} = useDocument('Employee Project Assignment', props.assignmentId)
 
 const doc = computed(() => document.doc || {})
+
+onMounted(async () => {
+  if (document.doc) await triggerOnRender()
+})
 
 watch(error, (err) => {
   if (err) {
@@ -185,13 +219,20 @@ watch(
   { once: true },
 )
 
-
-
 const breadcrumbs = computed(() => {
-  let items = [{ label: __('Employee Project Assignments'), route: { name: 'Employee Project Assignments' } }]
+  let items = [
+    {
+      label: __('Employee Project Assignments'),
+      route: { name: 'Employee Project Assignments' },
+    },
+  ]
 
   if (route.query.view || route.query.viewType) {
-    let view = getView(route.query.view, route.query.viewType, 'Employee Project Assignment')
+    let view = getView(
+      route.query.view,
+      route.query.viewType,
+      'Employee Project Assignment',
+    )
     if (view) {
       items.push({
         label: __(view.label),
@@ -207,13 +248,16 @@ const breadcrumbs = computed(() => {
 
   items.push({
     label: title.value,
-    route: { name: 'Employee Project Assignment', params: { assignmentId: props.assignmentId } },
+    route: {
+      name: 'Employee Project Assignment',
+      params: { assignmentId: props.assignmentId },
+    },
   })
   return items
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['Employee Project Assignment']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return doc.value?.[t] || props.assignmentId
 })
 
@@ -228,29 +272,34 @@ const tabs = computed(() => {
   let tabOptions = [
     {
       name: 'Details',
+      value: 'details',
       label: __('Details'),
-      icon: DetailsIcon,
+      iconLeft: DetailsIcon,
       condition: () => isMobileView.value,
     },
     {
       name: 'Activity',
+      value: 'activity',
       label: __('Activity'),
-      icon: ActivityIcon,
+      iconLeft: ActivityIcon,
     },
     {
       name: 'Emails',
+      value: 'emails',
       label: __('Emails'),
-      icon: EmailIcon,
+      iconLeft: EmailIcon,
     },
     {
       name: 'Comments',
+      value: 'comments',
       label: __('Comments'),
-      icon: CommentIcon,
+      iconLeft: CommentIcon,
     },
     {
       name: 'Data',
+      value: 'data',
       label: __('Data'),
-      icon: DetailsIcon,
+      iconLeft: DetailsIcon,
     },
     // {
     //   name: 'Calls',
@@ -270,18 +319,24 @@ const tabs = computed(() => {
     // },
     {
       name: 'Notes',
+      value: 'notes',
       label: __('Notes'),
-      icon: NoteIcon,
+      iconLeft: NoteIcon,
     },
     {
       name: 'Attachments',
+      value: 'attachments',
       label: __('Attachments'),
-      icon: AttachmentIcon,
+      iconLeft: AttachmentIcon,
     },
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
 })
-const { tabIndex } = useActiveTabManager(tabs, 'lastDealTab')
+const { activeTab } = useActiveTabManager(
+  tabs,
+  'lastEmployeeProjectAssignmentTab',
+  'lastDealTab',
+)
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
@@ -297,10 +352,11 @@ function getParsedFields(sections) {
 
 if (!sections.data) sections.fetch()
 
-
 function updateField(name, value) {
   value = Array.isArray(name) ? '' : value
-  let oldValues = Array.isArray(name) ? {} : doc.value[name]
+  let oldValues = Array.isArray(name)
+    ? Object.fromEntries(name.map((field) => [field, doc.value[field]]))
+    : doc.value[name]
 
   if (Array.isArray(name)) {
     name.forEach((field) => (doc.value[field] = value))
@@ -340,9 +396,9 @@ const showLostReasonModal = ref(false)
 
 function setLostReason() {
   if (
-    getDealStatus(doc.status).type !== 'Lost' ||
-    (doc.lost_reason && doc.lost_reason !== 'Other') ||
-    (doc.lost_reason === 'Other' && doc.lost_notes)
+    getDealStatus(doc.value.status).type !== 'Lost' ||
+    (doc.value.lost_reason && doc.value.lost_reason !== 'Other') ||
+    (doc.value.lost_reason === 'Other' && doc.value.lost_notes)
   ) {
     document.save.submit()
     return
@@ -368,7 +424,7 @@ function beforeStatusChange(data) {
 }
 
 function reloadAssignees(data) {
-  if (data?.hasOwnProperty('deal_owner')) {
+  if (Object.hasOwn(data ?? {}, 'deal_owner')) {
     assignees.reload()
   }
 }
@@ -377,10 +433,10 @@ function statusColor(status) {
   if (!status) return ''
   if (status === 'Approved') return 'text-green-600'
   if (status === 'Reject') return 'text-red-600'
-  if (status === 'Pending Approval' || status === 'Planning') return 'text-yellow-600'
+  if (status === 'Pending Approval' || status === 'Planning')
+    return 'text-yellow-600'
   if (status === 'Completed' || status === 'Done') return 'text-blue-600'
   if (status === 'Draft' || status === 'Cancelled') return 'text-gray-600'
   return 'text-gray-500'
 }
-
 </script>

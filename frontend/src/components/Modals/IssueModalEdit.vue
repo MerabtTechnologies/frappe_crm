@@ -29,7 +29,7 @@
           <div
             v-if="hasOrganizationSections || hasContactSections"
             class="h-px w-full border-t my-5"
-          /> 
+          />
           <FieldLayout
             ref="fieldLayoutRef"
             v-if="tabs.data?.length"
@@ -37,7 +37,7 @@
             :data="deal.doc"
             doctype="Issue"
           />
-          
+
           <ErrorMessage class="mt-4" v-if="error" :message="__(error)" />
         </div>
       </div>
@@ -63,7 +63,7 @@ import { statusesStore } from '@/stores/statuses'
 import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { Switch, createResource } from 'frappe-ui'
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -83,16 +83,17 @@ const router = useRouter()
 const { capture } = useTelemetry()
 const error = ref(null)
 
-const { document: deal, triggerOnBeforeCreate, triggerOnSave } = useDocument('Issue')
+const {
+  document: deal,
+  triggerOnBeforeCreate,
+  triggerOnSave,
+} = useDocument('Issue')
 
-const {document: issue } = useDocument('Issue', props.defaults.name)
-
+const { document: issue } = useDocument('Issue', props.defaults.name)
 
 deal.doc = computed(() => {
-
   return issue.doc || {}
 })
-
 
 const hasOrganizationSections = ref(true)
 const hasContactSections = ref(true)
@@ -100,7 +101,6 @@ const hasContactSections = ref(true)
 const isDealCreating = ref(false)
 const chooseExistingContact = ref(true)
 const chooseExistingOrganization = ref(true)
-
 
 watch(
   [chooseExistingOrganization, chooseExistingContact],
@@ -169,8 +169,7 @@ const tabs = createResource({
 //   return statuses
 // })
 
-async function updateTaskResource(){
-
+async function updateTaskResource() {
   const updateTaskResource = createResource({
     url: 'frappe.client.set_value',
     makeParams() {
@@ -181,9 +180,9 @@ async function updateTaskResource(){
       }
     },
     validate() {
-        error.value = null
-        isDealCreating.value = true
-      },
+      error.value = null
+      isDealCreating.value = true
+    },
     onSuccess(d) {
       if (d.name) {
         issues.value?.reload()
@@ -192,15 +191,12 @@ async function updateTaskResource(){
       }
     },
     onError(err) {
-      console.log("Error: ",err);
-      
-    }
-
+      console.log('Error: ', err)
+    },
   })
 
   updateTaskResource.submit()
 }
-
 
 function openQuickEntryModal() {
   showQuickEntryModal.value = true
@@ -209,8 +205,8 @@ function openQuickEntryModal() {
 }
 
 watch(issue, (newIssue) => {
-  console.log("new Issue: ", newIssue);
-  
+  console.log('new Issue: ', newIssue)
+
   if (newIssue) {
     // deal.doc = {custom_task: 54}
     // Object.assign(deal.doc, newIssue.doc)
@@ -220,28 +216,20 @@ watch(issue, (newIssue) => {
 onMounted(() => {
   // deal.doc = { no_of_employees: '1-10' }
   // Object.assign(deal.doc, props.defaults)
-
   // if (!deal.doc.owner) {
   //   deal.doc.deal_owner = getUser().name
   // }
   // if (!deal.doc.status && dealStatuses.value[0].value) {
   //   deal.doc.status = dealStatuses.value[0].value
   // }
-
   // Object.assign(deal.doc, props.defaults)
-  
   // deal.doc = {
   //   ...deal.doc,
   //   ...JSON.parse(JSON.stringify(issue.doc)),
   // } // Deep copy to make it reactive
-
   // if(!props.data_edit){
   //   deal.doc = { ...deal.doc, ...props.defaults }
   // }
   // deal.doc = { ...deal.doc, ...props.defaults }
-  
-  
-  
 })
 </script>
-  

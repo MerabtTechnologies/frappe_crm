@@ -3,8 +3,33 @@ import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn, useStorage } from '@vueuse/core'
 import { parseActivityHash } from '@/utils/activityHash'
 
-export function useActiveTabManager(tabs, storageKey) {
-  const lastVisitedTab = useStorage(storageKey, 'activity')
+export function normalizeTabPreference(value, tabs) {
+  const direct = tabs.find((tab) => tab.value === value)
+  if (direct) return direct.value
+  if (typeof value !== 'string') return undefined
+  const named = tabs.find(
+    (tab) => tab.name?.toLowerCase() === value.toLowerCase(),
+  )
+  return named?.value
+}
+
+export function useActiveTabManager(tabs, storageKey, legacyStorageKey) {
+  let initialTab = 'activity'
+  if (legacyStorageKey) {
+    try {
+      const storage = window.localStorage
+      if (storage.getItem(storageKey) === null) {
+        initialTab =
+          normalizeTabPreference(
+            storage.getItem(legacyStorageKey),
+            tabs.value || [],
+          ) || initialTab
+      }
+    } catch {
+      // Storage can be unavailable in private browsing.
+    }
+  }
+  const lastVisitedTab = useStorage(storageKey, initialTab)
   const route = useRoute()
   const router = useRouter()
 
@@ -44,7 +69,11 @@ export function useActiveTabManager(tabs, storageKey) {
       return firstTab()
     }
 
-    if (hasTab(lastVisitedTab.value)) return lastVisitedTab.value
+    const storedTab = normalizeTabPreference(
+      lastVisitedTab.value,
+      tabs.value || [],
+    )
+    if (storedTab) return storedTab
 
     return firstTab()
   }

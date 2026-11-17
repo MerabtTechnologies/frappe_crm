@@ -50,6 +50,10 @@ vi.mock('@/data/document', () => ({
   }),
 }))
 
+vi.mock('@/components/FieldLayout/MetaInfo.vue', () => ({
+  default: defineComponent({ setup: () => () => h('div', 'Meta Info') }),
+}))
+
 vi.mock('@/components/FieldLayout/Section.vue', () => ({
   default: defineComponent({
     props: {

@@ -21,8 +21,12 @@
           :label="__('Employee Project Assignment')"
           @click="() => { console.log('Employee Project Assignment clicked') }"
         /> -->
-      <AssignTo v-model="assignees.data" doctype="Smart Project" :docname="projectId" />
-    
+      <AssignTo
+        v-model="assignees.data"
+        doctype="Smart Project"
+        :docname="projectId"
+      />
+
       <Dropdown
         v-if="doc && statuses?.length"
         :options="statuses"
@@ -40,13 +44,12 @@
           </Button>
         </template>
       </Dropdown>
-        </template>
-      
+    </template>
   </LayoutHeader>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
     <Tabs
       as="div"
-      v-model="tabIndex"
+      v-model="activeTab"
       :tabs="tabs"
       class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-0 [&_[role='tablist']]:px-5 [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
@@ -57,7 +60,7 @@
           :docname="projectId"
           :tabs="tabs"
           v-model:reload="reload"
-          v-model:tabIndex="tabIndex"
+          v-model:activeTab="activeTab"
           @beforeSave="beforeStatusChange"
           @afterSave="reloadAssignees"
         />
@@ -91,7 +94,9 @@
                         options: [
                           {
                             icon: 'upload',
-                            label: doc.image ? __('Change image') : __('Upload image'),
+                            label: doc.image
+                              ? __('Change image')
+                              : __('Upload image'),
                             onClick: openFileSelector,
                           },
                           {
@@ -107,7 +112,10 @@
               >
                 <div
                   class="z-1 absolute bottom-0.5 left-0 right-0.5 flex h-9 cursor-pointer items-center justify-center rounded-b-full bg-black bg-opacity-40 pt-3 opacity-0 duration-300 ease-in-out group-hover:opacity-100"
-                  style="-webkit-clip-path: inset(12px 0 0 0); clip-path: inset(12px 0 0 0);"
+                  style="
+                    -webkit-clip-path: inset(12px 0 0 0);
+                    clip-path: inset(12px 0 0 0);
+                  "
                 >
                   <CameraIcon class="size-4 cursor-pointer text-white" />
                 </div>
@@ -124,21 +132,32 @@
                   v-if="callEnabled"
                   :tooltip="__('Make a call')"
                   :icon="PhoneIcon"
-                  @click="() => (doc.mobile_no ? makeCall(doc.mobile_no) : toast.error(__('No phone number set')))"
+                  @click="
+                    () =>
+                      doc.mobile_no
+                        ? makeCall(doc.mobile_no)
+                        : toast.error(__('No phone number set'))
+                  "
                 />
 
                 <Button
                   v-if="doc.email"
                   :tooltip="__('Send an email')"
                   :icon="Email2Icon"
-                  @click="doc.email ? openEmailBox() : toast.error(__('No email set'))"
+                  @click="
+                    doc.email ? openEmailBox() : toast.error(__('No email set'))
+                  "
                 />
 
                 <Button
                   v-if="doc.website"
                   :tooltip="__('Go to website')"
                   :icon="LinkIcon"
-                  @click="doc.website ? openWebsite(doc.website) : toast.error(__('No website set'))"
+                  @click="
+                    doc.website
+                      ? openWebsite(doc.website)
+                      : toast.error(__('No website set'))
+                  "
                 />
 
                 <Button
@@ -166,7 +185,10 @@
         v-model="doc"
         @updateField="updateField"
       />
-      <div v-if="sections.data" class="flex flex-1 flex-col justify-between overflow-hidden">
+      <div
+        v-if="sections.data"
+        class="flex flex-1 flex-col justify-between overflow-hidden"
+      >
         <SidePanelLayout
           :sections="sections.data"
           doctype="Smart Project"
@@ -234,12 +256,16 @@ import LostReasonModal from '@/components/Modals/LostReasonModal.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import AssignTo from '@/components/AssignTo.vue'
 import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
- 
-import Section from '@/components/Section.vue'
+
 import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SLASection from '@/components/SLASection.vue'
 import CustomActions from '@/components/CustomActions.vue'
-import { openWebsite, setupCustomizations, copyToClipboard, validateIsImageFile } from '@/utils'
+import {
+  openWebsite,
+  setupCustomizations,
+  copyToClipboard,
+  validateIsImageFile,
+} from '@/utils'
 import { getView } from '@/utils/view'
 import { getSettings } from '@/stores/settings'
 import { globalStore } from '@/stores/global'
@@ -259,7 +285,6 @@ import {
   usePageMeta,
   toast,
 } from 'frappe-ui'
-import { useOnboarding } from 'frappe-ui/frappe'
 import {
   ref,
   computed,
@@ -277,9 +302,6 @@ const { $dialog, $socket, makeCall } = globalStore()
 const { statusOptionsAll, getDealStatus } = statusesStore()
 const { doctypeMeta, getFields } = getMeta('Smart Project')
 
-const { updateOnboardingStep, isOnboardingStepsCompleted } =
-  useOnboarding('frappecrm')
-
 const route = useRoute()
 const router = useRouter()
 
@@ -294,14 +316,23 @@ const errorTitle = ref('')
 const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 
-const { triggerOnChange, assignees, permissions, document, scripts, error } = useDocument(
-  'Smart Project',
-  props.projectId,
-)
+const {
+  triggerOnChange,
+  triggerOnRender,
+  assignees,
+  permissions,
+  document,
+  scripts,
+  error,
+} = useDocument('Smart Project', props.projectId)
 
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
 const doc = computed(() => document.doc || {})
+
+onMounted(async () => {
+  if (document.doc) await triggerOnRender()
+})
 
 watch(error, (err) => {
   if (err) {
@@ -380,7 +411,7 @@ const breadcrumbs = computed(() => {
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['Smart Project']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return doc.value?.[t] || props.projectId
 })
 
@@ -400,7 +431,9 @@ const statuses = computed(() => {
     const fields = getFields()
     const statusField = (fields || []).find((f) => f.fieldname === 'status')
     if (statusField?.options?.length) {
-      customStatuses = statusField.options.map((o) => o.value || o.label).filter(Boolean)
+      customStatuses = statusField.options
+        .map((o) => o.value || o.label)
+        .filter(Boolean)
     }
   }
 
@@ -418,8 +451,9 @@ const tabs = computed(() => {
   let tabOptions = [
     {
       name: 'Activity',
+      value: 'activity',
       label: __('Activity'),
-      icon: ActivityIcon,
+      iconLeft: ActivityIcon,
     },
     // {
     //   name: 'Emails',
@@ -428,35 +462,43 @@ const tabs = computed(() => {
     // },
     {
       name: 'Comments',
+      value: 'comments',
       label: __('Comments'),
-      icon: CommentIcon,
+      iconLeft: CommentIcon,
     },
     {
       name: 'Data',
+      value: 'data',
       label: __('Data'),
-      icon: DetailsIcon,
+      iconLeft: DetailsIcon,
     },
     {
       name: 'Project Tasks',
+      value: 'project-tasks',
       label: __('Project Tasks'),
-      icon: ProjectTaskIcon,
+      iconLeft: ProjectTaskIcon,
     },
     {
       name: 'Notes',
+      value: 'notes',
       label: __('Notes'),
-      icon: NoteIcon,
+      iconLeft: NoteIcon,
     },
     {
       name: 'Attachments',
+      value: 'attachments',
       label: __('Attachments'),
-      icon: AttachmentIcon,
+      iconLeft: AttachmentIcon,
     },
-
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
 })
 
-const { tabIndex, changeTabTo } = useActiveTabManager(tabs, 'lastDealTab')
+const { activeTab, changeTabTo } = useActiveTabManager(
+  tabs,
+  'lastProjectTab',
+  'lastDealTab',
+)
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
@@ -488,13 +530,11 @@ async function triggerStatusChange(value) {
 
 function updateField(name, value) {
   // console.log('OnUpdate Field: ', name, ' - - - ', value);
-  
-  if (name == 'status' && !isOnboardingStepsCompleted.value) {
-    updateOnboardingStep('change_deal_status')
-  }
 
   value = Array.isArray(name) ? '' : value
-  let oldValues = Array.isArray(name) ? {} : doc.value[name]
+  let oldValues = Array.isArray(name)
+    ? Object.fromEntries(name.map((field) => [field, doc.value[field]]))
+    : doc.value[name]
 
   if (Array.isArray(name)) {
     name.forEach((field) => (doc.value[field] = value))
@@ -522,8 +562,8 @@ function deleteDeal() {
 const activities = ref(null)
 
 function openEmailBox() {
-  let currentTab = tabs.value[tabIndex.value]
-  if (!['Emails', 'Comments', 'Activities'].includes(currentTab.name)) {
+  let currentTab = tabs.value.find((tab) => tab.value === activeTab.value)
+  if (!['Emails', 'Comments', 'Activity'].includes(currentTab?.name)) {
     activities.value.changeTabTo('emails')
   }
   nextTick(() => (activities.value.emailBox.show = true))
@@ -546,7 +586,7 @@ function setLostReason() {
 
 function beforeStatusChange(data) {
   // console.log('Data Field Changed: ', data);
-  
+
   // if (
   //   data?.hasOwnProperty('status') &&
   //   getDealStatus(data.status).type == 'Lost'
@@ -558,12 +598,12 @@ function beforeStatusChange(data) {
   //   })
   // }
   document.save.submit(null, {
-      onSuccess: () => reloadAssignees(data),
-    })
+    onSuccess: () => reloadAssignees(data),
+  })
 }
 
 function reloadAssignees(data) {
-  if (data?.hasOwnProperty('deal_owner')) {
+  if (Object.hasOwn(data ?? {}, 'deal_owner')) {
     assignees.reload()
   }
 }
@@ -571,7 +611,7 @@ function statusColor(status) {
   if (!status) return ''
   if (status === 'Active') return 'text-green-600'
   if (status === 'On Hold') return 'text-red-600'
-  if( status === 'Pending' || status === 'Planning') return 'text-yellow-600'
+  if (status === 'Pending' || status === 'Planning') return 'text-yellow-600'
   if (status === 'Completed' || status === 'Done') return 'text-blue-600'
   if (status === 'Cancelled' || status === 'Lost') return 'text-gray-600'
   return 'text-gray-500'

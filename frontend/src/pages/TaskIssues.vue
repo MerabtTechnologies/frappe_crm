@@ -1,7 +1,11 @@
 <template>
   <LayoutHeader>
     <template #left-header>
-      <ViewBreadcrumbs v-model="viewControls" routeName="Issues" label="Task Issues" />
+      <ViewBreadcrumbs
+        v-model="viewControls"
+        routeName="Issues"
+        label="Task Issues"
+      />
     </template>
     <template #right-header>
       <CustomActions
@@ -23,64 +27,88 @@
     v-model:resizeColumn="triggerResize"
     v-model:updatedPageCount="updatedPageCount"
     doctype="Issue"
-    
   />
-  <div class="mt-4 p-2 bg-gray-50 ">
+  <div class="mt-4 p-2 bg-gray-50">
     <!-- Filters and Create are provided by ViewControls -->
 
     <!-- 3-column layout: Today / Overdue / Upcoming -->
     <div class="overflow-x-auto">
       <div class="flex gap-4 md:grid md:grid-cols-3">
-      <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
-          <div class="font-semibold mb-2 text-center "">{{ __('Today') }}</div>
-          <div class="font-semibold mb-2 text-center ">{{ `[${todayItems.length}]` }}</div>
+        <div
+          class="bg-white rounded shadow-sm p-3"
+          style="min-width: 260px; flex: 0 0 260px"
+        >
+          <div
+            class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex"
+          >
+            <div class="font-semibold mb-2 text-center">{{ __('Today') }}</div>
+            <div class="font-semibold mb-2 text-center">
+              {{ `[${todayItems.length}]` }}
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <IssueItem
+              v-for="item in todayItems"
+              :key="item.name"
+              :item="item"
+              :actions="actions"
+              @open="showTask"
+              @redirect="redirect"
+            />
+          </div>
         </div>
-        <div class="flex flex-col gap-2">
-          <IssueItem
-            v-for="item in todayItems"
-            :key="item.name"
-            :item="item"
-            :actions="actions"
-            @open="showTask"
-            @redirect="redirect"
-          />
-        </div>
-      </div>
 
-      <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
-          <div class="font-semibold mb-2 text-center">{{ __('Overdue') }}</div>
-          <div class="font-semibold mb-2 text-center">{{ `[${overdueItems.length}]` }}</div>
+        <div
+          class="bg-white rounded shadow-sm p-3"
+          style="min-width: 260px; flex: 0 0 260px"
+        >
+          <div
+            class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex"
+          >
+            <div class="font-semibold mb-2 text-center">
+              {{ __('Overdue') }}
+            </div>
+            <div class="font-semibold mb-2 text-center">
+              {{ `[${overdueItems.length}]` }}
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <IssueItem
+              v-for="item in overdueItems"
+              :key="item.name"
+              :item="item"
+              :actions="actions"
+              @open="showTask"
+              @redirect="redirect"
+            />
+          </div>
         </div>
-        <div class="flex flex-col gap-2">
-          <IssueItem
-            v-for="item in overdueItems"
-            :key="item.name"
-            :item="item"
-            :actions="actions"
-            @open="showTask"
-            @redirect="redirect"
-          />
-        </div>
-      </div>
 
-      <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
-          <div class="font-semibold mb-2 text-center">{{ __('Completed/Closed') }}</div>
-          <div class="font-semibold mb-2 text-center">{{ `[${completedItems.length}]` }}</div>
+        <div
+          class="bg-white rounded shadow-sm p-3"
+          style="min-width: 260px; flex: 0 0 260px"
+        >
+          <div
+            class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex"
+          >
+            <div class="font-semibold mb-2 text-center">
+              {{ __('Completed/Closed') }}
+            </div>
+            <div class="font-semibold mb-2 text-center">
+              {{ `[${completedItems.length}]` }}
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <IssueItem
+              v-for="item in completedItems"
+              :key="item.name"
+              :item="item"
+              :actions="actions"
+              @open="showTask"
+              @redirect="redirect"
+            />
+          </div>
         </div>
-        <div class="flex flex-col gap-2">
-          <IssueItem
-            v-for="item in completedItems"
-            :key="item.name"
-            :item="item"
-            :actions="actions"
-            @open="showTask"
-            @redirect="redirect"
-          />
-        </div>
-      </div>
       </div>
     </div>
   </div>
@@ -118,11 +146,10 @@ import IssueItem from '@/components/IssueItem.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
-import { call, ListItem, toast } from 'frappe-ui'
+import { call, toast } from 'frappe-ui'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { globalStore } from '@/stores/global'
-
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta('Issue')
@@ -195,7 +222,9 @@ const todayItems = computed(() => {
     if (!d) return false
     return d >= s && d < t
   })
-  return dated_data.filter(item => !['Resolved', 'Closed'].includes(item.status))
+  return dated_data.filter(
+    (item) => !['Resolved', 'Closed'].includes(item.status),
+  )
 })
 
 const overdueItems = computed(() => {
@@ -205,7 +234,9 @@ const overdueItems = computed(() => {
     if (!d) return false
     return d < s
   })
-  return dated_data.filter(item => !['Resolved', 'Closed'].includes(item.status))
+  return dated_data.filter(
+    (item) => !['Resolved', 'Closed'].includes(item.status),
+  )
 })
 
 const completedItems = computed(() => {
@@ -298,7 +329,6 @@ const showTaskModal = ref(false)
 const showTaskCreateModal = ref(false)
 const data_edit = ref(false)
 
-
 // change this to pass data to issue modal instead of task modal for new data creation
 const task = ref({
   name: '',
@@ -340,7 +370,7 @@ function showTask(name, edit = false) {
     reference_doctype: t.reference_doctype || '',
     reference_docname: t.reference_docname || '',
   }
-  if(edit) {
+  if (edit) {
     showTaskCreateModal.value = true
   } else {
     task.value = {
@@ -358,7 +388,6 @@ function editTask(name) {
   task.value = {
     name: name,
   }
-
 
   data_edit.value = true
 }
@@ -407,7 +436,6 @@ function actions(name) {
       onClick: () => {
         // showTask(name, true)
         editTask(name)
-
       },
     },
   ]
@@ -438,7 +466,9 @@ const openTaskFromURL = () => {
 
   const tryOpen = () => {
     if (!rows.value?.length) return false
-    const found = rows.value.find((row) => String(row.name) === String(taskName))
+    const found = rows.value.find(
+      (row) => String(row.name) === String(taskName),
+    )
     if (found) {
       showTask(found.name)
       searchParams.delete('open')
@@ -466,12 +496,10 @@ onMounted(() => {
   $socket.on('new_issue_notification', () => {
     toast.success(__('New Task Ticket Created'))
     // console.log("socket capture : new_issue_notification");
-    
   })
 })
 
 onBeforeUnmount(() => {
   $socket.off('new_issue_notification')
 })
-
 </script>

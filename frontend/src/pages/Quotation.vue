@@ -5,7 +5,6 @@
         <template #prefix="{ item }">
           <Icon v-if="item.icon" :icon="item.icon" class="mr-2 h-4" />
         </template>
-       
       </Breadcrumbs>
     </template>
     <template v-if="!errorTitle" #right-header>
@@ -17,31 +16,31 @@
         v-if="document.actions?.length"
         :actions="document.actions"
       />
-         <!-- To create gamma proposal in Quick entry -->
-       <div class="ml-auto">
-            <Button
-                  :label="__('Create Gamma Proposal')"
-                  iconLeft="plus"
-                  @click="showDealModal = true"
-                />
-              </div>
-      <AssignTo v-model="assignees.data" doctype="Quotation" :docname="quotationId" />
+      <!-- To create gamma proposal in Quick entry -->
+      <div class="ml-auto">
+        <Button
+          :label="__('Create Gamma Proposal')"
+          iconLeft="plus"
+          @click="showDealModal = true"
+        />
+      </div>
+      <AssignTo
+        v-model="assignees.data"
+        doctype="Quotation"
+        :docname="quotationId"
+      />
 
-          <Button
-            v-if="doc.status"
-            :label="doc.status"
-          >
-            <template #prefix>
-              <IndicatorIcon :class="statusColor(doc.status)" />
-            </template>
-          </Button>
-
+      <Button v-if="doc.status" :label="doc.status">
+        <template #prefix>
+          <IndicatorIcon :class="statusColor(doc.status)" />
+        </template>
+      </Button>
     </template>
   </LayoutHeader>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
     <Tabs
       as="div"
-      v-model="tabIndex"
+      v-model="activeTab"
       :tabs="tabs"
       class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-0 [&_[role='tablist']]:px-5 [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
@@ -52,7 +51,7 @@
           :docname="quotationId"
           :tabs="tabs"
           v-model:reload="reload"
-          v-model:tabIndex="tabIndex"
+          v-model:activeTab="activeTab"
           @beforeSave="beforeStatusChange"
           @afterSave="reloadAssignees"
         />
@@ -89,7 +88,7 @@
               :icon="PhoneIcon"
               @click="triggerCall"
             />
-<!-- To check if email and website exist -->
+            <!-- To check if email and website exist -->
 
             <Button
               v-if="doc.email"
@@ -119,8 +118,8 @@
             <Button
               :tooltip="__('Print')"
               :icon="PrintIcon"
-              @click="handlePrintClick"            
-              />
+              @click="handlePrintClick"
+            />
 
             <Button
               v-if="canDelete"
@@ -343,17 +342,9 @@
   <GammaModal
     v-if="showDealModal"
     v-model="showDealModal"
-    :defaults="defaults"
+    :defaults="{ quotation: quotationId }"
   />
-<!-- Create quotation quick entry -->
-  <QuotationModal
-    v-if="showQuickEntryModal"
-    v-model="showQuickEntryModal"
-    :props="quickEntryProps"
-  />
-
-  
-
+  <!-- Create quotation quick entry -->
 </template>
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
@@ -384,12 +375,12 @@ import AssignTo from '@/components/AssignTo.vue'
 import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
 import ContactModal from '@/components/Modals/ContactModal.vue'
 import Link from '@/components/Controls/Link.vue'
-import Section from '@/components/Section.vue'
+import Section from '@/components/CollapsibleSection.vue'
 import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SLASection from '@/components/SLASection.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import GammaModal from '../components/Modals/GammaModal.vue'
-import QuotationModal from '@/components/Modals/QuotationModal.vue'  
+
 import { openWebsite, setupCustomizations, copyToClipboard } from '@/utils'
 import { getView } from '@/utils/view'
 import { getSettings } from '@/stores/settings'
@@ -409,7 +400,6 @@ import {
   usePageMeta,
   toast,
 } from 'frappe-ui'
-import { useOnboarding } from 'frappe-ui/frappe'
 import {
   ref,
   computed,
@@ -428,9 +418,6 @@ const { $dialog, $socket, makeCall } = globalStore()
 const { statusOptions, getDealStatus } = statusesStore()
 const { doctypeMeta } = getMeta('Quotation')
 
-const { updateOnboardingStep, isOnboardingStepsCompleted } =
-  useOnboarding('frappecrm')
-
 const route = useRoute()
 const router = useRouter()
 
@@ -443,30 +430,28 @@ const props = defineProps({
 
 // -------FOr Create Gamma Proposal to quick entry----
 const showDealModal = ref(false)
-onNewClick: (column) => onNewClick(column),
-
-function onNewClick(column) {
-  let column_field = deals.value.params.column_field
-
-  if (column_field) {
-    defaults[column_field] = column.column.name
-  }
-
-  showDealModal.value = true
-}
 // -----End----------------------
 const errorTitle = ref('')
 const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 
-const { triggerOnChange, assignees, permissions, document, scripts, error } = useDocument(
-  'Quotation',
-  props.quotationId,
-)
+const {
+  triggerOnChange,
+  triggerOnRender,
+  assignees,
+  permissions,
+  document,
+  scripts,
+  error,
+} = useDocument('Quotation', props.quotationId)
 
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
 const doc = computed(() => document.doc || {})
+
+onMounted(async () => {
+  if (document.doc) await triggerOnRender()
+})
 
 watch(error, (err) => {
   if (err) {
@@ -538,11 +523,11 @@ const showFilesUploader = ref(false)
 const _organization = ref({})
 const handlePrintClick = () => {
   // Try adding 'props.' before the variable name
-  // console.log("Target Doc:", props.quotationId); 
-  
-  const url = `/printview?doctype=Quotation&name=${props.quotationId}&format=Standard`;
-  window.open(url, '_blank');
-};
+  // console.log("Target Doc:", props.quotationId);
+
+  const url = `/printview?doctype=Quotation&name=${props.quotationId}&format=Standard`
+  window.open(url, '_blank')
+}
 const breadcrumbs = computed(() => {
   let items = [{ label: __('Quotation'), route: { name: 'Quotations' } }]
 
@@ -569,7 +554,7 @@ const breadcrumbs = computed(() => {
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['Quotation']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return doc.value?.[t] || props.quotationId
 })
 
@@ -591,44 +576,55 @@ const tabs = computed(() => {
   let tabOptions = [
     {
       name: 'Activity',
+      value: 'activity',
       label: __('Activity'),
-      icon: ActivityIcon,
+      iconLeft: ActivityIcon,
     },
     {
       name: 'Emails',
+      value: 'emails',
       label: __('Emails'),
-      icon: EmailIcon,
+      iconLeft: EmailIcon,
     },
     {
       name: 'Comments',
+      value: 'comments',
       label: __('Comments'),
-      icon: CommentIcon,
+      iconLeft: CommentIcon,
     },
     {
       name: 'Data',
+      value: 'data',
       label: __('Data'),
-      icon: DetailsIcon,
+      iconLeft: DetailsIcon,
     },
     {
       name: 'Notes',
+      value: 'notes',
       label: __('Notes'),
-      icon: NoteIcon,
+      iconLeft: NoteIcon,
     },
     {
       name: 'Attachments',
+      value: 'attachments',
       label: __('Attachments'),
-      icon: AttachmentIcon,
+      iconLeft: AttachmentIcon,
     },
     {
-      name:'Gamma',
+      name: 'Gamma',
+      value: 'gamma',
       label: __('Gamma'),
-      icon: GammaProposalIcon,
-    }
+      iconLeft: GammaProposalIcon,
+    },
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
 })
 
-const { tabIndex } = useActiveTabManager(tabs, 'lastDealTab')
+const { activeTab } = useActiveTabManager(
+  tabs,
+  'lastQuotationTab',
+  'lastDealTab',
+)
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
@@ -689,8 +685,10 @@ async function addContact(contact) {
     return
   }
 
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.add_contact', {
-    deal: props.quotationId,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Quotation',
+    name: props.quotationId,
+    action: 'add',
     contact,
   })
   if (d) {
@@ -700,8 +698,10 @@ async function addContact(contact) {
 }
 
 async function removeContact(contact) {
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.remove_contact', {
-    deal: props.quotationId,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Quotation',
+    name: props.quotationId,
+    action: 'remove',
     contact,
   })
   if (d) {
@@ -711,8 +711,10 @@ async function removeContact(contact) {
 }
 
 async function setPrimaryContact(contact) {
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.set_primary_contact', {
-    deal: props.quotationId,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Quotation',
+    name: props.quotationId,
+    action: 'primary',
     contact,
   })
   if (d) {
@@ -722,9 +724,9 @@ async function setPrimaryContact(contact) {
 }
 
 const dealContacts = createResource({
-  url: 'crm.fcrm.doctype.crm_deal.api.get_deal_contacts',
-  params: { name: props.quotationId },
-  cache: ['deal_contacts', props.quotationId],
+  url: 'merabt_crm.portal_api.contacts.get_contacts',
+  params: { doctype: 'Quotation', name: props.quotationId },
+  cache: ['custom_contacts', 'Quotation', props.quotationId],
   transform: (data) => {
     data.forEach((contact) => {
       contact.opened = false
@@ -737,7 +739,7 @@ if (!dealContacts.data) dealContacts.fetch()
 
 function triggerCall() {
   let primaryContact = dealContacts.data?.find((c) => c.is_primary)
-  let mobile_no = primaryContact.mobile_no || null
+  let mobile_no = primaryContact?.mobile_no || null
 
   if (!primaryContact) {
     toast.error(__('No primary contact set'))
@@ -764,12 +766,10 @@ async function triggerStatusChange(value) {
 }
 
 function updateField(name, value) {
-  if (name == 'status' && !isOnboardingStepsCompleted.value) {
-    updateOnboardingStep('change_deal_status')
-  }
-
   value = Array.isArray(name) ? '' : value
-  let oldValues = Array.isArray(name) ? {} : doc.value[name]
+  let oldValues = Array.isArray(name)
+    ? Object.fromEntries(name.map((field) => [field, doc.value[field]]))
+    : doc.value[name]
 
   if (Array.isArray(name)) {
     name.forEach((field) => (doc.value[field] = value))
@@ -797,8 +797,8 @@ function deleteDeal() {
 const activities = ref(null)
 
 function openEmailBox() {
-  let currentTab = tabs.value[tabIndex.value]
-  if (!['Emails', 'Comments', 'Activities'].includes(currentTab.name)) {
+  let currentTab = tabs.value.find((tab) => tab.value === activeTab.value)
+  if (!['Emails', 'Comments', 'Activity'].includes(currentTab?.name)) {
     activities.value.changeTabTo('emails')
   }
   nextTick(() => (activities.value.emailBox.show = true))
@@ -831,12 +831,12 @@ function beforeStatusChange(data) {
   //   })
   // }
   document.save.submit(null, {
-      onSuccess: () => reloadAssignees(data),
-    })
+    onSuccess: () => reloadAssignees(data),
+  })
 }
 
 function reloadAssignees(data) {
-  if (data?.hasOwnProperty('deal_owner')) {
+  if (Object.hasOwn(data ?? {}, 'deal_owner')) {
     assignees.reload()
   }
 }
@@ -845,12 +845,9 @@ function statusColor(status) {
   if (!status) return ''
   if (status === 'Active' || status === 'Open') return 'text-green-600'
   if (status === 'On Hold') return 'text-red-600'
-  if( status === 'Pending' || status === 'Planning') return 'text-yellow-600'
+  if (status === 'Pending' || status === 'Planning') return 'text-yellow-600'
   if (status === 'Completed' || status === 'Done') return 'text-blue-600'
   if (status === 'Cancelled' || status === 'Lost') return 'text-gray-600'
   return 'text-gray-500'
 }
-
-
-
 </script>

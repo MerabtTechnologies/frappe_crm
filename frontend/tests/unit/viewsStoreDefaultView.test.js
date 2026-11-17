@@ -59,6 +59,35 @@ describe('viewsStore.getDefaultView', () => {
     expect(store.getDefaultView().name).toBe('Alpha View')
   })
 
+  it('removes deleted named and standard views after a reload', async () => {
+    const store = await storeWithViews([
+      {
+        ...defaultView('Projects', 'Old'),
+        dt: 'Smart Project',
+        is_standard: 1,
+        pinned: 1,
+        public: 1,
+      },
+    ])
+    expect(store.getView('Old', 'list', 'Smart Project').name).toBe('Old')
+    expect(store.getView(null, 'list', 'Smart Project').name).toBe('Old')
+    serverViews = []
+    await store.reload()
+    expect(store.getView('Old', 'list', 'Smart Project')).toBeNull()
+    expect(store.getView(null, 'list', 'Smart Project')).toBeNull()
+    expect(store.getDefaultView('Projects')).toBeNull()
+    expect(store.getPinnedViews()).toEqual([])
+    expect(store.getPublicViews()).toEqual([])
+  })
+
+  it("does not resolve another doctype's named view", async () => {
+    const store = await storeWithViews([
+      { name: 'Shared Name', dt: 'CRM Lead', type: 'list' },
+    ])
+    expect(store.getView('Shared Name', 'list', 'Smart Project')).toBeNull()
+    expect(store.getView('Shared Name', 'list', 'CRM Lead').dt).toBe('CRM Lead')
+  })
+
   it('returns null when no default exists', async () => {
     const store = await storeWithViews([
       { name: 'Plain', route_name: 'Leads', type: 'list', is_default: 0 },

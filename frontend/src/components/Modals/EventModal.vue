@@ -48,7 +48,7 @@
           <div
             v-if="hasOrganizationSections || hasContactSections"
             class="h-px w-full border-t my-5"
-          /> 
+          />
           <FieldLayout
             ref="fieldLayoutRef"
             v-if="tabs.data?.length"
@@ -81,7 +81,7 @@ import { statusesStore } from '@/stores/statuses'
 import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { Switch, createResource } from 'frappe-ui'
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -113,7 +113,6 @@ const hasContactSections = ref(true)
 const isDealCreating = ref(false)
 const chooseExistingContact = ref(true)
 const chooseExistingOrganization = ref(true)
-
 
 watch(
   [chooseExistingOrganization, chooseExistingContact],
@@ -183,9 +182,8 @@ const tabs = createResource({
 // })
 
 async function createDeal() {
-
   await triggerOnBeforeCreate?.()
-    // console.log("Creating Event", deal.doc);
+  // console.log("Creating Event", deal.doc);
 
   createResource({
     url: 'merabt_crm.portal_api.api.create_new_doc',
@@ -234,7 +232,7 @@ onMounted(() => {
   // if (!deal.doc.status && dealStatuses.value[0].value) {
   //   deal.doc.status = dealStatuses.value[0].value
   // }
- 
+
   //   tabs.data?.forEach(tab => {
   //     tab.sections?.forEach(section => {
   //       section.columns?.forEach(column => {
@@ -249,6 +247,5 @@ onMounted(() => {
   //     })
 
   // })
-
 })
 </script>

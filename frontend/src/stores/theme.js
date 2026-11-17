@@ -1,16 +1,15 @@
-import { useStorage } from '@vueuse/core'
+import { useColorScheme } from 'frappe-ui'
 
-export const theme = useStorage('theme', 'light')
+const { colorScheme, setColorScheme, toggleColorScheme } = useColorScheme()
+export const theme = colorScheme
 
 export function toggleTheme() {
-  const currentTheme = document.documentElement.getAttribute('data-theme')
-  theme.value = currentTheme === 'dark' ? 'light' : 'dark'
-  document.documentElement.setAttribute('data-theme', theme.value)
+  toggleColorScheme()
 }
 
 export function setTheme(value) {
-  theme.value = value || theme.value
-  if (['light', 'dark'].includes(theme.value)) {
-    document.documentElement.setAttribute('data-theme', theme.value)
-  }
+  const scheme = value || localStorage.getItem('theme') || 'light'
+  setColorScheme(
+    ['light', 'dark', 'system'].includes(scheme) ? scheme : 'light',
+  )
 }

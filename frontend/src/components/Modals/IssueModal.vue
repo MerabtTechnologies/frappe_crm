@@ -29,7 +29,7 @@
           <div
             v-if="hasOrganizationSections || hasContactSections"
             class="h-px w-full border-t my-5"
-          /> 
+          />
           <FieldLayout
             ref="fieldLayoutRef"
             v-if="tabs.data?.length"
@@ -37,7 +37,7 @@
             :data="deal.doc"
             doctype="Issue"
           />
-          
+
           <ErrorMessage class="mt-4" v-if="error" :message="__(error)" />
         </div>
       </div>
@@ -63,7 +63,7 @@ import { statusesStore } from '@/stores/statuses'
 import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { Switch, createResource } from 'frappe-ui'
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -85,15 +85,12 @@ const error = ref(null)
 
 const { document: deal, triggerOnBeforeCreate } = useDocument('Issue')
 
-
-
 const hasOrganizationSections = ref(true)
 const hasContactSections = ref(true)
 
 const isDealCreating = ref(false)
 const chooseExistingContact = ref(true)
 const chooseExistingOrganization = ref(true)
-
 
 watch(
   [chooseExistingOrganization, chooseExistingContact],
@@ -162,31 +159,7 @@ const tabs = createResource({
 //   return statuses
 // })
 
-const updateTaskResource = createResource({
-  url: 'frappe.client.set_value',
-  makeParams() {
-    return {
-      doctype: 'Issue',
-      name: _task.value.name,
-      fieldname: _task.value,
-    }
-  },
-  validate() {
-      error.value = null
-      isDealCreating.value = true
-    },
-  onSuccess(d) {
-    if (d.name) {
-      issues.value?.reload()
-      emit('after', d.name)
-      show.value = false
-    }
-  },
-
-})
-
 async function createDeal() {
-
   await triggerOnBeforeCreate?.()
 
   createResource({
@@ -237,7 +210,7 @@ onMounted(() => {
   // }
 
   Object.assign(deal.doc, props.defaults)
-  
+
   // deal.doc = {
   //   ...deal.doc,
   //   ...JSON.parse(JSON.stringify(issue.doc)),
@@ -247,9 +220,5 @@ onMounted(() => {
   //   deal.doc = { ...deal.doc, ...props.defaults }
   // }
   // deal.doc = { ...deal.doc, ...props.defaults }
-  
-  
-  
 })
 </script>
-  

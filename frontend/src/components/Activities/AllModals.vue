@@ -1,5 +1,6 @@
 <template>
   <ProjectTaskModal
+    v-if="showProjectTaskModal"
     v-model="showProjectTaskModal"
     v-model:reloadTasks="activities"
     :task="projectTask"
@@ -8,29 +9,13 @@
     @after="redirect('project-tasks')"
   />
   <GammaModal
+    v-if="showGammaProposalModal"
     v-model="showGammaProposalModal"
-    v-model:reloadProposals="activities"
-    :proposal="gammaProposal"
-    :doctype="doctype"
-    :doc="doc?.name"
-    @after="redirect('gamma-proposal')"
+    :defaults="gammaProposal"
+    @after="activities?.reload()"
   />
-  <NoteModal
-    v-model="showNoteModal"
-    v-model:reloadNotes="activities"
-    :note="note"
-    :doctype="doctype"
-    :doc="doc?.name"
-    @after="redirect('notes')"
-  />
-  <CallLogModal
-    v-if="showCallLogModal"
-    v-model="showCallLogModal"
-    :data="callLog"
-    :referenceDoc="referenceDoc"
-    :options="{ afterInsert: () => activities.reload() }"
-  />
-   <QuotationModal
+  <QuotationModal
+    v-if="showQuotationModal"
     v-model="showQuotationModal"
     v-model:reloadQuotations="activities"
     :defaults="quotation"
@@ -72,7 +57,9 @@ function showTask(task) {
     defaults: {
       reference_doctype: props.doctype,
       reference_docname: props.doc?.name,
-      due_date: !task?.due_date ? now.format('YYYY-MM-DD HH:mm:ss') : task.due_date,
+      due_date: !task?.due_date
+        ? now.format('YYYY-MM-DD HH:mm:ss')
+        : task.due_date,
     },
     callbacks: {
       afterInsert: (d) => afterDoctype(d, true),
@@ -127,7 +114,7 @@ function showProjectTask(t) {
 //         setup() {
 //           return {}
 //         },
-//       })        
+//       })
 // }
 const showGammaProposalModal = ref(false)
 const gammaProposal = ref({})
@@ -138,6 +125,7 @@ function showGammaProposal(t) {
     customer: '',
     valid_till: '',
     status: 'Draft',
+    quotation: props.doctype === 'Quotation' ? props.doc.name : undefined,
   }
   showGammaProposalModal.value = true
 }
@@ -155,14 +143,13 @@ function showQuotation(q) {
     transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
     order_type: 'Sales',
     quotation_to: 'Customer',
-    crm_deal: props.doc.name
-
+    crm_deal: props.doctype === 'CRM Deal' ? props.doc.name : undefined,
   }
   showQuotationModal.value = true
 }
 async function deleteProjectTask(name) {
   await call('frappe.client.delete', {
-    doctype: 'Task',
+    doctype: 'Smart Task',
     name,
   })
   activities.value.reload()
@@ -170,7 +157,7 @@ async function deleteProjectTask(name) {
 
 function updateProjectTaskStatus(status, task) {
   call('frappe.client.set_value', {
-    doctype: 'Task',
+    doctype: 'Smart Task',
     name: task.name,
     fieldname: 'status',
     value: status,
@@ -222,7 +209,9 @@ function afterDoctype(d, isInsert = false) {
   }
 
   if (isInsert) {
-    completeStep('create_first_' + name)
+    if (['CRM Lead', 'CRM Deal'].includes(props.doctype)) {
+      completeStep('create_first_' + name)
+    }
     capture(name + '_created')
   } else {
     capture(name + '_updated')
@@ -253,7 +242,7 @@ const route = useRoute()
 const router = useRouter()
 
 function redirect(tabName) {
-  if (route.name == 'Lead' || route.name == 'Deal' || route.name == 'Project') {
+  if (props.doc?.name) {
     let hash = '#' + tabName
     if (route.hash != hash) {
       router.push({ ...route, hash })
@@ -272,6 +261,5 @@ defineExpose({
   updateProjectTaskStatus,
   showGammaProposal,
   showQuotation,
-  
 })
 </script>

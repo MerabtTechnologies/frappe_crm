@@ -9,19 +9,23 @@
         </template>
       </Breadcrumbs>
       <div class="absolute right-0">
-          <Dropdown v-if="doc && statuses.length" :options="statuses" placement="right">
-            <template #default="{ open }">
-              <Button
-                v-if="doc.status"
-                :label="doc.status"
-                :iconRight="open ? 'chevron-up' : 'chevron-down'"
-              >
-                <template #prefix>
-                  <IndicatorIcon :class="statusColor(doc.status)" />
-                </template>
-              </Button>
-            </template>
-          </Dropdown>
+        <Dropdown
+          v-if="doc && statuses.length"
+          :options="statuses"
+          placement="right"
+        >
+          <template #default="{ open }">
+            <Button
+              v-if="doc.status"
+              :label="doc.status"
+              :iconRight="open ? 'chevron-up' : 'chevron-down'"
+            >
+              <template #prefix>
+                <IndicatorIcon :class="statusColor(doc.status)" />
+              </template>
+            </Button>
+          </template>
+        </Dropdown>
       </div>
     </header>
   </LayoutHeader>
@@ -29,7 +33,11 @@
     v-if="doc.name"
     class="flex h-12 items-center justify-between gap-2 border-b px-3 py-2.5"
   >
-    <AssignTo v-model="assignees.data" doctype="Gamma Proposal" :docname="GammaId" />
+    <AssignTo
+      v-model="assignees.data"
+      doctype="Gamma Proposal"
+      :docname="GammaId"
+    />
     <div class="flex items-center gap-2">
       <CustomActions
         v-if="document._actions?.length"
@@ -44,7 +52,7 @@
   <div v-if="doc.name" class="flex h-full overflow-hidden">
     <Tabs
       as="div"
-      v-model="tabIndex"
+      v-model="activeTab"
       :tabs="tabs"
       class="flex flex-1 overflow-auto flex-col [&_[role='tab']]:px-0 [&_[role='tablist']]:px-3 [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
@@ -74,8 +82,8 @@
           :docname="GammaId"
           :tabs="tabs"
           v-model:reload="reload"
-          v-model:tabIndex="tabIndex"
-          @beforeSave="saveChanges"
+          v-model:activeTab="activeTab"
+          @beforeSave="beforeStatusChange"
           @afterSave="reloadAssignees"
         />
       </template>
@@ -124,7 +132,6 @@ import OrganizationModal from '@/components/Modals/OrganizationModal.vue'
 import LostReasonModal from '@/components/Modals/LostReasonModal.vue'
 import AssignTo from '@/components/AssignTo.vue'
 import ContactModal from '@/components/Modals/ContactModal.vue'
-import Section from '@/components/Section.vue'
 import Link from '@/components/Controls/Link.vue'
 import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SLASection from '@/components/SLASection.vue'
@@ -152,7 +159,7 @@ import {
   usePageMeta,
   toast,
 } from 'frappe-ui'
-import { ref, computed, h, watch } from 'vue'
+import { ref, computed, h, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const { brand } = getSettings()
@@ -173,12 +180,20 @@ const errorTitle = ref('')
 const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 
-const { triggerOnChange, assignees, document, scripts, error } = useDocument(
-  'Gamma Proposal',
-  props.GammaId,
-)
+const {
+  triggerOnChange,
+  triggerOnRender,
+  assignees,
+  document,
+  scripts,
+  error,
+} = useDocument('Gamma Proposal', props.GammaId)
 
 const doc = computed(() => document.doc || {})
+
+onMounted(async () => {
+  if (document.doc) await triggerOnRender()
+})
 
 watch(error, (err) => {
   if (err) {
@@ -246,7 +261,7 @@ const breadcrumbs = computed(() => {
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['Gamma Proposal']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return doc.value?.[t] || props.GammaId
 })
 
@@ -261,44 +276,55 @@ const tabs = computed(() => {
   let tabOptions = [
     {
       name: 'Details',
+      value: 'details',
       label: __('Details'),
-      icon: DetailsIcon,
+      iconLeft: DetailsIcon,
       condition: () => isMobileView.value,
     },
     {
       name: 'Activity',
+      value: 'activity',
       label: __('Activity'),
-      icon: ActivityIcon,
+      iconLeft: ActivityIcon,
     },
     {
       name: 'Emails',
+      value: 'emails',
       label: __('Emails'),
-      icon: EmailIcon,
+      iconLeft: EmailIcon,
     },
     {
       name: 'Comments',
+      value: 'comments',
       label: __('Comments'),
-      icon: CommentIcon,
+      iconLeft: CommentIcon,
     },
     {
       name: 'Data',
+      value: 'data',
       label: __('Data'),
-      icon: DetailsIcon,
+      iconLeft: DetailsIcon,
     },
     {
       name: 'Notes',
+      value: 'notes',
       label: __('Notes'),
-      icon: NoteIcon,
+      iconLeft: NoteIcon,
     },
     {
       name: 'Attachments',
+      value: 'attachments',
       label: __('Attachments'),
-      icon: AttachmentIcon,
+      iconLeft: AttachmentIcon,
     },
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
 })
-const { tabIndex } = useActiveTabManager(tabs, 'lastDealTab')
+const { activeTab } = useActiveTabManager(
+  tabs,
+  'lastGammaProposalTab',
+  'lastDealTab',
+)
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
@@ -337,7 +363,7 @@ function contactOptions(contact) {
     {
       label: __('Delete'),
       icon: 'trash-2',
-      onClick: () => removeContact(contact),
+      onClick: () => removeContact(contact.name),
     },
   ]
 
@@ -358,8 +384,10 @@ async function addContact(contact) {
     return
   }
 
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.add_contact', {
-    deal: props.dealId,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Gamma Proposal',
+    name: props.GammaId,
+    action: 'add',
     contact,
   })
   if (d) {
@@ -369,8 +397,10 @@ async function addContact(contact) {
 }
 
 async function removeContact(contact) {
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.remove_contact', {
-    deal: props.dealId,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Gamma Proposal',
+    name: props.GammaId,
+    action: 'remove',
     contact,
   })
   if (d) {
@@ -380,8 +410,10 @@ async function removeContact(contact) {
 }
 
 async function setPrimaryContact(contact) {
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.set_primary_contact', {
-    deal: props.dealId,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Gamma Proposal',
+    name: props.GammaId,
+    action: 'primary',
     contact,
   })
   if (d) {
@@ -391,9 +423,9 @@ async function setPrimaryContact(contact) {
 }
 
 const dealContacts = createResource({
-  url: 'crm.fcrm.doctype.crm_deal.api.get_deal_contacts',
-  params: { name: props.GammaId },
-  cache: ['deal_contacts', props.GammaId],
+  url: 'merabt_crm.portal_api.contacts.get_contacts',
+  params: { doctype: 'Gamma Proposal', name: props.GammaId },
+  cache: ['custom_contacts', 'Gamma Proposal', props.GammaId],
   auto: true,
   onSuccess: (data) => {
     let contactSection = sections.data?.find(
@@ -416,7 +448,9 @@ const dealContacts = createResource({
 
 function updateField(name, value) {
   value = Array.isArray(name) ? '' : value
-  let oldValues = Array.isArray(name) ? {} : doc.value[name]
+  let oldValues = Array.isArray(name)
+    ? Object.fromEntries(name.map((field) => [field, doc.value[field]]))
+    : doc.value[name]
 
   if (Array.isArray(name)) {
     name.forEach((field) => (doc.value[field] = value))
@@ -455,9 +489,9 @@ const showLostReasonModal = ref(false)
 
 function setLostReason() {
   if (
-    getDealStatus(doc.status).type !== 'Lost' ||
-    (doc.lost_reason && doc.lost_reason !== 'Other') ||
-    (doc.lost_reason === 'Other' && doc.lost_notes)
+    getDealStatus(doc.value.status).type !== 'Lost' ||
+    (doc.value.lost_reason && doc.value.lost_reason !== 'Other') ||
+    (doc.value.lost_reason === 'Other' && doc.value.lost_notes)
   ) {
     document.save.submit()
     return
@@ -467,15 +501,13 @@ function setLostReason() {
 }
 
 function beforeStatusChange(data) {
-
-    document.save.submit(null, {
-      onSuccess: () => reloadAssignees(data),
-    })
+  document.save.submit(null, {
+    onSuccess: () => reloadAssignees(data),
+  })
 }
 
-
 function reloadAssignees(data) {
-  if (data?.hasOwnProperty('deal_owner')) {
+  if (Object.hasOwn(data ?? {}, 'deal_owner')) {
     assignees.reload()
   }
 }
@@ -496,7 +528,9 @@ const statuses = computed(() => {
     const fields = getFields()
     const statusField = (fields || []).find((f) => f.fieldname === 'status')
     if (statusField?.options?.length) {
-      customStatuses = statusField.options.map((o) => o.value || o.label).filter(Boolean)
+      customStatuses = statusField.options
+        .map((o) => o.value || o.label)
+        .filter(Boolean)
     }
   }
 
@@ -507,10 +541,9 @@ function statusColor(status) {
   if (!status) return ''
   if (status === 'Active' || status === 'Approved') return 'text-green-600'
   if (status === 'On Hold' || status === 'Shared') return 'text-red-500'
-  if( status === 'Pending' || status === 'In Review') return 'text-yellow-600'
+  if (status === 'Pending' || status === 'In Review') return 'text-yellow-600'
   if (status === 'Completed' || status === 'Done') return 'text-blue-600'
   if (status === 'Cancelled' || status === 'Rejected') return 'text-red-600'
   return 'text-gray-500'
 }
-
 </script>

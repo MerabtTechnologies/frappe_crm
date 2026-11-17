@@ -48,7 +48,7 @@
           <div
             v-if="hasOrganizationSections || hasContactSections"
             class="h-px w-full border-t my-5"
-          /> 
+          />
           <FieldLayout
             ref="fieldLayoutRef"
             v-if="tabs.data?.length"
@@ -81,7 +81,7 @@ import { statusesStore } from '@/stores/statuses'
 import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { Switch, createResource } from 'frappe-ui'
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -94,6 +94,7 @@ const { getUser, isManager } = usersStore()
 const { getDealStatus, statusOptions } = statusesStore()
 const { capture } = useTelemetry()
 const show = defineModel()
+const emit = defineEmits(['after'])
 const router = useRouter()
 const error = ref(null)
 
@@ -105,7 +106,6 @@ const hasContactSections = ref(true)
 const isDealCreating = ref(false)
 const chooseExistingContact = ref(true)
 const chooseExistingOrganization = ref(true)
-
 
 watch(
   [chooseExistingOrganization, chooseExistingContact],
@@ -136,27 +136,30 @@ const tabs = createResource({
     return _tabs.forEach((tab) => {
       tab.sections.forEach((section) => {
         section.columns.forEach((column) => {
-  //         if (
-  //           ['organization_section', 'organization_details_section'].includes(
-  //             section.name,
-  //           )
-  //         ) {
-  //           hasOrganizationSections.value = true
-  //         } else if (
-  //           ['contact_section', 'contact_details_section'].includes(
-  //             section.name,
-  //           )
-  //         ) {
-  //           hasContactSections.value = true
-  //         }
+          //         if (
+          //           ['organization_section', 'organization_details_section'].includes(
+          //             section.name,
+          //           )
+          //         ) {
+          //           hasOrganizationSections.value = true
+          //         } else if (
+          //           ['contact_section', 'contact_details_section'].includes(
+          //             section.name,
+          //           )
+          //         ) {
+          //           hasContactSections.value = true
+          //         }
           column.fields.forEach((field) => {
-  //           if (field.fieldname == 'status') {
-  //             field.fieldtype = 'Select'
-  //             field.options = dealStatuses.value
-  //             field.prefix = getDealStatus(deal.doc.status).color
-  //           }
+            //           if (field.fieldname == 'status') {
+            //             field.fieldtype = 'Select'
+            //             field.options = dealStatuses.value
+            //             field.prefix = getDealStatus(deal.doc.status).color
+            //           }
 
-            if (field.fieldtype === 'Table') {
+            if (
+              field.fieldtype === 'Table' &&
+              !Array.isArray(deal.doc[field.fieldname])
+            ) {
               deal.doc[field.fieldname] = []
             }
           })
@@ -166,17 +169,9 @@ const tabs = createResource({
   },
 })
 
-const dealStatuses = computed(() => {
-  let statuses = statusOptions('deal')
-  if (!deal.doc.status) {
-    deal.doc.status = statuses[0].value
-  }
-  return statuses
-})
-
+const dealStatuses = computed(() => statusOptions('deal'))
 
 async function createDeal() {
-
   await triggerOnBeforeCreate?.()
 
   // If a Quotation is linked on the Gamma Proposal, ensure it's submitted before creating
@@ -189,7 +184,7 @@ async function createDeal() {
   if (quotationId) {
     try {
       const res = await fetch(
-        `/api/resource/Quotation/${encodeURIComponent(quotationId)}`
+        `/api/resource/Quotation/${encodeURIComponent(quotationId)}`,
       )
       if (res.ok) {
         const json = await res.json()
@@ -198,7 +193,8 @@ async function createDeal() {
         if (
           quotation &&
           (quotation.docstatus === 0 ||
-            (quotation.status && String(quotation.status).toLowerCase() === 'draft'))
+            (quotation.status &&
+              String(quotation.status).toLowerCase() === 'draft'))
         ) {
           error.value = 'Please submit the quotation'
           return
@@ -215,13 +211,14 @@ async function createDeal() {
     auto: true,
     validate() {
       error.value = null
-   
+
       isDealCreating.value = true
     },
     onSuccess(name) {
       capture('gamma_proposal_created')
       isDealCreating.value = false
       show.value = false
+      emit('after', { doctype: 'Gamma Proposal', name })
       router.push({ name: 'Gamma', params: { GammaId: name } })
     },
     onError(err) {
@@ -242,6 +239,7 @@ function openQuickEntryModal() {
 }
 
 onMounted(() => {
+  Object.assign(deal.doc, props.defaults)
   // deal.doc = { no_of_employees: '1-10' }
   // Object.assign(deal.doc, props.defaults)
 

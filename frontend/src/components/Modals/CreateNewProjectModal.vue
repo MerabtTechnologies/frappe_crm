@@ -48,7 +48,7 @@
           <div
             v-if="hasOrganizationSections || hasContactSections"
             class="h-px w-full border-t my-5"
-          /> 
+          />
           <FieldLayout
             ref="fieldLayoutRef"
             v-if="tabs.data?.length"
@@ -81,7 +81,7 @@ import { statusesStore } from '@/stores/statuses'
 import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
-import { useTelemetry } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
 import { Switch, createResource } from 'frappe-ui'
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -106,7 +106,6 @@ const hasContactSections = ref(true)
 const isDealCreating = ref(false)
 const chooseExistingContact = ref(true)
 const chooseExistingOrganization = ref(true)
-
 
 watch(
   [chooseExistingOrganization, chooseExistingContact],
@@ -176,7 +175,6 @@ const tabs = createResource({
 // })
 
 async function createDeal() {
-
   await triggerOnBeforeCreate?.()
 
   createResource({
@@ -189,7 +187,7 @@ async function createDeal() {
         error.value = __('Status is required')
         return error.value
       }
-   
+
       isDealCreating.value = true
     },
     onSuccess(name) {
@@ -218,7 +216,6 @@ function openQuickEntryModal() {
 onMounted(() => {
   // deal.doc = { no_of_employees: '1-10' }
   // Object.assign(deal.doc, props.defaults)
-
   // if (!deal.doc.owner) {
   //   deal.doc.deal_owner = getUser().name
   // }

@@ -10,6 +10,7 @@ from frappe.model.document import get_controller
 from frappe.utils import make_filter_tuple
 from pypika import Criterion
 
+from crm.api.call_filters import apply_call_participant_filter
 from crm.api.views import get_views
 from crm.fcrm.doctype.crm_form_script.crm_form_script import get_form_script
 from crm.utils import is_frappe_version
@@ -98,6 +99,16 @@ def get_filterable_fields(doctype: str):
 		{"fieldname": "creation", "fieldtype": "Datetime", "label": "Created On"},
 		{"fieldname": "modified", "fieldtype": "Datetime", "label": "Last Updated On"},
 	]
+
+	if doctype == "CRM Call Log":
+		standard_fields.append(
+			{
+				"fieldname": "call_participant",
+				"fieldtype": "Link",
+				"label": "Call Participant",
+				"options": "User",
+			}
+		)
 
 	for field in standard_fields + meta.get("fields", []):
 		if field.get("fieldname") not in restricted_fields and field.get("fieldtype") in allowed_fieldtypes:
@@ -332,6 +343,7 @@ def get_data(
 		filters.update(default_filters)
 
 	apply_comments_filter(doctype, filters)
+	apply_call_participant_filter(doctype, filters)
 
 	is_default = True
 	data = []

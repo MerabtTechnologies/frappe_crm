@@ -17,7 +17,11 @@
         :actions="document.actions"
       />
       <AssignTo v-model="assignees.data" doctype="Event" :docname="eventId" />
-      <Dropdown v-if="doc && statuses.length" :options="statuses" placement="right">
+      <Dropdown
+        v-if="doc && statuses.length"
+        :options="statuses"
+        placement="right"
+      >
         <template #default="{ open }">
           <Button
             v-if="doc.status"
@@ -35,7 +39,7 @@
   <div v-if="doc.name" class="flex h-full overflow-hidden">
     <Tabs
       as="div"
-      v-model="tabIndex"
+      v-model="activeTab"
       :tabs="tabs"
       class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-0 [&_[role='tablist']]:px-5 [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
@@ -46,7 +50,7 @@
           :docname="eventId"
           :tabs="tabs"
           v-model:reload="reload"
-          v-model:tabIndex="tabIndex"
+          v-model:activeTab="activeTab"
           @beforeSave="beforeStatusChange"
           @afterSave="reloadAssignees"
         />
@@ -76,10 +80,8 @@
               {{ title }}
             </div>
           </Tooltip>
-          
-          
-          <div class="flex gap-1.5">
 
+          <div class="flex gap-1.5">
             <Button
               v-if="doc.email"
               :tooltip="__('Send an email')"
@@ -351,7 +353,7 @@ import AssignTo from '@/components/AssignTo.vue'
 import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
 import ContactModal from '@/components/Modals/ContactModal.vue'
 import Link from '@/components/Controls/Link.vue'
-import Section from '@/components/Section.vue'
+import Section from '@/components/CollapsibleSection.vue'
 import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SLASection from '@/components/SLASection.vue'
 import CustomActions from '@/components/CustomActions.vue'
@@ -374,7 +376,6 @@ import {
   usePageMeta,
   toast,
 } from 'frappe-ui'
-import { useOnboarding } from 'frappe-ui/frappe'
 import {
   ref,
   computed,
@@ -392,9 +393,6 @@ const { $dialog, $socket, makeCall } = globalStore()
 const { statusOptionsAll, getDealStatus } = statusesStore()
 const { doctypeMeta, getFields } = getMeta('Event')
 
-const { updateOnboardingStep, isOnboardingStepsCompleted } =
-  useOnboarding('frappecrm')
-
 const route = useRoute()
 const router = useRouter()
 
@@ -409,14 +407,23 @@ const errorTitle = ref('')
 const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 
-const { triggerOnChange, assignees, permissions, document, scripts, error } = useDocument(
-  'Event',
-  props.eventId,
-)
+const {
+  triggerOnChange,
+  triggerOnRender,
+  assignees,
+  permissions,
+  document,
+  scripts,
+  error,
+} = useDocument('Event', props.eventId)
 
 const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
 const doc = computed(() => document.doc || {})
+
+onMounted(async () => {
+  if (document.doc) await triggerOnRender()
+})
 
 watch(error, (err) => {
   if (err) {
@@ -513,10 +520,9 @@ const breadcrumbs = computed(() => {
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['Event']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return doc.value?.[t] || props.eventId
 })
-
 
 const statuses = computed(() => {
   // determine custom statuses in order of precedence:
@@ -534,7 +540,9 @@ const statuses = computed(() => {
     const fields = getFields()
     const statusField = (fields || []).find((f) => f.fieldname === 'status')
     if (statusField?.options?.length) {
-      customStatuses = statusField.options.map((o) => o.value || o.label).filter(Boolean)
+      customStatuses = statusField.options
+        .map((o) => o.value || o.label)
+        .filter(Boolean)
     }
   }
 
@@ -552,23 +560,27 @@ const tabs = computed(() => {
   let tabOptions = [
     {
       name: 'Activity',
+      value: 'activity',
       label: __('Activity'),
-      icon: ActivityIcon,
+      iconLeft: ActivityIcon,
     },
     {
       name: 'Emails',
+      value: 'emails',
       label: __('Emails'),
-      icon: EmailIcon,
+      iconLeft: EmailIcon,
     },
     {
       name: 'Comments',
+      value: 'comments',
       label: __('Comments'),
-      icon: CommentIcon,
+      iconLeft: CommentIcon,
     },
     {
       name: 'Data',
+      value: 'data',
       label: __('Data'),
-      icon: DetailsIcon,
+      iconLeft: DetailsIcon,
     },
     // {
     //   name: 'Calls',
@@ -582,19 +594,21 @@ const tabs = computed(() => {
     // },
     {
       name: 'Notes',
+      value: 'notes',
       label: __('Notes'),
-      icon: NoteIcon,
+      iconLeft: NoteIcon,
     },
     {
       name: 'Attachments',
+      value: 'attachments',
       label: __('Attachments'),
-      icon: AttachmentIcon,
+      iconLeft: AttachmentIcon,
     },
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
 })
 
-const { tabIndex } = useActiveTabManager(tabs, 'lastDealTab')
+const { activeTab } = useActiveTabManager(tabs, 'lastEventTab', 'lastDealTab')
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
@@ -655,8 +669,10 @@ async function addContact(contact) {
     return
   }
 
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.add_contact', {
-    deal: props.eventId,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Event',
+    name: props.eventId,
+    action: 'add',
     contact,
   })
   if (d) {
@@ -666,8 +682,10 @@ async function addContact(contact) {
 }
 
 async function removeContact(contact) {
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.remove_contact', {
-    deal: props.eventId,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Event',
+    name: props.eventId,
+    action: 'remove',
     contact,
   })
   if (d) {
@@ -677,8 +695,10 @@ async function removeContact(contact) {
 }
 
 async function setPrimaryContact(contact) {
-  let d = await call('crm.fcrm.doctype.crm_deal.crm_deal.set_primary_contact', {
-    deal: props.eventIde,
+  let d = await call('merabt_crm.portal_api.contacts.update_contact', {
+    doctype: 'Event',
+    name: props.eventId,
+    action: 'primary',
     contact,
   })
   if (d) {
@@ -688,9 +708,9 @@ async function setPrimaryContact(contact) {
 }
 
 const dealContacts = createResource({
-  url: 'crm.fcrm.doctype.crm_deal.api.get_deal_contacts',
-  params: { name: props.eventId },
-  cache: ['deal_contacts', props.eventId],
+  url: 'merabt_crm.portal_api.contacts.get_contacts',
+  params: { doctype: 'Event', name: props.eventId },
+  cache: ['custom_contacts', 'Event', props.eventId],
   transform: (data) => {
     data.forEach((contact) => {
       contact.opened = false
@@ -703,7 +723,7 @@ if (!dealContacts.data) dealContacts.fetch()
 
 function triggerCall() {
   let primaryContact = dealContacts.data?.find((c) => c.is_primary)
-  let mobile_no = primaryContact.mobile_no || null
+  let mobile_no = primaryContact?.mobile_no || null
 
   if (!primaryContact) {
     toast.error(__('No primary contact set'))
@@ -729,12 +749,10 @@ async function triggerStatusChange(value) {
 }
 
 function updateField(name, value) {
-  if (name == 'status' && !isOnboardingStepsCompleted.value) {
-    updateOnboardingStep('change_deal_status')
-  }
-
   value = Array.isArray(name) ? '' : value
-  let oldValues = Array.isArray(name) ? {} : doc.value[name]
+  let oldValues = Array.isArray(name)
+    ? Object.fromEntries(name.map((field) => [field, doc.value[field]]))
+    : doc.value[name]
 
   if (Array.isArray(name)) {
     name.forEach((field) => (doc.value[field] = value))
@@ -762,8 +780,8 @@ function deleteDeal() {
 const activities = ref(null)
 
 function openEmailBox() {
-  let currentTab = tabs.value[tabIndex.value]
-  if (!['Emails', 'Comments', 'Activities'].includes(currentTab.name)) {
+  let currentTab = tabs.value.find((tab) => tab.value === activeTab.value)
+  if (!['Emails', 'Comments', 'Activity'].includes(currentTab?.name)) {
     activities.value.changeTabTo('emails')
   }
   nextTick(() => (activities.value.emailBox.show = true))
@@ -785,36 +803,33 @@ function setLostReason() {
 }
 
 function beforeStatusChange(data) {
-
   // set mandatory field for event reference
   // if (
   //   data?.hasOwnProperty('status') &&
   //   getDealStatus(data.status).type == 'Lost'
   // ) {
   //   setLostReason()
-  // } 
+  // }
   // else {
-    document.save.submit(null, {
-      onSuccess: () => reloadAssignees(data),
-    })
-  }
+  document.save.submit(null, {
+    onSuccess: () => reloadAssignees(data),
+  })
+}
 // }
 
 function reloadAssignees(data) {
-  if (data?.hasOwnProperty('deal_owner')) {
+  if (Object.hasOwn(data ?? {}, 'deal_owner')) {
     assignees.reload()
   }
 }
-
 
 function statusColor(status) {
   if (!status) return ''
   if (status === 'Active' || status === 'Open') return 'text-green-600'
   if (status === 'On Hold' || status === 'Closed') return 'text-red-500'
-  if( status === 'Pending' || status === 'In Review') return 'text-yellow-600'
+  if (status === 'Pending' || status === 'In Review') return 'text-yellow-600'
   if (status === 'Completed' || status === 'Done') return 'text-blue-600'
   if (status === 'Cancelled' || status === 'Rejected') return 'text-red-600'
   return 'text-gray-500'
 }
-
 </script>

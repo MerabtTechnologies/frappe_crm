@@ -503,6 +503,12 @@ const tabs = computed(() => {
       value: 'quotations',
       label: __('Quotations'),
       iconLeft: FileTextIcon,
+    },
+    {
+      name: 'ERPNext Quotations',
+      value: 'erpnext-quotations',
+      label: __('ERPNext Quotations'),
+      iconLeft: FileTextIcon,
       condition: () => canViewQuotations.value,
     },
   ]

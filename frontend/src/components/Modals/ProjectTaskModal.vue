@@ -12,8 +12,8 @@
             task.reference_doctype == 'CRM Deal'
               ? __('Open Deal')
               : task.reference_doctype == 'Smart Project'
-              ? __('Open Project')
-              : __('Open Lead')
+                ? __('Open Project')
+                : __('Open Lead')
           "
           :iconRight="ArrowUpRightIcon"
           @click="redirect()"
@@ -31,8 +31,7 @@
             required
           />
         </div>
-        <div>
-        </div>
+        <div></div>
         <div>
           <div class="mb-1.5 text-xs text-ink-gray-5">
             {{ __('Description') }}
@@ -120,18 +119,22 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
-import { projectTaskStatusOptions, projectTaskPriorityOptions, getFormat } from '@/utils'
+import {
+  projectTaskStatusOptions,
+  projectTaskPriorityOptions,
+  getFormat,
+} from '@/utils'
 import { usersStore } from '@/stores/users'
-import { useTelemetry } from 'frappe-ui/frappe'
-import { TextEditor, Dropdown, Tooltip, call, DateTimePicker } from 'frappe-ui'
-import { useOnboarding } from 'frappe-ui/frappe'
+import { useTelemetry } from '@framework/ui/telemetry'
+import { Dropdown, Tooltip, call, DateTimePicker } from 'frappe-ui'
+import { TextEditor } from 'frappe-ui/experimental'
 import { ref, watch, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
   task: {
     type: Object,
-    default: {},
+    default: () => ({}),
   },
   doctype: {
     type: String,
@@ -150,7 +153,6 @@ const emit = defineEmits(['updateTask', 'after'])
 
 const router = useRouter()
 const { users, getUser } = usersStore()
-const { updateOnboardingStep } = useOnboarding('frappecrm')
 const { capture } = useTelemetry()
 
 const error = ref(null)
@@ -176,9 +178,9 @@ function updateTaskPriority(priority) {
 
 function redirect() {
   if (!props.task?.doc) return
-  let name = "Project"
+  let name = 'Project'
   let params = { projectId: props.task.doc }
-  
+
   router.push({ name: name, params: params })
 }
 
@@ -188,7 +190,8 @@ async function updateTask() {
   }
   if (_task.value.name) {
     let payload = { ..._task.value }
-    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
+    if (payload.due_date)
+      payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
     let d = await call('frappe.client.set_value', {
       doctype: 'Smart Task',
       name: _task.value.name,
@@ -200,7 +203,8 @@ async function updateTask() {
     }
   } else {
     let payload = { ..._task.value }
-    if (payload.due_date) payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
+    if (payload.due_date)
+      payload.due_date = getFormat(payload.due_date, 'YYYY-MM-DD HH:mm:ss')
     let d = await call(
       'frappe.client.insert',
       {
@@ -219,7 +223,6 @@ async function updateTask() {
       },
     )
     if (d.name) {
-      updateOnboardingStep('create_first_task')
       capture('project_task_created')
       tasks.value?.reload()
       emit('after', d, true)

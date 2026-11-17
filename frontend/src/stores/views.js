@@ -24,6 +24,8 @@ export const viewsStore = defineStore('crm-views', (doctype) => {
     transform(views) {
       pinnedViews.value = []
       publicViews.value = []
+      Object.keys(viewsByName).forEach((key) => delete viewsByName[key])
+      standardViews.value = {}
       // Reset per-doctype defaults before repopulating
       Object.keys(defaultViews).forEach((k) => delete defaultViews[k])
       for (let view of views) {
@@ -71,7 +73,8 @@ export const viewsStore = defineStore('crm-views', (doctype) => {
     if (!view && doctype) {
       return standardViews.value[doctype + ' ' + type] || null
     }
-    return viewsByName[view]
+    const savedView = viewsByName[view]
+    return doctype && savedView?.dt !== doctype ? null : savedView
   }
 
   function getPinnedViews() {
