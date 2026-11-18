@@ -577,7 +577,7 @@ function openEmailBox() {
   if (!['Emails', 'Comments', 'Activity'].includes(currentTab?.name)) {
     activities.value.changeTabTo('emails')
   }
-  nextTick(() => (activities.value.emailBox.show = true))
+  nextTick(() => activities.value.emailBox?.openEmailBox())
 }
 
 const showLostReasonModal = ref(false)

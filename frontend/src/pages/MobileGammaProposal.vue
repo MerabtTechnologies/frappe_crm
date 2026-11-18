@@ -255,7 +255,7 @@ const breadcrumbs = computed(() => {
 
   items.push({
     label: title.value,
-    route: { name: 'Gammas', params: { GammaId: props.GammaId } },
+    route: { name: 'Gamma', params: { GammaId: props.GammaId } },
   })
   return items
 })

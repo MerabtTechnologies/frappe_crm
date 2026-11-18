@@ -538,7 +538,7 @@ const breadcrumbs = computed(() => {
         label: __(view.label),
         icon: view.icon,
         route: {
-          name: 'Quotation',
+          name: 'Quotations',
           params: { viewType: route.query.viewType },
           query: { view: route.query.view },
         },
@@ -801,7 +801,7 @@ function openEmailBox() {
   if (!['Emails', 'Comments', 'Activity'].includes(currentTab?.name)) {
     activities.value.changeTabTo('emails')
   }
-  nextTick(() => (activities.value.emailBox.show = true))
+  nextTick(() => activities.value.emailBox?.openEmailBox())
 }
 
 const showLostReasonModal = ref(false)

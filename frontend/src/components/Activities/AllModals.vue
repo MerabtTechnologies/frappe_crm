@@ -17,7 +17,6 @@
   <QuotationModal
     v-if="showQuotationModal"
     v-model="showQuotationModal"
-    v-model:reloadQuotations="activities"
     :defaults="quotation"
     :doctype="doctype"
     @after="redirect('quotations')"

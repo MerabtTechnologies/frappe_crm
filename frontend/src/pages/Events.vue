@@ -230,8 +230,8 @@
     <div
       class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
     >
-      <DealsIcon class="h-10 w-10" />
-      <span>{{ __('No {0} Found', [__('Deals')]) }}</span>
+      <EventIcon class="h-10 w-10" />
+      <span>{{ __('No {0} Found', [__('Events')]) }}</span>
       <Button
         :label="__('Create')"
         iconLeft="plus"
@@ -243,20 +243,6 @@
     v-if="showDealModal"
     v-model="showDealModal"
     :defaults="defaults"
-  />
-  <NoteModal
-    v-if="showNoteModal"
-    v-model="showNoteModal"
-    :note="note"
-    doctype="Event"
-    :doc="docname"
-  />
-  <TaskModal
-    v-if="showTaskModal"
-    v-model="showTaskModal"
-    :task="task"
-    doctype="Event"
-    :doc="docname"
   />
 </template>
 
@@ -270,22 +256,20 @@ import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import CommentIcon from '@/components/Icons/CommentIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
-import DealsIcon from '@/components/Icons/DealsIcon.vue'
+import EventIcon from '@/components/Icons/EventIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 // import DealsListView from '@/components/ListViews/DealsListView.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
-import DealModal from '@/components/Modals/DealModal.vue'
 import EventModal from '@/components/Modals/EventModal.vue'
-import NoteModal from '@/components/Modals/NoteModal.vue'
-import TaskModal from '@/components/Modals/TaskModal.vue'
 import ViewControls from '@/components/ViewControls.vue'
-import EventListView from '@/components/ListViews/EventListView.vue' 
+import EventListView from '@/components/ListViews/EventListView.vue'
 import { getMeta } from '@/stores/meta'
 import { globalStore } from '@/stores/global'
 import { usersStore } from '@/stores/users'
 import { organizationsStore } from '@/stores/organizations'
 import { statusesStore } from '@/stores/statuses'
 import { callEnabled } from '@/composables/settings'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { formatDate, timeAgo, website, formatTime } from '@/utils'
 import { Tooltip, Avatar, Dropdown } from 'frappe-ui'
 import { useRoute } from 'vue-router'
@@ -297,6 +281,7 @@ const { makeCall } = globalStore()
 const { getUser } = usersStore()
 const { getOrganization } = organizationsStore()
 const { getDealStatus } = statusesStore()
+const { showModal } = useDoctypeModal()
 
 const route = useRoute()
 
@@ -524,30 +509,25 @@ function actions(itemName) {
   )
 }
 
-const docname = ref('')
-const showNoteModal = ref(false)
-const note = ref({
-  title: '',
-  content: '',
-})
-
 function showNote(name) {
-  docname.value = name
-  showNoteModal.value = true
+  showModal({
+    doctype: 'FCRM Note',
+    title: 'Note',
+    defaults: {
+      reference_doctype: 'Event',
+      reference_docname: name,
+    },
+  })
 }
 
-const showTaskModal = ref(false)
-const task = ref({
-  title: '',
-  description: '',
-  assigned_to: '',
-  due_date: '',
-  priority: 'Low',
-  status: 'Backlog',
-})
-
 function showTask(name) {
-  docname.value = name
-  showTaskModal.value = true
+  showModal({
+    doctype: 'CRM Task',
+    title: 'Task',
+    defaults: {
+      reference_doctype: 'Event',
+      reference_docname: name,
+    },
+  })
 }
 </script>

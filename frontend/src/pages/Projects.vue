@@ -230,7 +230,7 @@
     <div
       class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
     >
-      <DealsIcon class="h-10 w-10" />
+      <ProjectIcon class="h-10 w-10" />
       <span>{{ __('No {0} Found', [__('Projects')]) }}</span>
       <Button
         :label="__('Create')"
@@ -256,7 +256,7 @@ import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import CommentIcon from '@/components/Icons/CommentIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
-import DealsIcon from '@/components/Icons/DealsIcon.vue'
+import ProjectIcon from '@/components/Icons/ProjectIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ProjectsListView from '@/components/ListViews/ProjectsListView.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
@@ -327,7 +327,7 @@ function getGroupedByRows(listRows, groupByField, columns) {
   let groupedRows = []
 
   groupByField.options?.forEach((option) => {
-    let filteredRows = []
+    let filteredRows
 
     if (!option) {
       filteredRows = listRows.filter((row) => !row[groupByField.fieldname])

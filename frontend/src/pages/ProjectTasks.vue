@@ -180,7 +180,7 @@
     <div
       class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
     >
-      <Email2Icon class="h-10 w-10" />
+      <ProjectTaskIcon class="h-10 w-10" />
       <span>{{ __('No {0} Found', [__('Tasks')]) }}</span>
       <Button
         :label="__('Create')"
@@ -211,7 +211,7 @@ import CustomActions from '@/components/CustomActions.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import ProjectTaskStatusIcon from '@/components/Icons/ProjectTaskStatusIcon.vue'
 import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
-import Email2Icon from '@/components/Icons/Email2Icon.vue'
+import ProjectTaskIcon from '@/components/Icons/ProjectTaskIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import ProjectTasksListView from '@/components/ListViews/ProjectTasksListView.vue'

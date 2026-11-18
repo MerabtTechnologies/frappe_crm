@@ -32,7 +32,7 @@
     v-model="deals"
     :options="{
       getRoute: (row) => ({
-        name: 'Quotations',
+        name: 'Quotation',
         params: { quotationId: row.name },
         query: { view: route.query.view, viewType: route.params.viewType },
       }),
@@ -230,7 +230,7 @@
     <div
       class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
     >
-      <DealsIcon class="h-10 w-10" />
+      <QuotationIcon class="h-10 w-10" />
       <span>{{ __('No {0} Found', [__('Quotation')]) }}</span>
       <Button
         :label="__('Create')"
@@ -239,15 +239,10 @@
       />
     </div>
   </div>
-  <GammaModal
-    v-if="showDealModal"
-    v-model="showDealModal"
-    :defaults="defaults"
-  />
   <QuotationModal
     v-if="showDealModal"
     v-model="showDealModal"
-    :props="defaults"
+    :defaults="defaults"
   />
 </template>
 
@@ -261,7 +256,7 @@ import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import CommentIcon from '@/components/Icons/CommentIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
-import DealsIcon from '@/components/Icons/DealsIcon.vue'
+import QuotationIcon from '@/components/Icons/QuotationIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import QuotationListView from '@/components/ListViews/QuotationListView.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
@@ -332,7 +327,7 @@ function getGroupedByRows(listRows, groupByField, columns) {
   let groupedRows = []
 
   groupByField.options?.forEach((option) => {
-    let filteredRows = []
+    let filteredRows
 
     if (!option) {
       filteredRows = listRows.filter((row) => !row[groupByField.fieldname])

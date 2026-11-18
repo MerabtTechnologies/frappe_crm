@@ -247,7 +247,7 @@ const breadcrumbs = computed(() => {
 
   items.push({
     label: title.value,
-    route: { name: 'Quotations', params: { quotationId: props.quotationId } },
+    route: { name: 'Quotation', params: { quotationId: props.quotationId } },
   })
   return items
 })

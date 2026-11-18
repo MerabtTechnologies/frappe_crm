@@ -495,7 +495,7 @@ const showFilesUploader = ref(false)
 const _organization = ref({})
 
 const breadcrumbs = computed(() => {
-  let items = [{ label: __('Event'), route: { name: 'Events' } }]
+  let items = [{ label: __('Events'), route: { name: 'Events' } }]
 
   if (route.query.view || route.query.viewType) {
     let view = getView(route.query.view, route.query.viewType, 'Event')
@@ -504,7 +504,7 @@ const breadcrumbs = computed(() => {
         label: __(view.label),
         icon: view.icon,
         route: {
-          name: 'Event',
+          name: 'Events',
           params: { viewType: route.query.viewType },
           query: { view: route.query.view },
         },
@@ -784,7 +784,7 @@ function openEmailBox() {
   if (!['Emails', 'Comments', 'Activity'].includes(currentTab?.name)) {
     activities.value.changeTabTo('emails')
   }
-  nextTick(() => (activities.value.emailBox.show = true))
+  nextTick(() => activities.value.emailBox?.openEmailBox())
 }
 
 const showLostReasonModal = ref(false)

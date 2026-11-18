@@ -32,7 +32,7 @@
     v-model="deals"
     :options="{
       getRoute: (row) => ({
-        name: 'Gammas',
+        name: 'Gamma',
         params: { GammaId: row.name },
         query: { view: route.query.view, viewType: route.params.viewType },
       }),
@@ -230,7 +230,7 @@
     <div
       class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
     >
-      <DealsIcon class="h-10 w-10" />
+      <GammaProposalIcon class="h-10 w-10" />
       <span>{{ __('No {0} Found', [__('Gammas')]) }}</span>
       <Button
         :label="__('Create')"
@@ -244,20 +244,6 @@
     v-model="showDealModal"
     :defaults="defaults"
   />
-  <NoteModal
-    v-if="showNoteModal"
-    v-model="showNoteModal"
-    :note="note"
-    doctype="Gamma Proposal"
-    :doc="docname"
-  />
-  <TaskModal
-    v-if="showTaskModal"
-    v-model="showTaskModal"
-    :task="task"
-    doctype="Gamma Proposal"
-    :doc="docname"
-  />
 </template>
 
 <script setup>
@@ -270,13 +256,11 @@ import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import CommentIcon from '@/components/Icons/CommentIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
-import DealsIcon from '@/components/Icons/DealsIcon.vue'
+import GammaProposalIcon from '@/components/Icons/GammaProposalIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 // import GammaProposalListVIew from '@/components/ListViews/GammaProposalListVIew.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
 import GammaModal from '@/components/Modals/GammaModal.vue'
-import NoteModal from '@/components/Modals/NoteModal.vue'
-import TaskModal from '@/components/Modals/TaskModal.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import { getMeta } from '@/stores/meta'
 import { globalStore } from '@/stores/global'
@@ -284,6 +268,7 @@ import { usersStore } from '@/stores/users'
 import { organizationsStore } from '@/stores/organizations'
 import { statusesStore } from '@/stores/statuses'
 import { callEnabled } from '@/composables/settings'
+import { useDoctypeModal } from '@/composables/doctypeModal'
 import { formatDate, timeAgo, website, formatTime } from '@/utils'
 import { Tooltip, Avatar, Dropdown } from 'frappe-ui'
 import { useRoute } from 'vue-router'
@@ -296,6 +281,7 @@ const { makeCall } = globalStore()
 const { getUser } = usersStore()
 const { getOrganization } = organizationsStore()
 const { getDealStatus } = statusesStore()
+const { showModal } = useDoctypeModal()
 
 const route = useRoute()
 
@@ -342,7 +328,7 @@ function getGroupedByRows(listRows, groupByField, columns) {
   let groupedRows = []
 
   groupByField.options?.forEach((option) => {
-    let filteredRows = []
+    let filteredRows
 
     if (!option) {
       filteredRows = listRows.filter((row) => !row[groupByField.fieldname])
@@ -523,30 +509,25 @@ function actions(itemName) {
   )
 }
 
-const docname = ref('')
-const showNoteModal = ref(false)
-const note = ref({
-  title: '',
-  content: '',
-})
-
 function showNote(name) {
-  docname.value = name
-  showNoteModal.value = true
+  showModal({
+    doctype: 'FCRM Note',
+    title: 'Note',
+    defaults: {
+      reference_doctype: 'Gamma Proposal',
+      reference_docname: name,
+    },
+  })
 }
 
-const showTaskModal = ref(false)
-const task = ref({
-  title: '',
-  description: '',
-  assigned_to: '',
-  due_date: '',
-  priority: 'Low',
-  status: 'Backlog',
-})
-
 function showTask(name) {
-  docname.value = name
-  showTaskModal.value = true
+  showModal({
+    doctype: 'CRM Task',
+    title: 'Task',
+    defaults: {
+      reference_doctype: 'Gamma Proposal',
+      reference_docname: name,
+    },
+  })
 }
 </script>
