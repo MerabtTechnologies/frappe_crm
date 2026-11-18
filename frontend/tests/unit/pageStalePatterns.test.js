@@ -54,6 +54,13 @@ describe('custom page stale patterns', () => {
     expect(source).not.toContain("__('No {0} Found', [__('Deals')])")
   })
 
+  it('prints quotations through the PDF endpoint', () => {
+    const source = read('Quotation.vue')
+    expect(source).toContain('frappe.utils.print_format.download_pdf')
+    expect(source).toContain('new URLSearchParams')
+    expect(source).not.toContain('/printview?doctype=Quotation')
+  })
+
   it('routes kanban cards and breadcrumbs to detail routes', () => {
     expect(read('Quotations.vue')).toMatch(
       /name: 'Quotation',\s*params: \{ quotationId: row\.name \}/,

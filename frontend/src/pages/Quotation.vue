@@ -522,11 +522,16 @@ const showOrganizationModal = ref(false)
 const showFilesUploader = ref(false)
 const _organization = ref({})
 const handlePrintClick = () => {
-  // Try adding 'props.' before the variable name
-  // console.log("Target Doc:", props.quotationId);
-
-  const url = `/printview?doctype=Quotation&name=${props.quotationId}&format=Standard`
-  window.open(url, '_blank')
+  // Print through the PDF endpoint: it is an API route, so the SPA router can
+  // never resolve /printview as an unknown page.
+  const query = new URLSearchParams({
+    doctype: 'Quotation',
+    name: props.quotationId,
+    format: 'Standard',
+  })
+  const url = `/api/method/frappe.utils.print_format.download_pdf?${query}`
+  const printWindow = window.open(url, '_blank')
+  if (!printWindow) window.location.assign(url)
 }
 const breadcrumbs = computed(() => {
   let items = [{ label: __('Quotation'), route: { name: 'Quotations' } }]
