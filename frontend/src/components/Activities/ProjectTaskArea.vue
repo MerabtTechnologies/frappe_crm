@@ -4,12 +4,15 @@
       <div
         class="activity flex cursor-pointer gap-6 rounded p-2.5 duration-300 ease-in-out hover:bg-surface-gray-1"
       >
-      <!-- <div
+        <!-- <div
         class="activity flex cursor-pointer gap-6 rounded p-2.5 duration-300 ease-in-out hover:bg-surface-gray-1"
         @click="modalRef.showTask(task)"
       > -->
         <div class="flex flex-1 flex-col gap-1.5 text-base truncate">
-          <div class="font-medium text-ink-gray-9 truncate" @click="modalRef.showTask(task)">
+          <div
+            class="font-medium text-ink-gray-9 truncate"
+            @click="modalRef.showTask(task)"
+          >
             {{ task.title }}
           </div>
           <div class="flex gap-1.5 text-ink-gray-8">
@@ -56,7 +59,7 @@
             :options="[
               {
                 label: __('Delete'),
-                icon: 'trash-2',
+                icon: 'lucide-trash-2',
                 onClick: () => {
                   $dialog({
                     title: __('Delete Task'),
@@ -79,7 +82,7 @@
             @click.stop
           >
             <Button
-              icon="more-horizontal"
+              icon="lucide-more-horizontal"
               variant="ghosted"
               class="hover:bg-surface-gray-4 text-ink-gray-9"
             />

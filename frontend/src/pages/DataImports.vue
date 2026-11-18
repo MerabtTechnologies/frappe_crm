@@ -57,7 +57,7 @@
   <EmptyState
     v-else-if="dataImports.data && !rows.length"
     name="Data Imports"
-    icon="import"
+    icon="lucide-import"
     :filtered="
       !!Object.keys({ ...queryFilters, ...dataImports.params?.filters }).length
     "

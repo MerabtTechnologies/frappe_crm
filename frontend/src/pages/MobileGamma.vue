@@ -362,7 +362,7 @@ function contactOptions(contact) {
   let options = [
     {
       label: __('Delete'),
-      icon: 'trash-2',
+      icon: 'lucide-trash-2',
       onClick: () => removeContact(contact.name),
     },
   ]

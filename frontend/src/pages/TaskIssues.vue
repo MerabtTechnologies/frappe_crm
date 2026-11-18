@@ -15,7 +15,7 @@
       <Button
         variant="solid"
         :label="__('Create')"
-        iconLeft="plus"
+        iconLeft="lucide-plus"
         @click="createTask"
       />
     </template>
@@ -424,7 +424,7 @@ function actions(name) {
   return [
     {
       label: __('Delete'),
-      icon: 'trash-2',
+      icon: 'lucide-trash-2',
       onClick: () => {
         deletetask(name)
         tasks.value.reload()
@@ -432,7 +432,7 @@ function actions(name) {
     },
     {
       label: __('Edit'),
-      icon: 'edit-2',
+      icon: 'lucide-edit-2',
       onClick: () => {
         // showTask(name, true)
         editTask(name)

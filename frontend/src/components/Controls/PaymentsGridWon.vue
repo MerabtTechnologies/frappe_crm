@@ -9,7 +9,11 @@
         <div class="col-span-1"></div>
       </div>
 
-      <div v-for="(row, idx) in rows" :key="row.name" class="grid grid-cols-12 gap-2 items-center">
+      <div
+        v-for="(row, idx) in rows"
+        :key="row.name"
+        class="grid grid-cols-12 gap-2 items-center"
+      >
         <div class="col-span-1 text-sm text-ink-gray-6">{{ idx + 1 }}</div>
         <div class="col-span-3">
           <DatePicker
@@ -38,13 +42,20 @@
           />
         </div>
         <div class="col-span-1">
-          <Button theme="red" variant="subtle" icon="trash-2" @click="removeRow(idx)" />
+          <Button
+            theme="red"
+            variant="subtle"
+            icon="lucide-trash-2"
+            @click="removeRow(idx)"
+          />
         </div>
       </div>
     </div>
 
     <div class="flex justify-between items-center mt-2">
-      <div class="text-sm text-ink-gray-6">{{ __('Total Sum') }}: <strong>{{ formattedTotal }}</strong></div>
+      <div class="text-sm text-ink-gray-6">
+        {{ __('Total Sum') }}: <strong>{{ formattedTotal }}</strong>
+      </div>
       <div class="flex gap-2">
         <Button :label="__('Add Payment')" @click="addRow" />
       </div>
@@ -79,7 +90,7 @@ watch(
     // allow the microtask queue to settle before turning off syncing
     nextTick(() => (syncingFromProps.value = false))
   },
-  { deep: true }
+  { deep: true },
 )
 
 watch(
@@ -105,7 +116,6 @@ function addRow() {
     payment_date: dayjs().format('YYYY-MM-DD'),
     paid_amount: 0,
     remarks: '',
-    
   })
 }
 
@@ -115,7 +125,8 @@ function removeRow(idx) {
 
 function updateRow(idx, key, value) {
   if (!rows.value[idx]) return
-  const raw = typeof value === 'object' && value?.target ? value.target.value : value
+  const raw =
+    typeof value === 'object' && value?.target ? value.target.value : value
 
   if (key === 'paid_amount') {
     // keep a cleaned string while typing (preserve trailing dot), strip currency symbols and commas
@@ -126,7 +137,9 @@ function updateRow(idx, key, value) {
   }
 }
 
-const total = computed(() => rows.value.reduce((s, r) => s + Number(r.paid_amount || 0), 0))
+const total = computed(() =>
+  rows.value.reduce((s, r) => s + Number(r.paid_amount || 0), 0),
+)
 function formatCurrency(amount) {
   const n = Number(amount || 0)
   try {
@@ -145,5 +158,7 @@ const formattedTotal = computed(() => formatCurrency(total.value))
 </script>
 
 <style scoped>
-.grid > * { align-items: center; }
+.grid > * {
+  align-items: center;
+}
 </style>

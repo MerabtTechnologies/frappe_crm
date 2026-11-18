@@ -1,127 +1,131 @@
 <template>
   <Dialog v-model="show" :options="{ size: 'xl' }">
-    <template #body v-if="!confirmDeleteInfo.show">
-      <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
-        <div class="mb-6 flex items-center justify-between">
-          <div>
-            <h3 class="text-2xl leading-6 text-ink-gray-9 font-semibold">
-              {{
-                title || __('Submit {0} ?', [props.docname])
-              }}
-            </h3>
+    <template #body>
+      <template v-if="!confirmDeleteInfo.show">
+        <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
+          <div class="mb-6 flex items-center justify-between">
+            <div>
+              <h3 class="text-2xl leading-6 text-ink-gray-9 font-semibold">
+                {{ title || __('Submit {0} ?', [props.docname]) }}
+              </h3>
+            </div>
+            <div class="flex items-center gap-1">
+              <Button variant="ghost" icon="lucide-x" @click="close()" />
+            </div>
           </div>
-          <div class="flex items-center gap-1">
-            <Button variant="ghost" icon="x" @click="close()" />
+          <div>
+            <!-- Linked documents found. Action required before continuing -->
+            <div v-if="linkedDocs?.length > 0 && !isQuotation">
+              <span class="text-ink-gray-5 text-base">
+                {{
+                  __(
+                    'Delete or unlink these linked documents before deleting this document',
+                  )
+                }}
+              </span>
+              <LinkedDocsListView
+                class="mt-4"
+                :rows="linkedDocs"
+                :columns="[
+                  {
+                    label: 'Document',
+                    key: 'title',
+                    width: '19rem',
+                  },
+                  {
+                    label: 'Master',
+                    key: 'reference_doctype',
+                    width: '12rem',
+                  },
+                ]"
+                @selectionsChanged="
+                  (selections) => viewControls.updateSelections(selections)
+                "
+                :linkedDocsResource="linkedDocsResource"
+                :unlinkLinkedDoc="unlinkLinkedDoc"
+              />
+            </div>
+            <!-- This quotation can be cancelled without affecting linked records. -->
+            <div
+              v-if="linkedDocs?.length == 0 || isQuotation"
+              class="text-ink-gray-5 text-base"
+            >
+              {{
+                message ||
+                __('Are you sure you want to Submit {0} - {1}?', [
+                  props.doctype,
+                  props.docname,
+                ])
+              }}
+            </div>
           </div>
         </div>
-        <div>
-          <!-- Linked documents found. Action required before continuing -->
-          <div v-if="linkedDocs?.length > 0 && !isQuotation">
-            <span class="text-ink-gray-5 text-base">
-              {{
-                __(
-                  'Delete or unlink these linked documents before deleting this document',
-                )
-              }}
-            </span>
-            <LinkedDocsListView
-              class="mt-4"
-              :rows="linkedDocs"
-              :columns="[
-                {
-                  label: 'Document',
-                  key: 'title',
-                  width: '19rem',
-                },
-                {
-                  label: 'Master',
-                  key: 'reference_doctype',
-                  width: '12rem',
-                },
-              ]"
-              @selectionsChanged="
-                (selections) => viewControls.updateSelections(selections)
+        <div class="px-4 pb-7 pt-0 sm:px-6">
+          <div class="flex flex-row-reverse gap-2">
+            <Button
+              v-if="linkedDocs?.length > 0"
+              :label="
+                viewControls?.selections?.length == 0
+                  ? __('Delete all')
+                  : __('Delete {0} item(s)', [viewControls?.selections?.length])
               "
-              :linkedDocsResource="linkedDocsResource"
-              :unlinkLinkedDoc="unlinkLinkedDoc"
+              theme="red"
+              variant="solid"
+              icon-left="lucide-trash-2"
+              @click="confirmDelete()"
+            />
+            <Button
+              v-if="linkedDocs?.length > 0"
+              :label="
+                viewControls?.selections?.length == 0
+                  ? __('Unlink all')
+                  : __('Unlink {0} item(s)', [viewControls?.selections?.length])
+              "
+              variant="subtle"
+              theme="gray"
+              icon-left="lucide-unlock"
+              @click="confirmUnlink()"
+            />
+            <Button
+              v-if="linkedDocs?.length == 0"
+              variant="solid"
+              :icon-left="confirmIcon || 'lucide-check'"
+              :label="confirmText || __('Submit')"
+              :loading="isDealCreating"
+              @click="deleteDoc()"
+              :theme="confirmButtonColor || 'green'"
             />
           </div>
-          <!-- This quotation can be cancelled without affecting linked records. -->
-          <div  v-if="linkedDocs?.length == 0 || isQuotation" class="text-ink-gray-5 text-base">
-            {{
-              message || __('Are you sure you want to Submit {0} - {1}?', [
-                props.doctype,
-                props.docname,
-              ])
-            }}
+        </div>
+      </template>
+      <template v-else>
+        <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
+          <div class="mb-6 flex items-center justify-between">
+            <div>
+              <h3 class="text-2xl leading-6 text-ink-gray-9 font-semibold">
+                {{ confirmDeleteInfo.title }}
+              </h3>
+            </div>
+            <div class="flex items-center gap-1">
+              <Button variant="ghost" icon="lucide-x" @click="close()" />
+            </div>
+          </div>
+          <div class="text-ink-gray-5 text-base">
+            {{ confirmDeleteInfo.message }}
+          </div>
+          <div class="flex justify-end gap-2 mt-6">
+            <Button variant="ghost" @click="cancel()">
+              {{ __('Cancel') }}
+            </Button>
+            <Button
+              variant="solid"
+              :label="confirmDeleteInfo.title"
+              @click="removeDocLinks()"
+              theme="red"
+            />
           </div>
         </div>
-      </div>
-      <div class="px-4 pb-7 pt-0 sm:px-6">
-        <div class="flex flex-row-reverse gap-2">
-          <Button
-            v-if="linkedDocs?.length > 0"
-            :label="
-              viewControls?.selections?.length == 0
-                ? __('Delete all')
-                : __('Delete {0} item(s)', [viewControls?.selections?.length])
-            "
-            theme="red"
-            variant="solid"
-            icon-left="trash-2"
-            @click="confirmDelete()"
-          />
-          <Button
-            v-if="linkedDocs?.length > 0"
-            :label="
-              viewControls?.selections?.length == 0
-                ? __('Unlink all')
-                : __('Unlink {0} item(s)', [viewControls?.selections?.length])
-            "
-            variant="subtle"
-            theme="gray"
-            icon-left="unlock"
-            @click="confirmUnlink()"
-          />
-          <Button
-            v-if="linkedDocs?.length == 0"
-            variant="solid"
-            :icon-left="confirmIcon || 'check'"
-            :label="confirmText || __('Submit')"
-            :loading="isDealCreating"
-            @click="deleteDoc()"
-            :theme="confirmButtonColor || 'green'"
-          />
-        </div>
-      </div>
-    </template>
-    <template #body v-if="confirmDeleteInfo.show">
-      <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
-        <div class="mb-6 flex items-center justify-between">
-          <div>
-            <h3 class="text-2xl leading-6 text-ink-gray-9 font-semibold">
-              {{ confirmDeleteInfo.title }}
-            </h3>
-          </div>
-          <div class="flex items-center gap-1">
-            <Button variant="ghost" icon="x" @click="close()" />
-          </div>
-        </div>
-        <div class="text-ink-gray-5 text-base">
-          {{ confirmDeleteInfo.message }}
-        </div>
-        <div class="flex justify-end gap-2 mt-6">
-          <Button variant="ghost" @click="cancel()">
-            {{ __('Cancel') }}
-          </Button>
-          <Button
-            variant="solid"
-            :label="confirmDeleteInfo.title"
-            @click="removeDocLinks()"
-            theme="red"
-          />
-        </div>
-      </div>
+      </template>
     </template>
   </Dialog>
 </template>
@@ -185,7 +189,6 @@ const confirmDeleteInfo = ref({
 })
 const emit = defineEmits(['confirm', 'cancel'])
 
-
 const linkedDocsResource = createResource({
   url: 'crm.api.doc.get_linked_docs_of_document',
   params: {
@@ -203,7 +206,7 @@ const linkedDocsResource = createResource({
 
 const linkedDocs = computed(() => {
   // Quotation exception: always return empty linked docs list
-   if (isQuotation.value) {
+  if (isQuotation.value) {
     return []
   }
   return (
@@ -219,7 +222,6 @@ const cancel = () => {
   viewControls.value.updateSelections([])
   emit('cancel')
 }
-
 
 const unlinkLinkedDoc = (doc) => {
   let selectedDocs = []
@@ -287,13 +289,12 @@ const removeDocLinks = () => {
 }
 
 const deleteDoc = async () => {
-// console.log('Delete Confirmed');
-emit('confirm')
-
+  // console.log('Delete Confirmed');
+  emit('confirm')
 }
 const close = () => {
   // console.log("Dialog Closed");
-  
+
   show.value = false
   emit('cancel')
 }

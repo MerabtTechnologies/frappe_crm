@@ -87,14 +87,14 @@
                     ? {
                         options: [
                           {
-                            icon: 'upload',
+                            icon: 'lucide-upload',
                             label: doc.image
                               ? __('Change image')
                               : __('Upload image'),
                             onClick: openFileSelector,
                           },
                           {
-                            icon: 'trash-2',
+                            icon: 'lucide-trash-2',
                             label: __('Remove image'),
                             onClick: () => updateField('image', ''),
                           },
@@ -154,7 +154,7 @@
                   v-if="canDelete"
                   :tooltip="__('Delete')"
                   variant="subtle"
-                  icon="trash-2"
+                  icon="lucide-trash-2"
                   theme="red"
                   @click="deleteDeal"
                 />

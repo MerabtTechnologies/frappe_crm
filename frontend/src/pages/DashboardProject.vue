@@ -7,7 +7,7 @@
       <template #right-header>
         <Button
           :label="__('Refresh')"
-          iconLeft="refresh-ccw"
+          iconLeft="lucide-refresh-ccw"
           @click="reloadAll"
         />
       </template>

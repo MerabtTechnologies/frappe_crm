@@ -11,13 +11,13 @@
       <Button
         variant="ghost"
         :label="filterByIssues ? __('Show All') : __('Only with Issues')"
-        iconLeft="tag"
+        iconLeft="lucide-tag"
         @click="filterByIssues = !filterByIssues"
       />
       <Button
         variant="solid"
         :label="__('Create')"
-        iconLeft="plus"
+        iconLeft="lucide-plus"
         @click="createTask"
       />
     </template>
@@ -31,65 +31,90 @@
     doctype="CRM Task"
     :options="{
       page_length: 999999,
-      page_length_count: 999999
+      page_length_count: 999999,
     }"
   />
-  <div class="mt-4 p-2 bg-gray-50 ">
+  <div class="mt-4 p-2 bg-gray-50">
     <!-- Filters and Create are provided by ViewControls -->
 
     <!-- 3-column layout: Today / Overdue / Upcoming -->
     <div class="overflow-x-auto">
       <div class="flex gap-4 md:grid md:grid-cols-3">
-      <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
-          <div class="font-semibold mb-2 text-center "">{{ __('Today') }}</div>
-          <div class="font-semibold mb-2 text-center ">{{ `[${todayItems.length}]` }}</div>
+        <div
+          class="bg-white rounded shadow-sm p-3"
+          style="min-width: 260px; flex: 0 0 260px"
+        >
+          <div
+            class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex"
+          >
+            <div class="font-semibold mb-2 text-center">{{ __('Today') }}</div>
+            <div class="font-semibold mb-2 text-center">
+              {{ `[${todayItems.length}]` }}
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <TaskItem
+              v-for="item in todayItems"
+              :key="item.name"
+              :item="item"
+              :actions="actions"
+              @open="showTask"
+              @redirect="redirect"
+            />
+          </div>
         </div>
-        <div class="flex flex-col gap-2">
-          <TaskItem
-            v-for="item in todayItems"
-            :key="item.name"
-            :item="item"
-            :actions="actions"
-            @open="showTask"
-            @redirect="redirect"
-          />
-        </div>
-      </div>
 
-      <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
-          <div class="font-semibold mb-2 text-center">{{ __('Overdue') }}</div>
-          <div class="font-semibold mb-2 text-center">{{ `[${overdueItems.length}]` }}</div>
+        <div
+          class="bg-white rounded shadow-sm p-3"
+          style="min-width: 260px; flex: 0 0 260px"
+        >
+          <div
+            class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex"
+          >
+            <div class="font-semibold mb-2 text-center">
+              {{ __('Overdue') }}
+            </div>
+            <div class="font-semibold mb-2 text-center">
+              {{ `[${overdueItems.length}]` }}
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <TaskItem
+              v-for="item in overdueItems"
+              :key="item.name"
+              :item="item"
+              :actions="actions"
+              @open="showTask"
+              @redirect="redirect"
+            />
+          </div>
         </div>
-        <div class="flex flex-col gap-2">
-          <TaskItem
-            v-for="item in overdueItems"
-            :key="item.name"
-            :item="item"
-            :actions="actions"
-            @open="showTask"
-            @redirect="redirect"
-          />
-        </div>
-      </div>
 
-      <div class="bg-white rounded shadow-sm p-3" style="min-width:260px; flex:0 0 260px;">
-        <div class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex">
-          <div class="font-semibold mb-2 text-center">{{ __('Upcoming') }}</div>
-          <div class="font-semibold mb-2 text-center">{{ `[${upcomingItems.length}]` }}</div>
+        <div
+          class="bg-white rounded shadow-sm p-3"
+          style="min-width: 260px; flex: 0 0 260px"
+        >
+          <div
+            class="mb-2 px-2 border-solid border-b border-gray-300 justify-between flex"
+          >
+            <div class="font-semibold mb-2 text-center">
+              {{ __('Upcoming') }}
+            </div>
+            <div class="font-semibold mb-2 text-center">
+              {{ `[${upcomingItems.length}]` }}
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <TaskItem
+              v-for="item in upcomingItems"
+              :key="item.name"
+              :item="item"
+              :actions="actions"
+              @open="showTask"
+              @redirect="redirect"
+            />
+          </div>
         </div>
-        <div class="flex flex-col gap-2">
-          <TaskItem
-            v-for="item in upcomingItems"
-            :key="item.name"
-            :item="item"
-            :actions="actions"
-            @open="showTask"
-            @redirect="redirect"
-          />
-        </div>
-      </div>
       </div>
     </div>
   </div>
@@ -122,7 +147,6 @@ const { getUser } = usersStore()
 const { showModal } = useDoctypeModal()
 
 const router = useRouter()
-
 
 const tasksListView = ref(null)
 
@@ -201,7 +225,6 @@ const issueCounts = computed(() => {
 
 const filterByIssues = ref(false)
 
-
 const rows = computed(() => {
   if (!tasks.value?.data?.data) return []
 
@@ -215,7 +238,9 @@ const rows = computed(() => {
   openTaskFromURL()
 
   // Work with raw rows
-  let raw = Array.isArray(tasks.value.data.data) ? [...tasks.value.data.data] : []
+  let raw = Array.isArray(tasks.value.data.data)
+    ? [...tasks.value.data.data]
+    : []
 
   // If enabled, filter tasks to only those referenced by issues
   if (filterByIssues.value && issueTaskIds.value && issueTaskIds.value.size) {
@@ -265,7 +290,9 @@ const todayItems = computed(() => {
     if (!d) return false
     return d >= s && d < t
   })
-  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
+  return dated_data.filter(
+    (item) => !['Done', 'Canceled'].includes(item.status),
+  )
 })
 
 const overdueItems = computed(() => {
@@ -275,7 +302,9 @@ const overdueItems = computed(() => {
     if (!d) return false
     return d < s
   })
-  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
+  return dated_data.filter(
+    (item) => !['Done', 'Canceled'].includes(item.status),
+  )
 })
 
 const upcomingItems = computed(() => {
@@ -286,10 +315,10 @@ const upcomingItems = computed(() => {
     if (!d) return true
     return d >= t
   })
-  return dated_data.filter(item => !['Done', 'Canceled'].includes(item.status))
+  return dated_data.filter(
+    (item) => !['Done', 'Canceled'].includes(item.status),
+  )
 })
-
-
 
 const columns = computed(() => {
   let _columns = tasks.value?.data?.columns || []
@@ -407,21 +436,20 @@ function createTask(column) {
   })
 }
 
-
 function createTicket(name) {
   ticket.value = {
     status: 'Open',
     priority: 'Low',
     custom_task: name,
   }
-    showTaskCreateModal.value = true
+  showTaskCreateModal.value = true
 }
 
 function actions(name) {
   return [
     {
       label: __('Delete'),
-      icon: 'trash-2',
+      icon: 'lucide-trash-2',
       onClick: () => {
         deletetask(name)
         tasks.value.reload()
@@ -429,7 +457,7 @@ function actions(name) {
     },
     {
       label: __('Create Ticket'),
-      icon: 'plus',
+      icon: 'lucide-plus',
       onClick: () => {
         createTicket(name)
       },

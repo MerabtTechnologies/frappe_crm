@@ -19,7 +19,7 @@
           v-if="false"
           class="absolute top-2 right-2 z-10"
           variant="outline"
-          icon="download"
+          icon="lucide-download"
           @click.stop="downloadExcel"
         />
       </div>

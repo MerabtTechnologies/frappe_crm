@@ -12,7 +12,7 @@
       name="Quotations"
       :title="__('No quotations yet')"
       :description="__('Create a quotation from this deal to see it here.')"
-      icon="file-text"
+      icon="lucide-file-text"
       top="30%"
     />
     <div v-else class="flex flex-col px-3 pb-3 sm:px-10 sm:pb-5">
