@@ -33,8 +33,10 @@ class FCRMSettings(Document):
 		brand_name: DF.Data | None
 		currency: DF.Link | None
 		default_calendar_view: DF.Literal["Daily", "Weekly", "Monthly"]
+		disable_onboarding: DF.Check
 		dropdown_items: DF.Table[CRMDropdownItem]
 		enable_forecasting: DF.Check
+		enable_morning_digest: DF.Check
 		event_notifications: DF.Table[EventNotifications]
 		favicon: DF.Attach | None
 		service_provider: DF.Literal[
@@ -199,7 +201,7 @@ def sync_table(key, hook):
 	new_standard_items = {}
 
 	# add new items
-	count = 0  # maintain count because list may come from seperate apps
+	count = 0  # maintain count because list may come from separate apps
 	for item in frappe.get_hooks(hook):
 		if item.get("name1") not in existing_items:
 			crm_settings.append(key, item, count)

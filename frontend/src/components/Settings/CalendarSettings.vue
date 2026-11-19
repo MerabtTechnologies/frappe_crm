@@ -10,7 +10,7 @@
         <p class="text-p-base text-ink-gray-6">
           {{
             __(
-              'Configure your Calendar Settings like Default View and Event Notifications here',
+              'Configure your calendar settings, including the default view and event notifications',
             )
           }}
         </p>
@@ -72,7 +72,7 @@
         </div>
         <div
           v-if="notifications?.length"
-          class="rounded-lg flex flex-col gap-2 w-fit"
+          class="rounded-6 flex flex-col gap-2 w-fit"
         >
           <div v-for="notification in notifications" :key="notification.name">
             <div class="flex items-center gap-2">
@@ -168,7 +168,7 @@
         </div>
         <div
           v-if="allDayNotifications?.length"
-          class="rounded-lg flex flex-col gap-2 w-fit"
+          class="rounded-6 flex flex-col gap-2 w-fit"
         >
           <div
             v-for="notification in allDayNotifications"

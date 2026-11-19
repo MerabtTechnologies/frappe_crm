@@ -1,12 +1,12 @@
 <template>
-  <Popover placement="bottom-end">
-    <template #target="{ togglePopover, close }">
+  <Popover side="bottom" align="end" bare>
+    <template #trigger="{ close }">
       <div class="flex items-center">
         <Button
+          :variant="variant"
           :label="__('Filter')"
           :class="filters?.size ? 'rounded-r-none' : ''"
           :iconLeft="FilterIcon"
-          @click="togglePopover"
         >
           <template v-if="filters?.size" #suffix>
             <div
@@ -18,6 +18,7 @@
         </Button>
         <Button
           v-if="filters?.size"
+          :variant="variant"
           :tooltip="__('Clear All Filters')"
           class="rounded-l-none border-l"
           icon="lucide-x"
@@ -25,11 +26,12 @@
         />
       </div>
     </template>
-    <template #body="{ close }">
+    <template #default="{ close }">
       <div
-        class="my-2 min-w-40 rounded-lg bg-surface-elevation-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
+        class="my-2 min-w-40 rounded-6 bg-surface-elevation-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
       >
         <div class="min-w-72 p-2 sm:min-w-[400px]">
+          <slot name="header" />
           <template v-if="filters?.size">
             <div
               v-for="(f, i) in filters"
@@ -50,20 +52,19 @@
                   />
                 </div>
                 <div id="fieldname" class="w-full">
-                  <Autocomplete
-                    :value="f.field.fieldname"
-                    :options="filterableFields.data"
+                  <Combobox
+                    trigger="button"
+                    :model-value="f.field.fieldname"
+                    :options="filterFieldOptions"
                     :placeholder="__('First Name')"
-                    @change="(e) => updateFilter(e, i)"
+                    @update:selected-option="(e) => updateFilter(e, i)"
                   />
                 </div>
                 <div id="operator">
-                  <FormControl
+                  <Combobox
                     v-model="f.operator"
-                    type="select"
-                    :options="
-                      getOperators(f.field.fieldtype, f.field.fieldname)
-                    "
+                    trigger="button"
+                    :options="getOperators(f.field)"
                     :placeholder="__('Equals')"
                     @update:modelValue="() => updateOperator(f)"
                   />
@@ -83,20 +84,19 @@
                     {{ i == 0 ? __('Where') : __('And') }}
                   </div>
                   <div id="fieldname" class="!min-w-[140px]">
-                    <Autocomplete
-                      :value="f.field.fieldname"
-                      :options="filterableFields.data"
+                    <Combobox
+                      trigger="button"
+                      :model-value="f.field.fieldname"
+                      :options="filterFieldOptions"
                       :placeholder="__('First Name')"
-                      @change="(e) => updateFilter(e, i)"
+                      @update:selected-option="(e) => updateFilter(e, i)"
                     />
                   </div>
                   <div id="operator">
-                    <FormControl
+                    <Combobox
                       v-model="f.operator"
-                      type="select"
-                      :options="
-                        getOperators(f.field.fieldtype, f.field.fieldname)
-                      "
+                      trigger="button"
+                      :options="getOperators(f.field)"
                       :placeholder="__('Equals')"
                       @update:modelValue="() => updateOperator(f)"
                     />
@@ -126,22 +126,22 @@
             {{ __('Empty - Choose a field to filter by') }}
           </div>
           <div class="flex items-center justify-between gap-2">
-            <Autocomplete
-              value=""
+            <Combobox
+              :model-value="null"
               :options="availableFilters"
               :placeholder="__('First Name')"
-              @change="(e) => setfilter(e)"
+              @update:selected-option="(e) => setfilter(e)"
             >
-              <template #target="{ togglePopover }">
+              <template #trigger="{ open, setOpen }">
                 <Button
                   class="!text-ink-gray-5"
                   variant="ghost"
                   :label="__('Add Filter')"
-                  iconLeft="plus"
-                  @click="togglePopover()"
+                  iconLeft="lucide-plus"
+                  @click="setOpen(!open)"
                 />
               </template>
-            </Autocomplete>
+            </Combobox>
             <Button
               v-if="filters?.size"
               class="!text-ink-gray-5"
@@ -158,11 +158,13 @@
 <script setup>
 import FilterIcon from '@/components/Icons/FilterIcon.vue'
 import Link from '@/components/Controls/Link.vue'
-import Autocomplete from '@/components/frappe-ui/Autocomplete.vue'
+import LinkMultiSelect from '@/components/Controls/LinkMultiSelect.vue'
 import DurationInput from '@/components/Controls/DurationInput.vue'
 import RatingInput from '@/components/Controls/RatingInput.vue'
 import {
+  Combobox,
   FormControl,
+  MultiSelect,
   createResource,
   Popover,
   DatePicker,
@@ -171,6 +173,12 @@ import {
 } from 'frappe-ui'
 import { h, computed, onMounted } from 'vue'
 import { isMobileView } from '@/composables/settings'
+import { getFormat } from '@/utils'
+import {
+  isMultiValueFilter,
+  supportsTreeFilter,
+  toFilterValueArray,
+} from '@/utils/fieldTransforms'
 
 const typeCheck = ['Check']
 const typeLink = ['Link', 'Dynamic Link']
@@ -184,6 +192,9 @@ const typeRating = ['Rating']
 const props = defineProps({
   doctype: { type: String, required: true },
   default_filters: { type: Object, default: () => {} },
+  // Fields to offer in place of the doctype's own, such as those two doctypes share
+  fields: { type: Array, default: null },
+  variant: { type: String, default: 'subtle' },
 })
 
 const emit = defineEmits(['update'])
@@ -196,8 +207,10 @@ const filterableFields = createResource({
   params: { doctype: props.doctype },
 })
 
+const fieldList = computed(() => props.fields || filterableFields.data)
+
 onMounted(() => {
-  if (filterableFields.data?.length) return
+  if (props.fields || filterableFields.data?.length) return
   filterableFields.fetch()
 })
 
@@ -205,28 +218,51 @@ const filters = computed(() => {
   if (!list.value?.data) return new Set()
   let allFilters =
     list.value?.params?.filters || list.value.data?.params?.filters
-  if (
-    !allFilters ||
-    Object.keys(allFilters).length === 0 ||
-    !filterableFields.data
-  )
+  if (!allFilters || Object.keys(allFilters).length === 0 || !fieldList.value)
     return new Set()
   // remove default filters
   if (props.default_filters) {
     allFilters = removeCommonFilters(props.default_filters, allFilters)
   }
-  return convertFilters(filterableFields.data, allFilters)
+  return convertFilters(fieldList.value, allFilters)
+})
+
+// `name` is labelled "Name" but holds the document ID, which reads as the
+// record's full name on these doctypes. Mark it with an ID icon.
+const idFieldDoctypes = ['CRM Lead', 'CRM Deal']
+
+const filterFieldOptions = computed(() => {
+  const fields = fieldList.value || []
+  const markIdField = idFieldDoctypes.includes(props.doctype)
+
+  return fields.map((field) => {
+    // Drop the description: it renders as a second line in the dropdown, and
+    // the popover has no max width, so one long description (CRM Deal's
+    // exchange rate) stretches the whole list.
+    const { description, ...option } = field
+
+    if (markIdField && option.fieldname === 'name') {
+      option.slots = {
+        suffix: () =>
+          h('span', {
+            class: 'lucide-id-card size-4 shrink-0 text-ink-gray-5',
+            title: __('Document ID, not the full name'),
+          }),
+      }
+    }
+    return option
+  })
 })
 
 const availableFilters = computed(() => {
-  if (!filterableFields.data) return []
+  if (!fieldList.value) return []
 
   const selectedFieldNames = new Set()
   for (const filter of filters.value) {
     selectedFieldNames.add(filter.fieldname)
   }
 
-  return filterableFields.data.filter(
+  return filterFieldOptions.value.filter(
     (field) => !selectedFieldNames.has(field.fieldname),
   )
 })
@@ -254,18 +290,22 @@ function convertFilters(data, allFilters) {
     }
 
     if (field) {
+      const operator = oppositeOperatorMap[value[0]]
       f.push({
         field,
         fieldname: key,
-        operator: oppositeOperatorMap[value[0]],
-        value: value[1],
+        operator,
+        value: isMultiValueFilter(field, operator)
+          ? toFilterValueArray(value[1])
+          : value[1],
       })
     }
   }
   return new Set(f)
 }
 
-function getOperators(fieldtype, fieldname) {
+function getOperators(field) {
+  const { fieldtype, fieldname } = field
   let options = []
   if (typeString.includes(fieldtype)) {
     options.push(
@@ -328,6 +368,12 @@ function getOperators(fieldtype, fieldname) {
         { label: __('Is'), value: 'is' },
       ],
     )
+    if (supportsTreeFilter(field)) {
+      options.push({
+        label: __('Descendants of (inclusive)'),
+        value: 'descendants of (inclusive)',
+      })
+    }
   }
   if (typeCheck.includes(fieldtype)) {
     options.push(...[{ label: __('Equals'), value: 'equals' }])
@@ -378,15 +424,15 @@ function getValueControl(f) {
   const { field, operator } = f
   const { fieldtype, options } = field
   if (operator == 'is') {
-    return h(FormControl, {
-      type: 'select',
+    return h(Combobox, {
+      trigger: 'button',
       options: [
         {
-          label: 'Set',
+          label: __('Set'),
           value: 'set',
         },
         {
-          label: 'Not Set',
+          label: __('Not Set'),
           value: 'not set',
         },
       ],
@@ -394,9 +440,24 @@ function getValueControl(f) {
       'onUpdate:modelValue': (v) => updateValue(v, f),
     })
   } else if (operator == 'timespan') {
-    return h(FormControl, {
-      type: 'select',
+    return h(Combobox, {
+      trigger: 'button',
       options: timespanOptions,
+      modelValue: f.value,
+      'onUpdate:modelValue': (v) => updateValue(v, f),
+    })
+  } else if (isMultiValueFilter(field, operator)) {
+    if (typeLink.includes(fieldtype)) {
+      return h(LinkMultiSelect, {
+        doctype: options,
+        modelValue: f.value,
+        'onUpdate:modelValue': (v) => updateValue(v, f),
+      })
+    }
+    const _options =
+      fieldtype == 'Check' ? ['Yes', 'No'] : getSelectOptions(options)
+    return h(MultiSelect, {
+      options: _options.map((o) => ({ label: o, value: o })),
       modelValue: f.value,
       'onUpdate:modelValue': (v) => updateValue(v, f),
     })
@@ -405,8 +466,8 @@ function getValueControl(f) {
   } else if (typeSelect.includes(fieldtype) || typeCheck.includes(fieldtype)) {
     const _options =
       fieldtype == 'Check' ? ['Yes', 'No'] : getSelectOptions(options)
-    return h(FormControl, {
-      type: 'select',
+    return h(Combobox, {
+      trigger: 'button',
       options: _options.map((o) => ({
         label: o,
         value: o,
@@ -422,7 +483,11 @@ function getValueControl(f) {
   } else if (typeNumber.includes(fieldtype)) {
     return h(FormControl, { type: 'number' })
   } else if (typeDate.includes(fieldtype) && operator == 'between') {
-    return h(DateRangePicker, { value: f.value, iconLeft: '' })
+    return h(DateRangePicker, {
+      value: f.value,
+      iconLeft: '',
+      format: getFormat('', '', true, false, false),
+    })
   } else if (typeDuration.includes(fieldtype)) {
     return h(DurationInput, { value: f.value })
   } else if (typeRating.includes(fieldtype)) {
@@ -435,13 +500,20 @@ function getValueControl(f) {
     return h(fieldtype == 'Date' ? DatePicker : DateTimePicker, {
       value: f.value,
       iconLeft: '',
+      format:
+        fieldtype == 'Date'
+          ? getFormat('', '', true, false, false)
+          : getFormat('', '', true, true, false),
     })
   } else {
     return h(FormControl, { type: 'text' })
   }
 }
 
-function getDefaultValue(field) {
+function getDefaultValue(field, operator) {
+  if (isMultiValueFilter(field, operator)) {
+    return []
+  }
   if (typeSelect.includes(field.fieldtype)) {
     return getSelectOptions(field.options)[0]
   }
@@ -473,33 +545,37 @@ function getSelectOptions(options) {
 
 function setfilter(data) {
   if (!data) return
+  const operator = getDefaultOperator(data.fieldtype)
   filters.value.add({
     field: {
       label: data.label,
       fieldname: data.fieldname,
       fieldtype: data.fieldtype,
       options: data.options,
+      is_tree: data.is_tree,
     },
     fieldname: data.fieldname,
-    operator: getDefaultOperator(data.fieldtype),
-    value: getDefaultValue(data),
+    operator,
+    value: getDefaultValue(data, operator),
   })
   apply()
 }
 
 function updateFilter(data, index) {
-  if (!data.fieldname) return
+  if (!data?.fieldname) return
 
   filters.value.delete(Array.from(filters.value)[index])
+  const operator = getDefaultOperator(data.fieldtype)
   filters.value.add({
     fieldname: data.fieldname,
-    operator: getDefaultOperator(data.fieldtype),
-    value: getDefaultValue(data),
+    operator,
+    value: getDefaultValue(data, operator),
     field: {
       label: data.label,
       fieldname: data.fieldname,
       fieldtype: data.fieldtype,
       options: data.options,
+      is_tree: data.is_tree,
     },
   })
   apply()
@@ -519,7 +595,11 @@ function clearfilter(close) {
 function updateValue(value, filter) {
   value = value.target ? value.target.value : value
   if (filter.operator === 'between') {
-    filter.value = [value.split(',')[0], value.split(',')[1]]
+    // DateRangePicker emits a [from, to] array; tolerate a legacy "from,to" string too
+    if (typeof value === 'string') {
+      value = value.split(',').map((v) => v.trim())
+    }
+    filter.value = value
   } else {
     filter.value = value
   }
@@ -527,7 +607,7 @@ function updateValue(value, filter) {
 }
 
 function updateOperator(filter) {
-  filter.value = getDefaultValue(filter.field)
+  filter.value = getDefaultValue(filter.field, filter.operator)
 
   if (filter.operator === 'is' || filter.operator === 'is not') {
     filter.value = 'set'
@@ -576,6 +656,9 @@ function placeholder(f) {
   if (f.operator === 'between') {
     return __('01/01/2022 to 01/31/2022')
   } else if (f.operator === 'in' || f.operator === 'not in') {
+    if (isMultiValueFilter(f.field, f.operator)) {
+      return __('Select values')
+    }
     if (typeNumber.includes(f.field.fieldtype)) {
       return __('100, 200, 300')
     }
@@ -622,6 +705,7 @@ const operatorMap = {
   '<=': '<=',
   between: 'between',
   timespan: 'timespan',
+  'descendants of (inclusive)': 'descendants of (inclusive)',
 }
 
 const oppositeOperatorMap = {
@@ -642,6 +726,7 @@ const oppositeOperatorMap = {
   '<=': '<=',
   between: 'between',
   timespan: 'timespan',
+  'descendants of (inclusive)': 'descendants of (inclusive)',
 }
 
 const timespanOptions = [

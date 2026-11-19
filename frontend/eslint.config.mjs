@@ -4,6 +4,8 @@ import pluginVue from 'eslint-plugin-vue'
 import configPrettier from 'eslint-config-prettier'
 import vueParser from 'vue-eslint-parser'
 import globals from 'globals'
+import importX, { createNodeResolver } from 'eslint-plugin-import-x'
+import path from 'node:path'
 
 export default [
   {
@@ -26,11 +28,22 @@ export default [
         ...globals.node,
         frappe: 'readonly',
         __: 'readonly',
+        __WHATSAPP_UI__: 'readonly',
       },
     },
   },
   {
+    plugins: { 'import-x': importX },
+    settings: {
+      'import-x/resolver-next': [
+        createNodeResolver({
+          alias: { '@': [path.resolve(import.meta.dirname, 'src')] },
+          extensions: ['.js', '.ts', '.jsx', '.tsx', '.vue', '.json'],
+        }),
+      ],
+    },
     rules: {
+      'import-x/no-unresolved': ['error', { ignore: ['^~icons/', '^@framework/ui', '^@whatsapp/ui'] }],
       'vue/multi-word-component-names': 'off',
       'vue/prop-name-casing': 'off',
       'vue/attribute-hyphenation': 'off',

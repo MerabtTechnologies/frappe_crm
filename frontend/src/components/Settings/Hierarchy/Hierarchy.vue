@@ -82,7 +82,7 @@
           v-model="search"
           :placeholder="__('Search users')"
           :debounce="200"
-          class="w-1/3"
+          class="w-full"
         >
           <template #prefix>
             <span
@@ -114,7 +114,7 @@
           "
           icon="users"
         />
-        <Tree
+        <HierarchyTree
           v-for="root in visibleRoots"
           :key="root.name"
           :node="root"
@@ -138,14 +138,14 @@
               @move-to-root="(n) => reparent(n.name, null)"
             />
           </template>
-        </Tree>
+        </HierarchyTree>
       </div>
     </div>
 
     <Teleport to="body">
       <div
         v-if="dragLabel"
-        class="fixed pointer-events-none px-2 py-1 rounded-md bg-gray-900 text-white text-xs shadow-lg"
+        class="fixed z-[60] pointer-events-none px-2 py-1 rounded-5 bg-gray-900 text-white text-xs shadow-lg"
         :style="{
           top: `${dragState.y + 25}px`,
           left: `${dragState.x - 25}px`,
@@ -176,18 +176,22 @@
         />
       </template>
     </Dialog>
-    <Dialog v-model:open="showRemoveDialog" :size="'md'">
-      <template #body>
+    <Dialog v-model:open="showRemoveDialog" :size="'md'" bare>
+      <template #default>
         <div class="bg-surface-elevation-2 px-4 pb-6 pt-5 sm:px-6">
           <div class="mb-4 flex items-center justify-between">
-            <h3 class="text-3xl-semibold leading-6 text-ink-gray-9">
-              {{ __('Delete') }}
-            </h3>
-            <Button
-              variant="ghost"
-              icon="lucide-x"
-              @click="showRemoveDialog = false"
-            />
+            <Dialog.Title as-child>
+              <h3 class="text-3xl-semibold leading-6 text-ink-gray-9">
+                {{ __('Delete') }}
+              </h3>
+            </Dialog.Title>
+            <Dialog.Close as-child>
+              <Button
+                :aria-label="__('Close')"
+                variant="ghost"
+                icon="lucide-x"
+              />
+            </Dialog.Close>
           </div>
           <div class="text-ink-gray-5 text-base">
             <template v-if="checkTargetChild">
@@ -245,6 +249,7 @@
 <script setup>
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import HierarchyRow from './HierarchyRow.vue'
+import HierarchyTree from './HierarchyTree.vue'
 import UserMultiSelect from './UserMultiSelect.vue'
 import { useRemoveNode } from './useRemoveNode'
 import { useDragDrop } from './useDragDrop'
@@ -258,7 +263,6 @@ import {
   LoadingIndicator,
   TextInput,
   Tooltip,
-  Tree,
   call,
   createDocumentResource,
   createListResource,
@@ -300,7 +304,7 @@ const nodes = createListResource({
   doctype: DOCTYPE,
   fields: ['name', 'user', 'full_name', 'reports_to', 'is_group'],
   orderBy: 'lft asc',
-  pageLength: 0,
+  pageLength: 99999,
   auto: true,
 })
 
@@ -320,7 +324,7 @@ function toggleEnable(currentlyEnabled) {
             fcrmSettings.setValue.submit(
               { enable_sales_hierarchy: 0 },
               {
-                onSuccess: () => toast.success(__('Sales Hierarchy disabled')),
+                onSuccess: () => toast.success(__('Sales hierarchy disabled')),
               },
             )
             close()
@@ -331,7 +335,11 @@ function toggleEnable(currentlyEnabled) {
   } else {
     fcrmSettings.setValue.submit(
       { enable_sales_hierarchy: 1 },
-      { onSuccess: () => toast.success(__('Sales Hierarchy enabled')) },
+      {
+        onSuccess: () => {
+          toast.success(__('Sales hierarchy enabled'))
+        },
+      },
     )
   }
 }

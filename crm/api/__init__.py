@@ -2,13 +2,14 @@ import frappe
 from bs4 import BeautifulSoup
 from frappe import _
 from frappe.core.api.file import get_max_file_size
+from frappe.rate_limiter import rate_limit
 from frappe.translate import get_all_translations
 from frappe.utils import cstr, split_emails, validate_email_address
 
 from crm.utils import is_frappe_version
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
 def get_translations():
 	if frappe.session.user != "Guest":
 		language = frappe.db.get_value("User", frappe.session.user, "language")
@@ -51,6 +52,27 @@ def get_user_signature():
 	return content
 
 
+@frappe.whitelist()
+def get_unsubscribed_emails(emails: list[str], doctype: str, name: str) -> list[str]:
+	"""Mirror the filter in frappe's QueueBuilder, which drops these recipients without an error."""
+	frappe.has_permission(doctype, "read", name, throw=True)
+	if not emails:
+		return []
+
+	EmailUnsubscribe = frappe.qb.DocType("Email Unsubscribe")
+	return (
+		frappe.qb.from_(EmailUnsubscribe)
+		.select(EmailUnsubscribe.email)
+		.distinct()
+		.where(EmailUnsubscribe.email.isin(emails))
+		.where(
+			(EmailUnsubscribe.global_unsubscribe == 1)
+			| ((EmailUnsubscribe.reference_doctype == doctype) & (EmailUnsubscribe.reference_name == name))
+		)
+		.run(pluck=True)
+	)
+
+
 def check_app_permission():
 	if frappe.session.user == "Administrator":
 		return True
@@ -75,7 +97,8 @@ def check_app_permission():
 	return False
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
+@rate_limit(limit=10, seconds=60 * 60)
 def accept_invitation(key: str | None = None):
 	if not key:
 		frappe.throw(_("Invalid or expired key"))
@@ -84,29 +107,30 @@ def accept_invitation(key: str | None = None):
 	if not result:
 		frappe.throw(_("Invalid or expired key"))
 	invitation = frappe.get_doc("CRM Invitation", result[0])
-	invitation.accept()
+	is_new_user = invitation.accept()
 	invitation.reload()
 
+	# this is a GET request, which is rolled back unless a commit is requested
+	frappe.local.flags.commit = True
+
 	if invitation.status == "Accepted":
-		frappe.local.login_manager.login_as(invitation.email)
 		frappe.local.response["type"] = "redirect"
-		frappe.local.response["location"] = "/crm"
+		if is_new_user:
+			# a new user has no password yet, send them to the set password page
+			# which logs them in and redirects to /crm once the password is set
+			user = frappe.get_doc("User", invitation.email)
+			frappe.local.response["location"] = user._reset_password()
+		else:
+			frappe.local.login_manager.login_as(invitation.email)
+			frappe.local.response["location"] = "/crm"
 
 
 @frappe.whitelist()
 def invite_by_email(emails: str, role: str):
+	from crm.fcrm.doctype.crm_invitation.crm_invitation import validate_can_invite
+
 	frappe.only_for(["Sales Manager", "System Manager"], True)
-
-	user_roles = frappe.get_roles(frappe.session.user)
-
-	if role == "System Manager" and "System Manager" not in user_roles:
-		frappe.throw(_("You are not allowed to invite System Managers"), frappe.PermissionError)
-
-	if role == "Sales Manager" and "System Manager" not in user_roles:
-		frappe.throw(_("You are not allowed to invite Sales Managers"), frappe.PermissionError)
-
-	if role not in ["System Manager", "Sales Manager", "Sales User"]:
-		frappe.throw(_("Cannot invite for this role"), frappe.PermissionError)
+	validate_can_invite(role)
 
 	if not emails:
 		return

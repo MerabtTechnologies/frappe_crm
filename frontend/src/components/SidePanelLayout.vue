@@ -18,6 +18,7 @@
               <slot name="actions" v-bind="{ section }">
                 <Button
                   v-if="section.showEditButton"
+                  :tooltip="__('Edit Fields Layout')"
                   variant="ghost"
                   class="w-7 mr-2"
                   :icon="EditIcon"
@@ -36,15 +37,19 @@
                 >
                   <div
                     v-if="field.visible"
-                    class="field flex items-center gap-2 px-3 leading-5 first:mt-3"
+                    class="field flex gap-2 px-3 leading-5 first:mt-3"
+                    :class="
+                      isTextareaField(field) ? 'items-start' : 'items-center'
+                    "
                   >
                     <Tooltip
                       v-if="!['Button', 'HTML'].includes(field.fieldtype)"
                       :text="__(field.label)"
-                      :hoverDelay="1"
+                      :hoverDelay="1000"
                     >
                       <div
                         class="w-[35%] min-w-20 shrink-0 flex items-center gap-0.5"
+                        :class="{ 'pt-[9px]': isTextareaField(field) }"
                       >
                         <div class="truncate text-sm text-ink-gray-5">
                           {{ __(field.label) }}
@@ -55,7 +60,7 @@
                             (field.mandatory_depends_on &&
                               field.mandatory_via_depends_on)
                           "
-                          class="text-ink-red-5"
+                          class="text-ink-red-4"
                         >
                           *
                         </div>
@@ -102,21 +107,20 @@
                           v-else-if="field.fieldtype === 'Dropdown'"
                           :value="doc[field.fieldname]"
                           :placeholder="field.placeholder"
+                          :itemPlaceholder="field.itemPlaceholder"
                           :options="field.options"
-                          :create="field.create"
+                          :validate="field.validate"
+                          :onCreate="field.onCreate"
                           :label="field.label"
                         />
-                        <FormControl
+                        <Checkbox
                           v-else-if="field.fieldtype == 'Check'"
-                          v-model="doc[field.fieldname]"
-                          class="form-control"
-                          type="checkbox"
+                          class="checkbox-control"
+                          :modelValue="Boolean(doc[field.fieldname])"
                           :disabled="Boolean(field.read_only)"
-                          @change.stop="
-                            fieldChange($event.target.checked, field)
-                          "
+                          @update:modelValue="(v) => checkChange(v, field)"
                         />
-                        <FormControl
+                        <Textarea
                           v-else-if="
                             [
                               'Small Text',
@@ -126,17 +130,16 @@
                             ].includes(field.fieldtype)
                           "
                           class="form-control"
-                          type="textarea"
-                          :value="doc[field.fieldname]"
+                          variant="ghost"
+                          :modelValue="doc[field.fieldname]"
                           :placeholder="field.placeholder"
-                          :debounce="500"
                           @change.stop="fieldChange($event.target.value, field)"
                         />
-                        <FormControl
+                        <Select
                           v-else-if="field.fieldtype === 'Select'"
-                          v-model="doc[field.fieldname]"
-                          class="form-control cursor-pointer [&_select]:cursor-pointer truncate [&>*]:!ring-0"
-                          type="select"
+                          class="form-control select-control cursor-pointer truncate"
+                          variant="ghost"
+                          :modelValue="doc[field.fieldname]"
                           :options="field.options"
                           :placeholder="field.placeholder"
                           @update:modelValue="(v) => fieldChange(v, field)"
@@ -172,7 +175,7 @@
                           </template>
                           <template #item-label="{ option }">
                             <Tooltip :text="option.value">
-                              <div class="cursor-pointer">
+                              <div class="cursor-pointer text-ink-gray-9">
                                 {{ getUser(option.value).full_name }}
                               </div>
                             </Tooltip>
@@ -190,6 +193,7 @@
                               : doc[field.options]
                           "
                           :filters="field.filters"
+                          :grouping="field.grouping"
                           :placeholder="field.placeholder"
                           :onCreate="field.create"
                           @change="(v) => fieldChange(v, field)"
@@ -199,7 +203,7 @@
                           class="form-control"
                         >
                           <TimePicker
-                            :value="doc[field.fieldname]"
+                            :model-value="doc[field.fieldname]"
                             :format="getFormat('', '', false, true, false)"
                             :placeholder="field.placeholder"
                             @change="(v) => fieldChange(v, field)"
@@ -210,10 +214,11 @@
                           class="form-control"
                         >
                           <DateTimePicker
-                            :value="doc[field.fieldname]"
+                            :model-value="doc[field.fieldname]"
                             :format="getFormat('', '', true, true, false)"
                             :placeholder="field.placeholder"
-                            placement="left-start"
+                            side="left"
+                            align="start"
                             @change="(v) => fieldChange(v, field)"
                           />
                         </div>
@@ -222,10 +227,11 @@
                           class="form-control"
                         >
                           <DatePicker
-                            :value="doc[field.fieldname]"
+                            :model-value="doc[field.fieldname]"
                             :format="getFormat('', '', true, false, false)"
                             :placeholder="field.placeholder"
-                            placement="left-start"
+                            side="left"
+                            align="start"
                             @change="(v) => fieldChange(v, field)"
                           />
                         </div>
@@ -233,6 +239,7 @@
                           v-else-if="field.fieldtype === 'Percent'"
                           class="form-control"
                           type="text"
+                          variant="ghost"
                           :value="getFormattedPercent(field.fieldname, doc)"
                           :placeholder="field.placeholder"
                           :debounce="500"
@@ -244,9 +251,9 @@
                         <Password
                           v-else-if="field.fieldtype === 'Password'"
                           class="form-control"
-                          :value="doc[field.fieldname]"
+                          variant="ghost"
+                          :modelValue="doc[field.fieldname]"
                           :placeholder="field.placeholder"
-                          :debounce="500"
                           :disabled="Boolean(field.read_only)"
                           @change.stop="fieldChange($event.target.value, field)"
                         />
@@ -254,6 +261,7 @@
                           v-else-if="field.fieldtype === 'Int'"
                           class="form-control"
                           type="text"
+                          variant="ghost"
                           :value="doc[field.fieldname] || '0'"
                           :placeholder="field.placeholder"
                           :debounce="500"
@@ -264,6 +272,7 @@
                           v-else-if="field.fieldtype === 'Float'"
                           class="form-control"
                           type="text"
+                          variant="ghost"
                           :value="getFormattedFloat(field.fieldname, doc)"
                           :placeholder="field.placeholder"
                           :debounce="500"
@@ -276,6 +285,7 @@
                           v-else-if="field.fieldtype === 'Currency'"
                           class="form-control"
                           type="text"
+                          variant="ghost"
                           :value="getFormattedCurrency(field.fieldname, doc)"
                           :placeholder="field.placeholder"
                           :debounce="500"
@@ -284,21 +294,29 @@
                             fieldChange(flt($event.target.value), field)
                           "
                         />
-                        <DurationInput
+                        <Duration
                           v-else-if="field.fieldtype === 'Duration'"
                           class="form-control"
-                          :value="doc[field.fieldname]"
+                          variant="ghost"
+                          :modelValue="doc[field.fieldname]"
                           :placeholder="field.placeholder"
                           :disabled="Boolean(field.read_only)"
-                          @change="(v) => fieldChange(v, field)"
+                          @update:modelValue="(v) => fieldChange(v, field)"
                         />
-                        <RatingInput
+                        <!-- Frappe stores Rating as a 0-1 fraction; Rating works in star units -->
+                        <Rating
                           v-else-if="field.fieldtype === 'Rating'"
                           class="pl-[10px]"
-                          :value="doc[field.fieldname]"
-                          :max="field.options || 5"
+                          size="md"
+                          :step="0.5"
+                          :modelValue="
+                            (doc[field.fieldname] || 0) * ratingMax(field)
+                          "
+                          :max="ratingMax(field)"
                           :disabled="Boolean(field.read_only)"
-                          @change="(v) => fieldChange(v, field)"
+                          @update:modelValue="
+                            (v) => fieldChange(v / ratingMax(field), field)
+                          "
                         />
                         <ButtonControl
                           v-else-if="field.fieldtype === 'Button'"
@@ -349,13 +367,13 @@
                           :disabled="Boolean(field.read_only)"
                           @change="(v) => fieldChange(v, field)"
                         />
-                        <FormControl
+                        <TextInput
                           v-else
                           class="form-control"
                           type="text"
-                          :value="doc[field.fieldname]"
+                          variant="ghost"
+                          :modelValue="doc[field.fieldname]"
                           :placeholder="field.placeholder"
-                          :debounce="500"
                           @change.stop="fieldChange($event.target.value, field)"
                         />
                       </div>
@@ -366,8 +384,13 @@
                             field.link &&
                             doc[field.fieldname]
                           "
-                          class="h-4 w-4 shrink-0 cursor-pointer text-ink-gray-5 hover:text-ink-gray-8"
+                          class="relative -left-[13px] h-4 w-4 shrink-0 cursor-pointer text-ink-gray-5 hover:text-ink-gray-8"
                           @click.stop="field.link(doc[field.fieldname])"
+                        />
+                        <ArrowUpRightIcon
+                          v-else-if="isExternalUrl(doc[field.fieldname])"
+                          class="relative -left-[13px] h-4 w-4 shrink-0 cursor-pointer text-ink-gray-5 hover:text-ink-gray-8"
+                          @click.stop="openExternalUrl(doc[field.fieldname])"
                         />
                         <EditIcon
                           v-if="
@@ -398,10 +421,7 @@
 </template>
 
 <script setup>
-import Password from '@/components/Controls/Password.vue'
 import FormattedInput from '@/components/Controls/FormattedInput.vue'
-import DurationInput from '@/components/Controls/DurationInput.vue'
-import RatingInput from '@/components/Controls/RatingInput.vue'
 import AttachControl from '@/components/Controls/AttachControl.vue'
 import HtmlControl from '@/components/Controls/HtmlControl.vue'
 import GeolocationControl from '@/components/Controls/GeolocationControl.vue'
@@ -419,9 +439,13 @@ import Link from '@/components/Controls/Link.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import SidePanelModal from '@/components/Modals/SidePanelModal.vue'
 import { getMeta } from '@/stores/meta'
-import { parseLinkFilters } from '@/utils/fieldTransforms'
+import {
+  parseLinkFilters,
+  applyContactOrganizationGrouping,
+} from '@/utils/fieldTransforms'
 import { usersStore } from '@/stores/users'
 import { isMobileView } from '@/composables/settings'
+import { createDocument } from '@/composables/document'
 import {
   getFormat,
   evaluateDependsOnValue,
@@ -429,7 +453,19 @@ import {
   interpolateTemplate,
 } from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
-import { Tooltip, DateTimePicker, DatePicker, TimePicker } from 'frappe-ui'
+import {
+  Checkbox,
+  DatePicker,
+  DateTimePicker,
+  Duration,
+  Password,
+  Rating,
+  Select,
+  Textarea,
+  TextInput,
+  TimePicker,
+  Tooltip,
+} from 'frappe-ui'
 import { useDocument } from '@/data/document'
 import { ref, computed, getCurrentInstance } from 'vue'
 
@@ -505,9 +541,22 @@ function parsedField(field) {
     field.link_filters = JSON.stringify({
       name: ['in', users.data?.crmUsers?.map((user) => user.name)],
       ignore_user_type: 1,
-      ...(parseLinkFilters(field.link_filters) || {}),
+      ...(parseLinkFilters(field.link_filters, { doc: doc.value }) || {}),
     })
   }
+
+  if (field.fieldtype === 'Link' && field.options !== 'User') {
+    if (!field.create) {
+      field.create = (value, close) => {
+        const callback = (d) => {
+          if (d) fieldChange(d.name, field)
+        }
+        createDocument(field.options, value, close, callback)
+      }
+    }
+  }
+
+  field = applyContactOrganizationGrouping(field, doc.value, props.doctype)
 
   const read_only_via_depends_on = evaluateDependsOnValue(
     field.read_only_depends_on,
@@ -524,7 +573,7 @@ function parsedField(field) {
 
   let _field = {
     ...field,
-    filters: parseLinkFilters(field.link_filters),
+    filters: parseLinkFilters(field.link_filters, { doc: doc.value }),
     placeholder: field.placeholder || field.label,
     display_via_depends_on: evaluateDependsOnValue(field.depends_on, doc.value),
     mandatory_via_depends_on: evaluateDependsOnValue(
@@ -540,6 +589,14 @@ function parsedField(field) {
 
 const instance = getCurrentInstance()
 const attrs = instance?.vnode?.props ?? {}
+
+function isExternalUrl(value) {
+  return typeof value === 'string' && /^https?:\/\//i.test(value.trim())
+}
+
+function openExternalUrl(value) {
+  window.open(value.trim(), '_blank', 'noopener,noreferrer')
+}
 
 async function fieldChange(value, df) {
   if (props.preview) return
@@ -622,6 +679,21 @@ async function handleButtonClick(field) {
 function firstVisibleIndex() {
   return _sections.value.findIndex((section) => section.visible)
 }
+
+const textareaFieldtypes = ['Small Text', 'Text', 'Long Text', 'Code']
+function isTextareaField(field) {
+  return textareaFieldtypes.includes(field.fieldtype)
+}
+
+function ratingMax(field) {
+  return Number(field.options) || 5
+}
+
+function checkChange(value, df) {
+  const next = value ? 1 : 0
+  if (next === (doc.value[df.fieldname] ? 1 : 0)) return
+  fieldChange(next, df)
+}
 </script>
 
 <style scoped>
@@ -629,9 +701,11 @@ function firstVisibleIndex() {
   margin: 2px;
 }
 
-:deep(.form-control input:not([type='checkbox'])),
-:deep(.form-control select),
-:deep(.form-control textarea),
+/* Textarea renders no wrapper, so `form-control` lands on the element itself;
+   the inputs sit inside one. Both shapes need the transparent treatment —
+   without it the textarea keeps the forms-plugin's white base background. */
+:deep(.form-control input),
+:deep(textarea.form-control),
 :deep(.form-control button),
 :deep(.attach-control),
 :deep(.geolocation-control),
@@ -640,10 +714,22 @@ function firstVisibleIndex() {
   background: transparent;
 }
 
+:deep(.form-control input),
+:deep(textarea.form-control) {
+  border-width: 1px;
+  border-color: transparent;
+}
+
 :deep(.form-control button) {
   gap: 0;
 }
-:deep(.form-control [type='checkbox']) {
+
+:deep(button.select-control:hover),
+:deep(button.select-control:focus) {
+  background-color: var(--surface-gray-1);
+}
+
+:deep(.checkbox-control [data-slot='control']) {
   margin-left: 9px;
   cursor: pointer;
 }
@@ -657,6 +743,25 @@ function firstVisibleIndex() {
 :deep(.form-control button svg) {
   color: white;
   width: 0;
+}
+
+/* PrimaryDropdown (Dropdown fields like Email/Mobile) is a borderless button
+   with px-2.5 (10px); trim to 9px so its text aligns with the inputs and
+   Link fields, which start at 9px (1px transparent border + 8px padding). */
+:deep(.dropdown-button) {
+  padding-left: 9px !important;
+  padding-right: 9px !important;
+}
+
+/* Link fields sit 4px right of the inputs; pull them back without moving the chevron. */
+:deep(.select-text button) {
+  margin-left: -4px;
+  width: calc(100% + 4px);
+}
+
+/* Link chevrons line up with the Select chevrons. */
+:deep(.form-control .lucide-chevron-down.absolute) {
+  right: 3px;
 }
 
 .sections .section .column {

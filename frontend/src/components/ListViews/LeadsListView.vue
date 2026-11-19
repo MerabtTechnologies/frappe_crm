@@ -24,21 +24,23 @@
         v-for="column in columns"
         :key="column.key"
         :item="column"
-        @columnWidthUpdated="emit('columnWidthUpdated', column)"
+        @columnWidthUpdated="(e) => onColumnWidthUpdated(e, column)"
       >
         <Button
           v-if="column.key == '_liked_by'"
-          variant="ghosted"
+          variant="ghost"
           class="!h-4"
-          :class="isLikeFilterApplied ? 'fill-red-500' : 'fill-white'"
           @click="() => emit('applyLikeFilter')"
         >
-          <HeartIcon class="h-4 w-4" />
+          <HeartIcon
+            class="h-4 w-4"
+            :class="isLikeFilterApplied ? 'fill-red-500 text-red-500' : ''"
+          />
         </Button>
       </ListHeaderItem>
     </ListHeader>
     <ListRows
-      v-slot="{ idx, column, item, row }"
+      v-slot="{ idx, column, item, row, isVisited }"
       :rows="rows"
       doctype="CRM Lead"
     >
@@ -51,6 +53,9 @@
             <MultipleAvatar
               :avatars="item"
               size="sm"
+              :label-class="
+                isVisited ? 'text-ink-gray-6' : 'font-medium text-ink-gray-9'
+              "
               @click="
                 (event) =>
                   emit('applyFilter', {
@@ -76,11 +81,10 @@
             />
           </div>
           <div v-else-if="column.key === 'lead_owner'">
-            <Avatar
+            <UserAvatar
               v-if="item.full_name"
               class="flex items-center"
-              :image="item.user_image"
-              :label="item.full_name"
+              :user="item.name"
               size="sm"
             />
           </div>
@@ -100,6 +104,9 @@
               ].includes(column.key)
             "
             class="truncate text-base"
+            :class="
+              isVisited ? 'text-ink-gray-6' : 'font-medium text-ink-gray-9'
+            "
             @click="
               (event) =>
                 emit('applyFilter', {
@@ -117,9 +124,7 @@
           </div>
           <div v-else-if="column.key === '_liked_by'">
             <Button
-              v-if="column.key == '_liked_by'"
-              variant="ghosted"
-              :class="isLiked(item) ? 'fill-red-500' : 'fill-white'"
+              variant="ghost"
               @click.stop.prevent="
                 () =>
                   emit('likeDoc', {
@@ -128,7 +133,18 @@
                   })
               "
             >
-              <HeartIcon class="h-4 w-4" />
+              <HeartIcon
+                class="h-4 w-4"
+                :class="
+                  isLiked(item)
+                    ? isVisited
+                      ? 'fill-red-400 text-red-400'
+                      : 'fill-red-500 text-red-500'
+                    : isVisited
+                      ? 'text-ink-gray-6'
+                      : 'text-ink-gray-9'
+                "
+              />
             </Button>
           </div>
           <div
@@ -178,9 +194,18 @@
                 })
             "
           />
+          <WebsiteLink
+            v-else-if="column.key === 'website' && item?.url"
+            variant="label"
+            :url="item.url"
+            :label="getLabel(label, column)"
+          />
           <div
             v-else-if="label"
             class="truncate text-base"
+            :class="
+              isVisited ? 'text-ink-gray-6' : 'font-medium text-ink-gray-9'
+            "
             @click="
               (event) =>
                 emit('applyFilter', {
@@ -194,6 +219,13 @@
           >
             {{ getLabel(label, column) }}
           </div>
+        </template>
+        <template #suffix>
+          <WebsiteLink
+            v-if="column.key === 'website' && item?.url"
+            variant="icon"
+            :url="item.url"
+          />
         </template>
       </ListRowItem>
     </ListRows>
@@ -221,6 +253,7 @@
 </template>
 
 <script setup>
+import UserAvatar from '@/components/UserAvatar.vue'
 import HeartIcon from '@/components/Icons/HeartIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
@@ -228,18 +261,17 @@ import RatingInput from '@/components/Controls/RatingInput.vue'
 import MultipleAvatar from '@/components/MultipleAvatar.vue'
 import ListBulkActions from '@/components/ListBulkActions.vue'
 import ListRows from '@/components/ListViews/ListRows.vue'
+import WebsiteLink from '@/components/ListViews/WebsiteLink.vue'
 import { isTranslatable, formatDuration } from '@/utils'
+import { Avatar, Dropdown, Tooltip } from 'frappe-ui'
 import {
-  Avatar,
   ListView,
   ListHeader,
   ListHeaderItem,
   ListSelectBanner,
   ListRowItem,
   ListFooter,
-  Dropdown,
-  Tooltip,
-} from 'frappe-ui'
+} from 'frappe-ui/experimental'
 import { sessionStore } from '@/stores/session'
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -272,6 +304,11 @@ const route = useRoute()
 
 const pageLengthCount = defineModel({ type: Number })
 const list = defineModel('list', { type: Object })
+
+function onColumnWidthUpdated({ width, save }, column) {
+  column.width = width
+  if (save) emit('columnWidthUpdated', column)
+}
 
 function getLabel(label, column) {
   if (column.type === 'Duration') return formatDuration(label)

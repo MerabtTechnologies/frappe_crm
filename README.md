@@ -9,7 +9,9 @@
 **Simplify Sales, Amplify Relationships**
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/frappe/crm)](https://github.com/frappe/crm/releases)
-
+[![Frontend](https://github.com/frappe/crm/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/frappe/crm/actions/workflows/frontend-tests.yml)
+[![Migration](https://github.com/frappe/crm/actions/workflows/migration-test.yml/badge.svg)](https://github.com/frappe/crm/actions/workflows/migration-test.yml)
+[![Server](https://github.com/frappe/crm/actions/workflows/server-tests.yml/badge.svg)](https://github.com/frappe/crm/actions/workflows/server-tests.yml)
 <div>
     <picture>
         <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/FrappeCRMHeroImage.png">
@@ -17,7 +19,7 @@
     </picture>
 </div>
 
-[Live Demo](https://frappecrm-demo.frappe.cloud/api/method/crm.api.live_demo.login) - [Website](https://frappe.io/crm) - [Documentation](https://docs.frappe.io/crm)
+[Live Demo](https://frappecrm-demo.frappe.cloud/#login) - [Website](https://frappe.io/crm) - [Documentation](https://docs.frappe.io/crm)
 
 </div>
 
@@ -76,7 +78,7 @@ The motivation behind building Frappe CRM stems from the need for a simple, cust
 
 -   **Twilio:** Integrate Twilio to make and receive calls from the CRM. You can also record calls. It is a built-in integration.
 -   **Exotel:** Integrate Exotel to make and receive calls via agents mobile phone from the CRM. You can also record calls. It is a built-in integration.
--   **WhatsApp:** Integrate WhatsApp to send and receive messages from the CRM. [Frappe WhatsApp](https://github.com/shridarpatil/frappe_whatsapp) is used for this integration.
+-   **WhatsApp:** Integrate WhatsApp to send and receive messages from the CRM. It needs the optional [WhatsApp](https://github.com/frappe/whatsapp) app. If you add it after CRM, run `bench build --app crm` again.
 -   **ERPNext:** Integrate with [ERPNext](https://erpnext.com) to extend the CRM capabilities to include invoicing, accounting, and more.
 
 ### Under the Hood
@@ -143,6 +145,7 @@ The script will set up a production-ready instance of Frappe CRM with all the ne
 1. In the frappe-bench directory, run `bench start` and keep it running.
 1. Open a new terminal session and cd into `frappe-bench` directory and run following commands:
     ```sh
+    $ bench get-app whatsapp # optional, for WhatsApp; get it before crm so crm builds with it
     $ bench get-app crm
     $ bench new-site sitename.localhost --install-app crm
     $ bench browse sitename.localhost --user Administrator

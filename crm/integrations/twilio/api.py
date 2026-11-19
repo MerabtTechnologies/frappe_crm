@@ -2,9 +2,10 @@ import json
 
 import frappe
 from frappe import _
+from twilio.twiml.voice_response import VoiceResponse
 from werkzeug.wrappers import Response
 
-from crm.integrations.api import get_contact_by_phone_number
+from crm.integrations.api import find_contact_by_phone_number
 
 from .twilio_handler import IncomingCall, Twilio, TwilioCallDetails
 
@@ -50,7 +51,8 @@ def generate_access_token():
 	return {"token": frappe.safe_decode(token)}
 
 
-@frappe.whitelist(allow_guest=True)
+# webhook authenticity is enforced by validate_twilio_request(); guest access itself is unchanged
+@frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
 def voice(**kwargs):
 	"""This is a webhook called by twilio to get instructions when the voice call request comes to twilio server."""
 
@@ -64,23 +66,47 @@ def voice(**kwargs):
 
 	# Generate TwiML instructions to make a call
 	from_number = _get_caller_number(args.Caller)
-	resp = twilio.generate_twilio_dial_response(from_number, args.To)
+	if not from_number:
+		resp = VoiceResponse()
+		resp.say(_("Your account is not configured with a phone number. Please contact your administrator."))
+		return Response(resp.to_xml(), mimetype="text/xml")
 
 	call_details = TwilioCallDetails(args, call_from=from_number)
-	create_call_log(call_details)
+	try:
+		create_call_log(call_details)
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Error while creating Twilio call log")
+		frappe.db.commit()
+		return Response(_call_failed_response().to_xml(), mimetype="text/xml")
+
+	resp = twilio.generate_twilio_dial_response(from_number, args.To)
 	return Response(resp.to_xml(), mimetype="text/xml")
 
 
-@frappe.whitelist(allow_guest=True)
+# webhook authenticity is enforced by validate_twilio_request(); guest access itself is unchanged
+@frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
 def twilio_incoming_call_handler(**kwargs):
 	args = frappe._dict(kwargs)
 	validate_twilio_request(args)
 
 	call_details = TwilioCallDetails(args)
-	create_call_log(call_details)
+	try:
+		create_call_log(call_details)
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Error while creating Twilio call log")
+		frappe.db.commit()
+		return Response(_call_failed_response().to_xml(), mimetype="text/xml")
 
 	resp = IncomingCall(args.From, args.To).process()
 	return Response(resp.to_xml(), mimetype="text/xml")
+
+
+def _call_failed_response():
+	resp = VoiceResponse()
+	resp.say(_("We're unable to connect your call right now. Please try again later."))
+	return resp
 
 
 def create_call_log(call_details: TwilioCallDetails):
@@ -93,12 +119,12 @@ def create_call_log(call_details: TwilioCallDetails):
 	link(contact_number, call_log)
 
 	call_log.save(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # call log must exist before Twilio's concurrent status callbacks  # nosemgrep
 	return call_log
 
 
 def link(contact_number, call_log):
-	contact = get_contact_by_phone_number(contact_number)
+	contact = find_contact_by_phone_number(contact_number)
 	if contact.get("name"):
 		doctype = "Contact"
 		docname = contact.get("name")
@@ -136,7 +162,7 @@ def get_twilio_settings():
 	return frappe.get_single("CRM Twilio Settings")
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
 def update_recording_info(**kwargs):
 	args = frappe._dict(kwargs)
 	validate_twilio_request(args)
@@ -155,7 +181,7 @@ def update_recording_info(**kwargs):
 		raise exc
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
 def update_call_status_info(**kwargs):
 	args = frappe._dict(kwargs)
 	validate_twilio_request(args)

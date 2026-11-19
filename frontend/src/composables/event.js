@@ -1,8 +1,33 @@
 import { usersStore } from '@/stores/users'
-import { dayjs, createListResource } from 'frappe-ui'
+import { dayjs, dayjsLocal, createListResource, getConfig } from 'frappe-ui'
 import { sameArrayContents } from '@/utils'
 import { computed, ref } from 'vue'
 import { allTimeSlots } from '@/components/Calendar/utils'
+import { createDialog } from '@/utils/dialogs'
+
+// Lists events the usual way, plus ones linked to a lead or deal you can read,
+// so a teammate's meeting on a lead shows on that lead (see crm/api/event.py)
+export const EVENT_LIST_URL = 'crm.api.event.get_event_list'
+// the server's cap (MAX_EVENT_ROWS in crm/api/event.py)
+const MAX_EVENT_ROWS = 2000
+
+// Event times are saved in the system timezone and shown in the user's, as tasks
+// are. An all-day event holds only its day, so it isn't shifted.
+export function eventTime(value, allDay = false) {
+  return allDay ? dayjs(value) : dayjsLocal(value)
+}
+
+export function toSystemTime(localValue, allDay = false) {
+  const systemTimezone = getConfig('systemTimezone')
+  if (allDay || !systemTimezone) return localValue
+  const localTimezone =
+    getConfig('localTimezone') ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  return dayjs
+    .tz(localValue, localTimezone)
+    .tz(systemTimezone)
+    .format('YYYY-MM-DD HH:mm:ss')
+}
 
 export const showEventModal = ref(false)
 export const activeEvent = ref(null)
@@ -29,6 +54,7 @@ export function useEvent({
 
   const eventsResource = createListResource({
     doctype: 'Event',
+    url: EVENT_LIST_URL,
     cache: ['calendar-events', docname],
     fields: [
       'name',
@@ -40,6 +66,7 @@ export function useEvent({
       'all_day',
       'event_type',
       'location',
+      'google_meet_link',
       'color',
       'attending',
       'owner',
@@ -49,20 +76,24 @@ export function useEvent({
     ],
     filters: filters,
     auto: true,
-    limit: 50,
+    pageLength: 50,
     orderBy: 'creation desc',
   })
 
   const eventParticipantsResource = createListResource({
     doctype: 'Event Participants',
+    url: EVENT_LIST_URL,
     fields: ['*'],
     parent: 'Event',
+    pageLength: MAX_EVENT_ROWS,
   })
 
   const eventNotificationsResource = createListResource({
     doctype: 'Event Notifications',
+    url: EVENT_LIST_URL,
     fields: ['*'],
     parent: 'Event',
+    pageLength: MAX_EVENT_ROWS,
   })
 
   const events = computed(() => {
@@ -160,18 +191,18 @@ export function useEvent({
     isFullDay = false,
     format = 'h:mm a',
   ) => {
-    const start = dayjs(startTime)
-    const end = dayjs(endTime)
-
     if (isFullDay) return __('All Day')
+    const start = eventTime(startTime)
+    const end = eventTime(endTime)
 
     return `${start.format(format)} - ${end.format(format)}`
   }
 
-  const startDate = (startTime, format = 'ddd, D MMM YYYY') => {
-    const start = dayjs(startTime)
-    return start.format(format)
-  }
+  const startDate = (
+    startTime,
+    format = 'ddd, D MMM YYYY',
+    isFullDay = false,
+  ) => eventTime(startTime, isFullDay).format(format)
 
   return {
     eventsResource,
@@ -236,13 +267,52 @@ export function computeAutoToTime(fromTime) {
   return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`
 }
 
-export function validateTimeRange({ fromDate, fromTime, toTime, isFullDay }) {
+// Sets a start or end time and returns an error, leaving the end as it was if
+// the change would make the meeting end before it starts.
+export function changeTime(event, time, isStart = false) {
+  const { toDate, toTime } = event
+  if (isStart) {
+    event.fromTime = time
+    if (!event.toTime || event.toTime <= time) {
+      event.toTime = computeAutoToTime(time)
+    }
+  } else {
+    event.toTime = time
+  }
+  const days = dayjs(toDate).diff(dayjs(event.fromDate), 'day') || 0
+  if (event.fromTime && event.toTime && days <= 1) {
+    event.toDate = endDateFor(event.fromDate, event.fromTime, event.toTime)
+  }
+  const { error } = validateTimeRange(event)
+  if (error) Object.assign(event, { toDate, toTime })
+  return error
+}
+
+export function endDateFor(fromDate, fromTime, toTime) {
+  if (toTime > fromTime) return fromDate
+  return dayjs(fromDate).add(1, 'day').format('YYYY-MM-DD')
+}
+
+// Moving a meeting to another day keeps how many days it spans.
+export function spanFrom(event, fromDate) {
+  const days = dayjs(event.toDate).diff(dayjs(event.fromDate), 'day') || 0
+  return dayjs(fromDate).add(days, 'day').format('YYYY-MM-DD')
+}
+
+export function validateTimeRange({
+  fromDate,
+  toDate,
+  fromTime,
+  toTime,
+  isFullDay,
+}) {
   if (isFullDay) return { valid: true, error: null }
   if (!fromTime || !toTime) {
     return { valid: false, error: __('Start & End Time Are Required') }
   }
   const start = dayjs(fromDate + ' ' + fromTime)
-  const end = dayjs(fromDate + ' ' + toTime)
+  // a meeting can end the next day, as one seen from another timezone often does
+  const end = dayjs((toDate || fromDate) + ' ' + toTime)
   if (!start.isValid() || !end.isValid()) {
     return { valid: false, error: __('Invalid Start Or End Time') }
   }
@@ -261,13 +331,15 @@ export function parseEventDoc(doc) {
     title: doc.subject,
     description: doc.description,
     status: doc.status,
-    fromDate: dayjs(doc.starts_on).format('YYYY-MM-DD'),
-    toDate: dayjs(doc.ends_on).format('YYYY-MM-DD'),
-    fromTime: dayjs(doc.starts_on).format('HH:mm'),
-    toTime: dayjs(doc.ends_on).format('HH:mm'),
+    fromDate: eventTime(doc.starts_on, doc.all_day).format('YYYY-MM-DD'),
+    toDate: eventTime(doc.ends_on, doc.all_day).format('YYYY-MM-DD'),
+    fromTime: eventTime(doc.starts_on, doc.all_day).format('HH:mm'),
+    toTime: eventTime(doc.ends_on, doc.all_day).format('HH:mm'),
     isFullDay: doc.all_day,
     eventType: doc.event_type,
+    // the Meet link is shown, not saved: saving it as the location would pin it there
     location: doc.location || '',
+    meetLink: doc.google_meet_link || '',
     color: doc.color,
     attending: doc.attending,
     referenceDoctype: doc.reference_doctype,
@@ -282,4 +354,57 @@ export function parseEventDoc(doc) {
         }
       : null,
   }
+}
+
+// A meeting booked from a booking page emails its guest when it's moved or
+// deleted (crm.api.booking.sync_booking_from_event), so the CRM says so first.
+// `booking` is { guest, startsOn, endsOn } as the meeting was loaded.
+
+export function bookingOf(doc) {
+  return doc?.booking_guest
+    ? { guest: doc.booking_guest, startsOn: doc.starts_on, endsOn: doc.ends_on }
+    : null
+}
+
+export function movesBooking(booking, { fromDate, fromTime, toDate, toTime }) {
+  if (!booking) return false
+  // the booking's times are system time, the edited ones the CRM user's, which
+  // needn't be the browser's, so compare both as system time
+  const same = (a, b) => dayjs(a).isSame(dayjs(toSystemTime(b)), 'minute')
+  return (
+    !same(booking.startsOn, `${fromDate} ${fromTime}`) ||
+    !same(booking.endsOn, `${toDate || fromDate} ${toTime}`)
+  )
+}
+
+export function confirmBookingMove(booking, onConfirm, onCancel = () => {}) {
+  let confirmed = false
+  createDialog({
+    title: __('Move this meeting?'),
+    message: __(
+      '{0} booked this time from a booking page and will get an email with the new time.',
+      [booking.guest],
+    ),
+    actions: [
+      {
+        label: __('Move and email'),
+        variant: 'solid',
+        onClick: (close) => {
+          confirmed = true
+          close()
+          onConfirm()
+        },
+      },
+    ],
+    onClose: () => !confirmed && onCancel(),
+  })
+}
+
+export function deleteEventMessage(booking) {
+  return booking
+    ? __(
+        'This cancels the booking, and {0} will get an email saying the meeting is cancelled.',
+        [booking.guest],
+      )
+    : __('Are you sure you want to delete this event?')
 }

@@ -4,6 +4,10 @@ from frappe.auth import LoginAttemptTracker
 from frappe.rate_limiter import rate_limit
 from frappe.utils.password import check_password, update_password
 
+from crm.fcrm.doctype.crm_dashboard.home_scope import SALES_ROLES
+
+FLOW_ROLE = "Flow User"
+
 
 @frappe.whitelist()
 @rate_limit(limit=5, seconds=300)  # 5 attempts per 5 minutes per user/IP
@@ -33,17 +37,105 @@ def change_password(old_password: str, new_password: str):
 	else:
 		tracker.add_success_attempt()
 
-	# Validate new password strength (server-side enforcement)
+	validate_password_strength(new_password)
+	update_password(user=user, pwd=new_password, logout_all_sessions=False)
+	return _("Password Updated Successfully")
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=5, seconds=300)
+def set_password(new_password: str):
+	"""Set a first password for a user who has none, from the guided setup."""
+	if not needs_password_setup():
+		frappe.throw(_("You already have a password"), frappe.PermissionError)
+
+	validate_password_strength(new_password)
+	update_password(user=frappe.session.user, pwd=new_password, logout_all_sessions=False)
+
+
+def validate_password_strength(password: str):
 	from frappe.core.doctype.user.user import test_password_strength
 
-	result = test_password_strength(new_password)
+	# empty when the password policy is disabled
+	result = test_password_strength(password)
+	if not result:
+		return
+
 	feedback = result.get("feedback", {})
 	if not feedback.get("password_policy_validation_passed", False):
 		suggestions = feedback.get("suggestions", [])
 		frappe.throw(_("Password is too weak. {0}").format(" ".join(suggestions) if suggestions else ""))
 
-	update_password(user=user, pwd=new_password, logout_all_sessions=False)
-	return _("Password Updated Successfully")
+
+def needs_password_setup() -> bool:
+	"""Whether the session user has no password of their own and must set one.
+
+	True for users provisioned without a password — the Frappe Cloud site owner,
+	users created by a script — who are logged into a session they never
+	authenticated for and so have no way back in once it expires.
+
+	Users who sign in through SSO are excluded: having no password is the
+	correct state for them, not something to fix.
+	"""
+	user = frappe.session.user
+
+	# Checked first: it is the discriminating one, and it short-circuits the
+	# other queries for everyone who already has a password — which is almost
+	# everyone, on every CRM page load.
+	if has_password(user):
+		return False
+
+	if frappe.get_system_settings("disable_user_pass_login"):
+		return False
+
+	# Frappe Cloud v2 signs the owner back in from its dashboard
+	from crm.api.onboarding import is_v2_site
+
+	if is_v2_site():
+		return False
+
+	if frappe.db.get_single_value("LDAP Settings", "enabled"):
+		return False
+
+	# Every user carries a `frappe` provider row (Frappe issues one on insert
+	# so the site can act as an identity provider), so only other providers
+	# mean the user actually signs in through SSO.
+	if frappe.db.exists(
+		"User Social Login",
+		{
+			"parenttype": "User",
+			"parent": user,
+			"provider": ["!=", "frappe"],
+			"userid": ["is", "set"],
+		},
+	):
+		return False
+
+	return True
+
+
+def has_password(user: str) -> bool:
+	"""Whether a password is stored for the user.
+
+	User passwords are hashed rows in `__Auth` with `encrypted = 0`, so
+	`get_decrypted_password` (which only looks at encrypted rows) cannot answer
+	this — hence the direct query.
+	"""
+	Auth = frappe.qb.Table("__Auth")
+
+	return bool(
+		(
+			frappe.qb.from_(Auth)
+			.select(Auth.name)
+			.where(
+				(Auth.doctype == "User")
+				& (Auth.name == user)
+				& (Auth.fieldname == "password")
+				& (Auth.encrypted == 0)
+			)
+			.limit(1)
+		).run()
+	)
 
 
 @frappe.whitelist()
@@ -82,6 +174,8 @@ def update_user_role(user: str, new_role: str):
 		frappe.throw(_("Cannot assign this role"))
 
 	user_doc = frappe.get_doc("User", user)
+	validate_no_role_profile(user_doc)
+	add_flow_role_on_joining(user_doc)
 	target_roles = [d.role for d in user_doc.roles]
 	target_is_system_manager = "System Manager" in target_roles
 
@@ -136,10 +230,7 @@ def remove_crm_roles_from_user(user: str):
 	if "System Manager" in roles and not current_user_is_system_manager:
 		frappe.throw(_("Only System Managers can modify other System Managers"), frappe.PermissionError)
 
-	if user_doc.get("role_profiles") or user_doc.get("role_profile_name"):
-		return frappe.throw(
-			_("User {0} cannot be removed as it has a Role Profile assigned to it.").format(user)
-		)
+	validate_no_role_profile(user_doc)
 
 	if "Sales User" in roles:
 		remove_roles(user_doc, "Sales User")
@@ -156,6 +247,29 @@ def remove_crm_roles_from_user(user: str):
 		frappe.delete_doc("CRM Sales Hierarchy", node_name, ignore_permissions=True)
 
 	frappe.msgprint(_("User {0} has been removed from CRM roles.").format(user))
+
+
+def validate_no_role_profile(user_doc):
+	"""
+	Throw if the user's roles are governed by a Role Profile.
+	User.validate() re-derives `roles` from the assigned Role Profile on every save,
+	so any role appended or removed here would be silently reverted.
+	"""
+	if user_doc.get("role_profiles") or user_doc.get("role_profile_name"):
+		frappe.throw(
+			_("Roles of user {0} are managed by a Role Profile. Update the Role Profile instead.").format(
+				frappe.bold(user_doc.name)
+			),
+			title=_("Role Profile Assigned"),
+		)
+
+
+def add_flow_role_on_joining(user_doc):
+	"""Flow is on for everyone who joins the CRM. Only joining gives the role, so a user an admin
+	took it from does not get it back on a later role change. Frappe v16 has no Flow."""
+	joining = not any(row.role in SALES_ROLES for row in user_doc.roles)
+	if joining and frappe.db.exists("Role", FLOW_ROLE):
+		user_doc.append_roles(FLOW_ROLE)
 
 
 def remove_roles(self, *roles):

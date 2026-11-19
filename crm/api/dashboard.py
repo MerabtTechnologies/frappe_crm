@@ -2,12 +2,15 @@ import json
 
 import frappe
 from frappe import _
-from frappe.query_builder import Case, DocType
-from frappe.query_builder.functions import Avg, Coalesce, Count, Date, DateFormat, IfNull, Sum
+from frappe.query_builder import Case, DocType, Field
+from frappe.query_builder.functions import Avg, Coalesce, Count, Date, DateFormat, IfNull, Max, Sum
 from pypika.functions import Function
 
 from crm.fcrm.doctype.crm_dashboard.crm_dashboard import create_default_manager_dashboard
 from crm.utils import sales_user_only
+
+# Lost and On Hold are exits from the pipeline, not steps in it.
+FUNNEL_STAGE_TYPES = ("Open", "Ongoing", "Won")
 
 
 # Custom function for TIMESTAMPDIFF (MySQL/MariaDB)
@@ -46,7 +49,7 @@ def get_dashboard(from_date: str | None = None, to_date: str | None = None, user
 
 	if not dashboard:
 		layout = json.loads(create_default_manager_dashboard())
-		frappe.db.commit()
+		frappe.db.commit()  # persist the auto-created default dashboard  # nosemgrep
 	else:
 		layout = json.loads(frappe.db.get_value("CRM Dashboard", "Manager Dashboard", "layout") or "[]")
 
@@ -61,6 +64,97 @@ def get_dashboard(from_date: str | None = None, to_date: str | None = None, user
 	return layout
 
 
+#: Chart types that accept contributed options via the crm_dashboard_charts
+#: hook. Deliberately excludes "chart_types" itself — contributing an
+#: entirely new top-level chart type would also need DashboardItem.vue to
+#: know how to render it, which this hook does not attempt to solve.
+CONTRIBUTABLE_CHART_TYPES = ("number_chart", "axis_chart", "donut_chart")
+
+
+def get_core_chart_options():
+	"""
+	CRM's own built-in chart options, grouped by chart type. Every "value" here
+	must have a matching get_<value>(from_date, to_date, user) function in this
+	module.
+	"""
+	return {
+		"chart_types": [
+			{"label": _("Spacer"), "value": "spacer"},
+			{"label": _("Number Chart"), "value": "number_chart"},
+			{"label": _("Axis Chart"), "value": "axis_chart"},
+			{"label": _("Donut Chart"), "value": "donut_chart"},
+		],
+		"number_chart": [
+			{"label": _("Total Leads"), "value": "total_leads"},
+			{"label": _("Ongoing Deals"), "value": "ongoing_deals"},
+			{"label": _("Avg Ongoing Deal Value"), "value": "average_ongoing_deal_value"},
+			{"label": _("Won Deals"), "value": "won_deals"},
+			{"label": _("Avg Won Deal Value"), "value": "average_won_deal_value"},
+			{"label": _("Avg Deal Value"), "value": "average_deal_value"},
+			{"label": _("Avg Time to Close a Lead"), "value": "average_time_to_close_a_lead"},
+			{"label": _("Avg Time to Close a Deal"), "value": "average_time_to_close_a_deal"},
+		],
+		"axis_chart": [
+			{"label": _("Sales Trend"), "value": "sales_trend"},
+			{"label": _("Forecasted Revenue"), "value": "forecasted_revenue"},
+			{"label": _("Funnel Conversion"), "value": "funnel_conversion"},
+			{"label": _("Deals by Ongoing & Won Stage"), "value": "deals_by_stage_axis"},
+			{"label": _("Lost Deal Reasons"), "value": "lost_deal_reasons"},
+			{"label": _("Deals by Territory"), "value": "deals_by_territory"},
+			{"label": _("Deals by Salesperson"), "value": "deals_by_salesperson"},
+		],
+		"donut_chart": [
+			{"label": _("Deals by Stage"), "value": "deals_by_stage_donut"},
+			{"label": _("Leads by Source"), "value": "leads_by_source"},
+			{"label": _("Deals by Source"), "value": "deals_by_source"},
+		],
+	}
+
+
+def get_contributed_charts():
+	"""
+	Charts contributed by other apps via the crm_dashboard_charts hook, grouped
+	by chart type and validated. Each app's hooks.py declares:
+
+		crm_dashboard_charts = {
+			"number_chart": [
+				{"label": "Total Calls", "value": "total_calls", "resolver": "app.api.dashboard.get_total_calls"},
+			],
+		}
+
+	Every contributing app's list is merged (not "last one wins" — see
+	frappe.append_hook), so multiple apps can extend the same chart type
+	without clobbering each other. resolver is a dotted path to a
+	get_<name>(from_date, to_date, user) function, and does not need to live
+	in this module — that's the whole point of the hook.
+	"""
+	core_values = {
+		option["value"]
+		for chart_type in CONTRIBUTABLE_CHART_TYPES
+		for option in get_core_chart_options()[chart_type]
+	}
+
+	contributed = {chart_type: [] for chart_type in CONTRIBUTABLE_CHART_TYPES}
+	seen_values = set(core_values)
+
+	for chart_type, options in frappe.get_hooks("crm_dashboard_charts", default={}).items():
+		if chart_type not in CONTRIBUTABLE_CHART_TYPES:
+			continue
+		for option in options:
+			value = option.get("value")
+			resolver = option.get("resolver")
+			label = option.get("label")
+			if not value or not resolver or not label or value in seen_values:
+				# Missing fields, or a core/earlier-app chart name — core (and
+				# whichever app registered first) always wins; never let a
+				# later app's contribution shadow an existing chart.
+				continue
+			seen_values.add(value)
+			contributed[chart_type].append({"label": label, "value": value, "resolver": resolver})
+
+	return contributed
+
+
 @frappe.whitelist()
 @sales_user_only
 def get_chart(
@@ -69,6 +163,11 @@ def get_chart(
 	"""
 	Get number chart data for the dashboard.
 	"""
+	options = get_chart_options()
+	valid_chart_names = {option["value"] for values in options.values() for option in values}
+	if name not in valid_chart_names:
+		return {"error": _("Invalid chart name")}
+
 	if not from_date or not to_date:
 		from_date = frappe.utils.get_first_day(from_date or frappe.utils.nowdate())
 		to_date = frappe.utils.get_last_day(to_date or frappe.utils.nowdate())
@@ -84,8 +183,31 @@ def get_chart(
 	if hasattr(frappe.get_attr("crm.api.dashboard"), method_name):
 		method = getattr(frappe.get_attr("crm.api.dashboard"), method_name)
 		return method(from_date, to_date, user)
-	else:
-		return {"error": _("Invalid chart name")}
+
+	contributed = get_contributed_charts()
+	for chart_type in CONTRIBUTABLE_CHART_TYPES:
+		for option in contributed[chart_type]:
+			if option["value"] == name:
+				return frappe.get_attr(option["resolver"])(from_date, to_date, user)
+
+	return {"error": _("Invalid chart name")}
+
+
+@frappe.whitelist()
+@sales_user_only
+def get_chart_options():
+	"""
+	Return the selectable options for the "Add Chart" dialog, grouped by chart
+	type — CRM's own built-in charts plus anything contributed via the
+	crm_dashboard_charts hook.
+	"""
+	options = get_core_chart_options()
+	contributed = get_contributed_charts()
+	for chart_type in CONTRIBUTABLE_CHART_TYPES:
+		options[chart_type] = options[chart_type] + [
+			{"label": option["label"], "value": option["value"]} for option in contributed[chart_type]
+		]
+	return options
 
 
 def get_total_leads(from_date: str | None = None, to_date: str | None = None, user: str | None = None):
@@ -420,7 +542,6 @@ def get_average_deal_value(from_date: str | None = None, to_date: str | None = N
 		"value": current_month_avg,
 		"prefix": get_base_currency_symbol(),
 		"delta": delta,
-		"deltaSuffix": "%",
 	}
 
 
@@ -674,7 +795,7 @@ def get_forecasted_revenue(from_date: str | None = None, to_date: str | None = N
 
 	forecasted_value = (
 		Case()
-		.when(CRMDealStatus.type == "Lost", CRMDeal.expected_deal_value * IfNull(CRMDeal.exchange_rate, 1))
+		.when(CRMDealStatus.type == "Lost", 0)
 		.else_(
 			CRMDeal.expected_deal_value
 			* IfNull(CRMDeal.probability, 0)
@@ -733,54 +854,47 @@ def get_forecasted_revenue(from_date: str | None = None, to_date: str | None = N
 	}
 
 
-def get_funnel_conversion(from_date: str | None = None, to_date: str | None = None, user: str | None = None):
+def owned_by(owner_field, user: str | None = None, owners: list | None = None):
+	"""One user's records, or those of a list of owners; None when neither narrows them."""
+	if owners is not None:
+		return owner_field.isin(owners or [None])
+	if user:
+		return owner_field == user
+	return None
+
+
+def get_funnel_conversion(
+	from_date: str | None = None,
+	to_date: str | None = None,
+	user: str | None = None,
+	owners: list | None = None,
+):
 	"""
-	Get funnel conversion data for the dashboard.
+	Leads created in the period, then the deals created in it counted at each stage. `owners`
+	narrows to the records of a list of users, such as a manager's team on Home.
 	[
 		{ stage: 'Leads', count: 120 },
 		{ stage: 'Qualification', count: 100 },
-		{ stage: 'Negotiation', count: 80 },
-		{ stage: 'Ready to Close', count: 60 },
+		{ stage: 'Proposal/Quotation', count: 80 },
 		{ stage: 'Won', count: 30 },
-		...
 	]
 	"""
-	lead_conds = ""
-	deal_conds = ""
-
 	if not from_date or not to_date:
 		from_date = frappe.utils.get_first_day(from_date or frappe.utils.nowdate())
 		to_date = frappe.utils.get_last_day(to_date or frappe.utils.nowdate())
 
-	lead_filters = {"from": from_date, "to": to_date}
-	deal_filters = {"from": from_date, "to": to_date}
-
-	if user:
-		lead_conds += " AND lead_owner = %(user)s"
-		deal_conds += " AND deal_owner = %(user)s"
-		lead_filters["user"] = user
-		deal_filters["user"] = user
-
-	result = []
-
-	# Get total leads using Query Builder
 	CRMLead = DocType("CRM Lead")
-
 	query = (
 		frappe.qb.from_(CRMLead)
 		.select(Count("*").as_("count"))
 		.where(Date(CRMLead.creation).between(from_date, to_date))
 	)
+	owned = owned_by(CRMLead.lead_owner, user, owners)
+	if owned is not None:
+		query = query.where(owned)
 
-	if user:
-		query = query.where(CRMLead.lead_owner == user)
-
-	total_leads = query.run(as_dict=True)
-	total_leads_count = total_leads[0].count if total_leads else 0
-
-	result.append({"stage": "Leads", "count": total_leads_count})
-
-	result += get_deal_status_change_counts(from_date, to_date, deal_conds, deal_filters)
+	result = [{"stage": "Leads", "count": query.run()[0][0]}]
+	result += get_funnel_stage_counts(from_date, to_date, user, owners)
 
 	return {
 		"data": result or [],
@@ -1155,50 +1269,57 @@ def get_base_currency_symbol():
 	return frappe.db.get_value("Currency", base_currency, "symbol") or ""
 
 
-def get_deal_status_change_counts(
-	from_date: str | None = None,
-	to_date: str | None = None,
-	deal_conds: str = "",
-	filters: dict | None = None,
-):
-	"""
-	Get count of each status change (to) for each deal, excluding deals with current status type 'Lost'.
-	Order results by status position.
-	Returns:
-	[
-	  {"status": "Qualification", "count": 120},
-	  {"status": "Negotiation", "count": 85},
-	  ...
-	]
-	"""
-	# Using Frappe Query Builder with multiple JOINs and table aliases
-	CRMStatusChangeLog = DocType("CRM Status Change Log")
-	CRMDeal = DocType("CRM Deal")
-	CurrentStatus = DocType("CRM Deal Status").as_("s")
-	TargetStatus = DocType("CRM Deal Status").as_("st")
-
-	query = (
-		frappe.qb.from_(CRMStatusChangeLog)
-		.join(CRMDeal)
-		.on(CRMStatusChangeLog.parent == CRMDeal.name)
-		.join(CurrentStatus)
-		.on(CRMDeal.status == CurrentStatus.name)
-		.join(TargetStatus)
-		.on(CRMStatusChangeLog.to == TargetStatus.name)
-		.select(CRMStatusChangeLog.to.as_("stage"), Count("*").as_("count"))
-		.where(
-			(CRMStatusChangeLog.to.isnotnull())
-			& (CRMStatusChangeLog.to != "")
-			& (CurrentStatus.type != "Lost")
-			& (Date(CRMDeal.creation).between(from_date, to_date))
-		)
-		.groupby(CRMStatusChangeLog.to, TargetStatus.position)
-		.orderby(TargetStatus.position)
+def get_funnel_stage_counts(from_date, to_date, user: str | None = None, owners: list | None = None) -> list:
+	"""Count each deal at every stage up to the furthest it reached, so the funnel always narrows:
+	a deal that skipped a stage still passed it, and a lost deal still counts where it got to."""
+	reached = get_furthest_stages(from_date, to_date, user, owners)
+	stages = frappe.get_all(
+		"CRM Deal Status",
+		filters={"type": ["in", FUNNEL_STAGE_TYPES]},
+		fields=["name", "position"],
+		order_by="position asc",
 	)
+	return [
+		{"stage": stage.name, "count": sum(row.position >= stage.position for row in reached)}
+		for stage in stages
+	]
 
-	# Handle optional user filter if deal_conds contains user condition
-	if filters and filters.get("user"):
-		query = query.where(CRMDeal.deal_owner == filters["user"])
 
-	result = query.run(as_dict=True)
-	return result or []
+def get_furthest_stages(from_date, to_date, user: str | None = None, owners: list | None = None) -> list:
+	"""The furthest stage position each deal created in the period reached."""
+	deal = DocType("CRM Deal")
+	log = DocType("CRM Status Change Log")
+	status = DocType("CRM Deal Status")
+
+	in_period = Date(deal.creation).between(from_date, to_date)
+	owned = owned_by(deal.deal_owner, user, owners)
+	if owned is not None:
+		in_period &= owned
+
+	def logged(column):
+		return (
+			frappe.qb.from_(log)
+			.join(deal)
+			.on(log.parent == deal.name)
+			.select(log.parent.as_("deal"), log[column].as_("status"))
+			.where((log.parenttype == "CRM Deal") & in_period)
+		)
+
+	# A deal's first status is logged only as `from`, so both ends of each change count.
+	visits = (
+		frappe.qb.from_(deal)
+		.select(deal.name.as_("deal"), deal.status.as_("status"))
+		.where(in_period)
+		.union_all(logged("from"))
+		.union_all(logged("to"))
+	)
+	visit_deal, visit_status = Field("deal", table=visits), Field("status", table=visits)
+	return (
+		frappe.qb.from_(visits)
+		.join(status)
+		.on(status.name == visit_status)
+		.select(visit_deal, Max(status.position).as_("position"))
+		.where(status.type.isin(FUNNEL_STAGE_TYPES))
+		.groupby(visit_deal)
+		.run(as_dict=True)
+	)

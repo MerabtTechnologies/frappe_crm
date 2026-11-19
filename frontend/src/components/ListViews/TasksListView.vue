@@ -20,31 +20,37 @@
         v-for="column in columns"
         :key="column.key"
         :item="column"
-        @columnWidthUpdated="emit('columnWidthUpdated', column)"
+        @columnWidthUpdated="(e) => onColumnWidthUpdated(e, column)"
       >
         <Button
           v-if="column.key == '_liked_by'"
-          variant="ghosted"
+          variant="ghost"
           class="!h-4"
-          :class="isLikeFilterApplied ? 'fill-red-500' : 'fill-white'"
           @click="() => emit('applyLikeFilter')"
         >
-          <HeartIcon class="h-4 w-4" />
+          <HeartIcon
+            class="h-4 w-4"
+            :class="isLikeFilterApplied ? 'fill-red-500 text-red-500' : ''"
+          />
         </Button>
       </ListHeaderItem>
     </ListHeader>
     <ListRows
-      v-slot="{ idx, column, item }"
+      v-slot="{ idx, column, item, row }"
       class="mx-3 sm:mx-5"
       :rows="rows"
       doctype="CRM Task"
     >
       <div v-if="column.key === 'due_date' && item">
-        <Tooltip :text="item && formatDate(item, 'ddd, MMM D, YYYY | hh:mm a')">
+        <Tooltip
+          :text="
+            formatTaskDue({ due_date: item, all_day: row.all_day }, 'long')
+          "
+        >
           <div class="flex items-center gap-2 truncate text-base">
             <div><CalendarIcon /></div>
             <div class="truncate">
-              {{ formatDate(item, 'D MMM, hh:mm a') }}
+              {{ formatTaskDue({ due_date: item, all_day: row.all_day }) }}
             </div>
           </div>
         </Tooltip>
@@ -63,11 +69,10 @@
             <TaskPriorityIcon :priority="item" />
           </div>
           <div v-else-if="column.key === 'assigned_to'">
-            <Avatar
+            <UserAvatar
               v-if="item.full_name"
               class="flex items-center"
-              :image="item.user_image"
-              :label="item.full_name"
+              :user="item.name"
               size="sm"
             />
           </div>
@@ -106,14 +111,15 @@
           </div>
           <div v-else-if="column.key === '_liked_by'">
             <Button
-              v-if="column.key == '_liked_by'"
-              variant="ghosted"
-              :class="isLiked(item) ? 'fill-red-500' : 'fill-white'"
+              variant="ghost"
               @click.stop.prevent="
                 () => emit('likeDoc', { name: row.name, liked: isLiked(item) })
               "
             >
-              <HeartIcon class="h-4 w-4" />
+              <HeartIcon
+                class="h-4 w-4"
+                :class="isLiked(item) ? 'fill-red-500 text-red-500' : ''"
+              />
             </Button>
           </div>
           <RatingInput
@@ -181,6 +187,7 @@
   />
 </template>
 <script setup>
+import UserAvatar from '@/components/UserAvatar.vue'
 import HeartIcon from '@/components/Icons/HeartIcon.vue'
 import TaskStatusIcon from '@/components/Icons/TaskStatusIcon.vue'
 import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
@@ -188,23 +195,17 @@ import CalendarIcon from '@/components/Icons/CalendarIcon.vue'
 import RatingInput from '@/components/Controls/RatingInput.vue'
 import ListBulkActions from '@/components/ListBulkActions.vue'
 import ListRows from '@/components/ListViews/ListRows.vue'
+import { isTranslatable, formatDuration, sanitizeHTML } from '@/utils'
+import { formatTaskDue } from '@/utils/task'
+import { Dropdown, Tooltip } from 'frappe-ui'
 import {
-  formatDate,
-  isTranslatable,
-  formatDuration,
-  sanitizeHTML,
-} from '@/utils'
-import {
-  Avatar,
   ListView,
   ListHeader,
   ListHeaderItem,
   ListSelectBanner,
   ListRowItem,
   ListFooter,
-  Dropdown,
-  Tooltip,
-} from 'frappe-ui'
+} from 'frappe-ui/experimental'
 import { sessionStore } from '@/stores/session'
 import { ref, computed, watch } from 'vue'
 
@@ -236,6 +237,11 @@ const emit = defineEmits([
 
 const pageLengthCount = defineModel({ type: Number })
 const list = defineModel('list', { type: Object })
+
+function onColumnWidthUpdated({ width, save }, column) {
+  column.width = width
+  if (save) emit('columnWidthUpdated', column)
+}
 
 function getLabel(label, column) {
   if (column.type === 'Duration') return formatDuration(label)

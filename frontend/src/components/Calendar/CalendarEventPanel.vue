@@ -69,10 +69,32 @@
         </div>
       </div>
       <div class="mx-4.5 my-2.5 border-t border-outline-gray-1" />
-      <div v-if="_event.location" class="px-4.5 py-2">
-        <div class="flex gap-3 text-ink-gray-7">
-          <MapIcon class="size-4" />
-          <div>{{ __(_event.location) }}</div>
+      <div v-if="shownLocation" class="px-4.5 py-2">
+        <!-- a meeting link (e.g. from a booking page) is something to join, not a place -->
+        <div
+          v-if="locationIsLink"
+          class="flex items-center gap-3 text-ink-gray-7"
+        >
+          <LucideVideo class="size-4 shrink-0" />
+          <a
+            :href="shownLocation"
+            target="_blank"
+            rel="noopener"
+            class="min-w-0 flex-1 truncate hover:underline"
+            :title="shownLocation"
+          >
+            {{ shownLocation.replace(/^https?:\/\//, '') }}
+          </a>
+          <Button
+            size="sm"
+            variant="solid"
+            :label="__('Join')"
+            :href="shownLocation"
+          />
+        </div>
+        <div v-else class="flex gap-3 text-ink-gray-7">
+          <MapIcon class="size-4 shrink-0" />
+          <div>{{ __(shownLocation) }}</div>
         </div>
       </div>
       <div v-if="_event.eventType" class="px-4.5 py-2">
@@ -103,26 +125,23 @@
         v-if="_event.referenceDocname"
         class="mx-4.5 my-2.5 border-t border-outline-gray-1"
       />
-      <div
+      <button
         v-if="_event.referenceDocname"
-        class="flex items-center px-4.5 py-1 text-ink-gray-7"
+        class="group mx-3 flex items-center gap-3 rounded-4 px-1.5 py-1.5 text-left text-ink-gray-7 hover:bg-surface-gray-2"
+        @click="redirect"
       >
         <component
           :is="_event.referenceDoctype == 'CRM Lead' ? LeadsIcon : DealsIcon"
-          class="size-4"
+          class="size-4 shrink-0"
         />
-        <Link
-          v-model="_event.referenceDocname"
-          class="[&_button]:bg-surface-base [&_button]:select-text [&_button]:text-ink-gray-7 [&_button]:cursor-text"
-          :doctype="_event.referenceDoctype"
-          :disabled="true"
+        <span class="min-w-0 truncate">{{ referenceTitle }}</span>
+        <span class="text-sm text-ink-gray-5">
+          {{ _event.referenceDoctype == 'CRM Lead' ? __('Lead') : __('Deal') }}
+        </span>
+        <ArrowUpRightIcon
+          class="ml-auto size-4 shrink-0 text-ink-gray-5 group-hover:text-ink-gray-7"
         />
-        <Button variant="ghost" @click="redirect">
-          <template #icon>
-            <ArrowUpRightIcon class="size-4 text-ink-gray-7" />
-          </template>
-        </Button>
-      </div>
+      </button>
       <div
         v-if="peoples.length"
         class="mx-4.5 my-2.5 border-t border-outline-gray-1"
@@ -265,7 +284,7 @@
       <div class="flex gap-2 items-center px-4.5 py-3">
         <Dropdown class="ml-1" :options="colors">
           <div
-            class="flex items-center justify-center size-8 shrink-0 border border-outline-gray-2 bg-surface-base hover:border-outline-gray-3 hover:shadow-sm rounded cursor-pointer"
+            class="flex items-center justify-center size-8 shrink-0 border border-outline-gray-2 bg-surface-base hover:border-outline-gray-3 hover:shadow-sm rounded-4 cursor-pointer"
           >
             <div
               class="size-2.5 rounded-full cursor-pointer"
@@ -308,17 +327,17 @@
           <DatePicker
             class="w-full"
             variant="outline"
-            :value="_event.fromDate"
-            :format="'MMM D, YYYY'"
-            :placeholder="__('May 1, 2025')"
+            :modelValue="_event.fromDate"
+            :format="getFormat('', '', true, false, false)"
+            :placeholder="__('Select date')"
             :clearable="false"
             @update:modelValue="(date) => updateDate(date, true)"
           >
-            <template #suffix="{ togglePopover }">
+            <template #suffix="{ open, setOpen }">
               <span
                 class="lucide-chevron-down h-4 w-4 cursor-pointer"
                 aria-hidden="true"
-                @click="togglePopover"
+                @click="setOpen(!open)"
               />
             </template>
           </DatePicker>
@@ -381,10 +400,9 @@
       </div>
       <div class="flex justify-between gap-3 mx-4.5 my-2.5 text-ink-gray-7">
         <DescriptionIcon class="size-4 mt-1.5" />
-        <div class="flex w-full items-center gap-x-2 border rounded py-1">
-          <TextEditor
-            editor-class="!prose-sm !leading-[1.13rem] overflow-auto px-2.5 rounded placeholder-ink-gray-4 focus:bg-surface-base focus:ring-0 text-ink-gray-8 transition-colors"
-            :bubbleMenu="true"
+        <div class="flex w-full items-center gap-x-2 border rounded-4 py-1">
+          <RichTextField
+            editor-class="!prose-sm !leading-[1.13rem] overflow-auto px-2.5 rounded-4 placeholder-ink-gray-4 focus:bg-surface-base focus:ring-0 text-ink-gray-8 transition-colors"
             :content="_event.description"
             :placeholder="__('Add Description')"
             @change="
@@ -526,7 +544,7 @@
       <TabButtons
         v-model="attending"
         class="w-full [&_button]:w-full [&_div]:w-full [&_button>span]:w-full"
-        :buttons="[
+        :options="[
           {
             label: __('Yes'),
             value: 'Yes',
@@ -549,6 +567,7 @@
 import CalendarIcon from '@/components/Icons/CalendarIcon.vue'
 import BellIcon from '@/components/Icons/BellIcon.vue'
 import MapIcon from '@/components/Icons/MapIcon.vue'
+import LucideVideo from '~icons/lucide/video'
 import ShieldIcon from '@/components/Icons/ShieldIcon.vue'
 import PeopleIcon from '@/components/Icons/PeopleIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
@@ -560,15 +579,17 @@ import DescriptionIcon from '@/components/Icons/DescriptionIcon.vue'
 import Attendee from '@/components/Calendar/Attendee.vue'
 import EventNotifications from '@/components/Calendar/EventNotifications.vue'
 import ShortcutTooltip from '@/components/ShortcutTooltip.vue'
+import RichTextField from '@/components/RichTextField.vue'
 import { globalStore } from '@/stores/global'
 import { sessionStore } from '@/stores/session'
-import { validateEmail, deepClone, sanitizeHTML } from '@/utils'
+import { validateEmail, deepClone, sanitizeHTML, getFormat } from '@/utils'
 import {
   normalizeParticipants,
   buildEndTimeOptions,
-  computeAutoToTime,
+  changeTime,
   validateTimeRange,
   parseEventDoc,
+  spanFrom,
 } from '@/composables/event'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import {
@@ -576,17 +597,18 @@ import {
   Switch,
   DatePicker,
   TimePicker,
-  TextEditor,
   ErrorMessage,
   Dropdown,
   dayjs,
-  CalendarColorMap as colorMap,
-  CalendarActiveEvent as activeEvent,
   createDocumentResource,
   TabButtons,
   toast,
   call,
 } from 'frappe-ui'
+import {
+  CalendarColorMap as colorMap,
+  CalendarActiveEvent as activeEvent,
+} from 'frappe-ui/experimental'
 import { ref, computed, watch, h, inject } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -740,6 +762,16 @@ function fetchEvent(oldMode) {
         oldEvent.value = deepClone(_event.value)
         handleReadonlyEvent()
       },
+      // a teammate's meeting on a lead or deal: Frappe hides it, the CRM may show it
+      onError: async () => {
+        const data = await call('crm.api.event.get_event', {
+          name: event.value.id,
+        }).catch(() => null)
+        if (!data) return
+        _event.value = parseEventDoc(data)
+        oldEvent.value = deepClone(_event.value)
+        handleReadonlyEvent()
+      },
     })
     if (eventResource.value.doc && !event.value.reloadEvent) {
       _event.value = parseEventDoc(eventResource.value.doc)
@@ -784,35 +816,15 @@ function sync() {
 }
 
 function updateDate(d) {
+  _event.value.toDate = spanFrom(_event.value, d)
   _event.value.fromDate = d
-  _event.value.toDate = d
 
   sync()
 }
 
 function updateTime(t, fromTime = false) {
-  error.value = null
-  const prevTo = _event.value.toTime
-  if (fromTime) {
-    _event.value.fromTime = t
-    if (!_event.value.toTime || _event.value.toTime <= t) {
-      _event.value.toTime = computeAutoToTime(t)
-    }
-  } else {
-    _event.value.toTime = t
-  }
-  const { valid, error: err } = validateTimeRange({
-    fromDate: _event.value.fromDate,
-    fromTime: _event.value.fromTime,
-    toTime: _event.value.toTime,
-    isFullDay: _event.value.isFullDay,
-  })
-  if (!valid) {
-    error.value = err
-    _event.value.toTime = prevTo
-  } else {
-    sync()
-  }
+  error.value = changeTime(_event.value, t, fromTime)
+  if (!error.value) sync()
 }
 
 function saveEvent() {
@@ -827,6 +839,7 @@ function saveEvent() {
 
   const { valid, error: err } = validateTimeRange({
     fromDate: _event.value.fromDate,
+    toDate: _event.value.toDate,
     fromTime: _event.value.fromTime,
     toTime: _event.value.toTime,
     isFullDay: _event.value.isFullDay,
@@ -976,6 +989,31 @@ const colors = Object.keys(colorMap).map((color) => ({
     sync()
   },
 }))
+
+const shownLocation = computed(
+  () => _event.value?.location || _event.value?.meetLink || '',
+)
+const locationIsLink = computed(() => /^https?:\/\//.test(shownLocation.value))
+
+// the lead's name or the deal's organization, instead of its ID
+const referenceTitle = ref('')
+watch(
+  () => [_event.value?.referenceDoctype, _event.value?.referenceDocname],
+  async ([doctype, name]) => {
+    referenceTitle.value = name || ''
+    if (!doctype || !name) return
+    const field = doctype === 'CRM Lead' ? 'lead_name' : 'organization'
+    const row = await call('frappe.client.get_value', {
+      doctype,
+      filters: { name },
+      fieldname: field,
+    }).catch(() => null)
+    if (row?.[field] && _event.value?.referenceDocname === name) {
+      referenceTitle.value = row[field]
+    }
+  },
+  { immediate: true },
+)
 
 function redirect() {
   if (_event.value.referenceDocname) {

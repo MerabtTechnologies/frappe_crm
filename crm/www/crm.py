@@ -2,7 +2,7 @@
 # GNU GPLv3 License. See license.txt
 
 import frappe
-from frappe import _
+from frappe import _, get_installed_apps
 from frappe.integrations.frappe_providers.frappecloud_billing import is_fc_site
 from frappe.translate import get_messages_for_boot, get_translated_doctypes
 from frappe.utils import cint, get_system_timezone
@@ -17,7 +17,9 @@ def get_context():
 	if not check_app_permission():
 		frappe.throw(_("You do not have permission to access Frappe CRM"), frappe.PermissionError)
 
-	frappe.db.commit()
+	redirect_to_set_password()
+
+	frappe.db.commit()  # page renders are GET, not auto-committed  # nosemgrep
 	context = frappe._dict()
 	context.boot = get_boot()
 	if frappe.session.user != "Guest":
@@ -25,7 +27,43 @@ def get_context():
 	return context
 
 
-@frappe.whitelist(methods=["POST"], allow_guest=True)
+def redirect_to_set_password():
+	"""Send users who have no password of their own to the set password page.
+
+	The Frappe Cloud site owner arrives on a session handed over by the
+	dashboard and never sets a password, so they cannot get back in once it
+	expires. Invited users are already routed here by `accept_invitation`; this
+	covers everyone else, on the same page.
+	"""
+	from crm.api.user import needs_password_setup
+
+	if not needs_password_setup() or will_see_guided_setup():
+		return
+
+	user = frappe.get_doc("User", frappe.session.user)
+	link = user._reset_password()
+
+	# this is a GET request, which is rolled back unless a commit is requested
+	frappe.local.flags.commit = True
+
+	frappe.local.flags.redirect_location = link
+
+	# 302, not the 301 default: v16+ lets the browser cache a permanent redirect,
+	# which would keep sending the user to a spent key long after they set a
+	# password. Set on the instance — v15's `Redirect` takes no constructor arg.
+	redirect = frappe.Redirect()
+	redirect.http_status_code = 302
+	raise redirect
+
+
+def will_see_guided_setup() -> bool:
+	"""The guided setup asks for the password itself, so the redirect is skipped."""
+	if "System Manager" not in frappe.get_roles():
+		return False
+	return not frappe.db.get_single_value("FCRM Settings", "setup_completed")
+
+
+@frappe.whitelist(methods=["POST"], allow_guest=True)  # nosemgrep: guest-whitelisted-method
 def get_context_for_dev():
 	if not frappe.conf.developer_mode:
 		frappe.throw(_("This method is only meant for developer mode"))
@@ -33,6 +71,8 @@ def get_context_for_dev():
 
 
 def get_boot():
+	from crm.api.user import needs_password_setup
+
 	return frappe._dict(
 		{
 			"frappe_version": frappe.__version__,
@@ -46,7 +86,9 @@ def get_boot():
 			"is_demo_site": frappe.conf.get("is_demo_site"),
 			"demo_data_created": frappe.db.get_default("crm_demo_data_created") == "1",
 			"is_fc_site": is_fc_site(),
-			"show_sales_hierarchy_banner": frappe.db.count("CRM Lead") > 0,
+			"needs_password_setup": frappe.session.user != "Guest" and needs_password_setup(),
+			"crm_setup_pending": will_see_guided_setup(),
+			"cloud_settings": get_cloud_settings(),
 			"translated_doctypes": get_translated_doctypes(),
 			"translated_messages": get_messages_for_boot(),
 			"timezone": {
@@ -54,8 +96,51 @@ def get_boot():
 				"user": frappe.db.get_value("User", frappe.session.user, "time_zone")
 				or get_system_timezone(),
 			},
+			"state_options": get_state_options(),
+			"is_insights_installed": is_insights_installed(),
 		}
 	)
+
+
+def get_cloud_settings() -> dict:
+	"""Cloud Settings boot context, enabled for System Managers on Frappe Cloud v2 sites."""
+	try:
+		from frappe.integrations.frappe_providers.cloud_settings import get_boot_context
+	except ImportError:
+		return {"enabled": False}
+	return get_boot_context()
+
+
+def get_state_options() -> dict[str, list[str]]:
+	"""Country -> list of states, so the frontend can render a state dropdown.
+
+	Sourced from India Compliance's own constant when that app is installed, so the
+	options stay in sync with the desk. Returns an empty map (state field stays free
+	text) on any failure.
+
+	This runs inside ``get_boot``, so it must never raise — a failure here would break
+	the whole CRM page load. ``get_installed_apps`` can return `[]` or raise in
+	unauthenticated/boot contexts (notably on v15), so the lookup is wrapped defensively.
+	"""
+	try:
+		if "india_compliance" not in get_installed_apps():
+			return {}
+
+		from india_compliance.gst_india.constants import INDIAN_STATES
+
+		return {"India": list(INDIAN_STATES)}
+	except Exception:
+		# Degrade silently to free-text: this runs in boot, so the except branch
+		# must not do anything that can itself raise (e.g. logging to a missing dir).
+		return {}
+
+
+def is_insights_installed() -> bool:
+	"""Runs inside ``get_boot``, so it must never raise; see ``get_state_options``."""
+	try:
+		return "insights" in get_installed_apps()
+	except Exception:
+		return False
 
 
 def get_default_route():

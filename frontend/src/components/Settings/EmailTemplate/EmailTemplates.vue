@@ -9,7 +9,7 @@
         <p class="text-p-base text-ink-gray-6">
           {{
             __(
-              'Add, edit, and manage email templates for various CRM communications',
+              'Add, edit, and manage email templates for various CRM communications.',
             )
           }}
         </p>
@@ -41,7 +41,7 @@
     <EmptyState
       v-else-if="!templates.loading && !templates.data?.length"
       name="Email Templates"
-      description="Add one to get started."
+      :description="__('Add one to get started.')"
       :icon="EmailTemplateIcon"
     />
 
@@ -52,13 +52,13 @@
     >
       <div
         v-if="templates.data?.length > 10"
-        class="flex items-center justify-between mb-4 px-2 pt-0.5"
+        class="flex items-center gap-2 mb-4 px-2 pt-0.5"
       >
         <TextInput
           ref="searchRef"
           v-model="search"
           :placeholder="__('Search Template')"
-          class="w-1/3"
+          class="w-full"
           :debounce="300"
         >
           <template #prefix>
@@ -68,9 +68,9 @@
             />
           </template>
         </TextInput>
-        <FormControl
+        <Select
           v-model="currentDoctype"
-          type="select"
+          class="shrink-0"
           :options="[
             { label: __('All'), value: 'All' },
             { label: __('Lead'), value: 'CRM Lead' },
@@ -87,7 +87,7 @@
       <ul class="overflow-y-auto px-2">
         <template v-for="(template, i) in templatesList" :key="template.name">
           <li
-            class="flex items-center justify-between p-3 cursor-pointer hover:bg-surface-sidebar rounded"
+            class="flex items-center justify-between p-3 cursor-pointer hover:bg-surface-sidebar rounded-4"
             @click="() => emit('updateStep', 'edit-template', { ...template })"
           >
             <div class="flex flex-col w-4/6 pr-5">
@@ -113,9 +113,9 @@
               <Dropdown
                 class=""
                 :options="getDropdownOptions(template)"
-                placement="right"
+                align="end"
                 :button="{
-                  icon: 'more-horizontal',
+                  icon: 'lucide-more-horizontal',
                   variant: 'ghost',
                   onblur: (e) => {
                     e.stopPropagation()
@@ -152,7 +152,7 @@
 import EmailTemplateIcon from '@/components/Icons/EmailTemplateIcon.vue'
 import EmptyState from '../../ListViews/EmptyState.vue'
 import { useBroadcast } from '@/composables/useBroadcast'
-import { TextInput, FormControl, Switch, Dropdown, toast } from 'frappe-ui'
+import { TextInput, Select, Switch, Dropdown, toast } from 'frappe-ui'
 import { ref, computed, inject } from 'vue'
 import { ConfirmDelete } from '../../../utils'
 
@@ -211,7 +211,7 @@ function deleteTemplate(template) {
   confirmDelete.value = false
   templates.delete.submit(template.name, {
     onSuccess: () => {
-      toast.success(__('Template Deleted Successfully'))
+      toast.success(__('Template deleted successfully'))
     },
     onError: (error) => {
       toast.error(error.messages[0] || __('Failed to delete template'))
@@ -223,7 +223,7 @@ function getDropdownOptions(template) {
   let options = [
     {
       label: __('Duplicate'),
-      icon: 'copy',
+      icon: 'lucide-copy',
       onClick: () => emit('updateStep', 'new-template', { ...template }),
     },
     ...ConfirmDelete({

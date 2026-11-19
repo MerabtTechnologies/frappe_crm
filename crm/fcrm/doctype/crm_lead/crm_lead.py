@@ -9,11 +9,15 @@ from frappe.desk.form.assign_to import _add as assign
 from frappe.model.document import Document
 from frappe.utils import validate_email_address
 
+from crm.api.whatsapp import guard_doc_recipient_change
+from crm.automation.events import emit_lead_converted
 from crm.fcrm.doctype.crm_service_level_agreement.utils import get_sla
 from crm.fcrm.doctype.crm_status_change_log.crm_status_change_log import (
 	add_status_change_log,
 )
 from crm.fcrm.doctype.utils import add_or_remove_lost_reason_section_in_sidepanel
+
+LEAD_DEAL_FIELD_MAP = {"lead_owner": "deal_owner"}
 
 
 class CRMLead(Document):
@@ -32,6 +36,7 @@ class CRMLead(Document):
 		from crm.fcrm.doctype.crm_status_change_log.crm_status_change_log import CRMStatusChangeLog
 
 		annual_revenue: DF.Currency
+		awaiting_reply_since: DF.Datetime | None
 		communication_status: DF.Link | None
 		converted: DF.Check
 		email: DF.Data | None
@@ -44,11 +49,15 @@ class CRMLead(Document):
 		image: DF.AttachImage | None
 		industry: DF.Link | None
 		job_title: DF.Data | None
+		last_inbound_at: DF.Datetime | None
 		last_name: DF.Data | None
+		last_outbound_at: DF.Datetime | None
 		last_responded_on: DF.Datetime | None
 		last_response_time: DF.Duration | None
 		lead_name: DF.Data | None
 		lead_owner: DF.Link | None
+		lead_score: DF.Int
+		lead_temperature: DF.Literal["", "Cold", "Warm", "Hot"]
 		lost_notes: DF.Text | None
 		lost_reason: DF.Link | None
 		middle_name: DF.Data | None
@@ -73,6 +82,12 @@ class CRMLead(Document):
 		website: DF.Data | None
 	# end: auto-generated types
 
+	def before_insert(self):
+		# apply CRM enrichment (source/contact) when created via a web form
+		from crm.api.form import enrich_form_submission
+
+		enrich_form_submission(self)
+
 	def before_validate(self):
 		self.set_sla()
 
@@ -82,7 +97,9 @@ class CRMLead(Document):
 		self.set_lead_name()
 		self.set_title()
 		self.validate_email()
+		self.validate_unique_fields()
 		self.validate_lost_reason()
+		guard_doc_recipient_change(self)
 		if not self.is_new() and self.has_value_changed("lead_owner") and self.lead_owner:
 			self.share_with_agent(self.lead_owner)
 			self.assign_agent(self.lead_owner)
@@ -94,6 +111,11 @@ class CRMLead(Document):
 			if self.lead_owner != frappe.session.user:
 				self.share_with_agent(self.lead_owner)
 			self.assign_agent(self.lead_owner)
+
+		# Auto-enrich a new Lead from its website (best-effort, background job).
+		from crm.domain_enrichment.tasks import auto_enrich_on_create
+
+		auto_enrich_on_create(self)
 
 	def before_save(self):
 		self.apply_sla()
@@ -140,6 +162,16 @@ class CRMLead(Document):
 
 			if self.email == self.lead_owner:
 				frappe.throw(_("Lead Owner cannot be same as the Lead Email Address"))
+
+	def validate_unique_fields(self):
+		# DB may keep a non-unique index when Unique is set via Customize Form
+		for df in self.meta.get("fields", {"unique": 1}):
+			value = self.get(df.fieldname)
+			if value and frappe.db.exists(self.doctype, {df.fieldname: value, "name": ("!=", self.name)}):
+				frappe.throw(
+					_("{0} {1} already exists").format(_(df.label), frappe.bold(value)),
+					frappe.UniqueValidationError,
+				)
 
 	def validate_lost_reason(self):
 		"""
@@ -244,6 +276,7 @@ class CRMLead(Document):
 		)
 		if existing_organization:
 			self.db_set("organization", existing_organization)
+			self.copy_enrichment_from_organization()
 			return existing_organization
 
 		organization = frappe.new_doc("CRM Organization")
@@ -254,10 +287,39 @@ class CRMLead(Document):
 				"territory": self.territory,
 				"industry": self.industry,
 				"annual_revenue": self.annual_revenue,
+				"no_of_employees": self.no_of_employees,
 			}
 		)
 		organization.insert(ignore_permissions=True)
 		return organization.name
+
+	def copy_enrichment_from_organization(self):
+		"""Fill-empty copy of a linked enriched Organization's fields onto this Lead.
+
+		Called when an existing (already-enriched) CRM Organization is linked. The
+		shared helper mutates ``self`` in place (fill-empty, user data preserved);
+		any filled native fields are then persisted with ``db_set`` to match this
+		branch's already-saved flow. Best-effort -- never blocks the Lead save.
+		"""
+		from crm.domain_enrichment.cross_record import copy_enrichment_from_organization
+
+		enriched_fields = (
+			"organization_logo",
+			"company_description",
+			"industry",
+			"linkedin",
+			"twitter",
+			"facebook",
+		)
+		before = {f: self.get(f) for f in enriched_fields if self.meta.has_field(f)}
+
+		filled = copy_enrichment_from_organization(self)
+
+		for fieldname, old_value in before.items():
+			new_value = self.get(fieldname)
+			if new_value != old_value:
+				self.db_set(fieldname, new_value)
+		return filled
 
 	def update_lead_contact(self, contact):
 		contact = frappe.get_cached_doc("Contact", contact)
@@ -294,10 +356,6 @@ class CRMLead(Document):
 
 	def create_deal(self, contact, organization, deal=None):
 		new_deal = frappe.new_doc("CRM Deal")
-
-		lead_deal_map = {
-			"lead_owner": "deal_owner",
-		}
 
 		restricted_fieldtypes = [
 			"Tab Break",
@@ -336,11 +394,9 @@ class CRMLead(Document):
 			if field.fieldname in restricted_map_fields:
 				continue
 
-			fieldname = field.fieldname
-			if field.fieldname in lead_deal_map:
-				fieldname = lead_deal_map[field.fieldname]
+			fieldname = get_deal_fieldname(field, new_deal.meta)
 
-			if hasattr(new_deal, fieldname):
+			if fieldname:
 				if fieldname == "organization":
 					new_deal.update({fieldname: organization})
 				else:
@@ -373,6 +429,12 @@ class CRMLead(Document):
 		for user in self.get_assigned_users():
 			if user and user != new_deal.deal_owner:
 				new_deal.assign_agent(user)
+
+		# Each co-assignee ToDo makes its user the owner (newest owns), so restore the lead's owner.
+		if new_deal.deal_owner:
+			frappe.db.set_value(
+				"CRM Deal", new_deal.name, "deal_owner", new_deal.deal_owner, update_modified=False
+			)
 
 		return new_deal.name
 
@@ -411,7 +473,7 @@ class CRMLead(Document):
 	def default_list_data():
 		columns = [
 			{
-				"label": "Name",
+				"label": "Full Name",
 				"type": "Data",
 				"key": "lead_name",
 				"width": "12rem",
@@ -490,19 +552,92 @@ def convert_to_deal(
 	deal: str | dict | None = None,
 	existing_contact: str | None = None,
 	existing_organization: str | None = None,
+	if_converted: str = "Create",
 ):
-	if not (doc and doc.flags.get("ignore_permissions")) and not frappe.has_permission(
-		"CRM Lead", "write", lead
-	):
+	"""Convert a Lead into a Deal.
+
+	`if_converted` decides what an already-converted Lead does: "Create" (the interactive
+	default) makes another Deal, "Return Existing" replays the first one - which is what makes
+	an automation retry idempotent - and "Fail" refuses.
+	"""
+	validate_conversion_access(lead, doc)
+	lead = lock_lead(lead)
+	existing = existing_deal(lead.name)
+	if existing and if_converted != "Create":
+		return settle_converted(lead, existing, if_converted)
+	if frappe.get_cached_value("CRM Lead Status", lead.status, "type") == "Lost":
+		frappe.throw(_("Cannot convert a lead with status {0}").format(lead.status))
+
+	contact = lead.create_contact(existing_contact, False)
+	organization = lead.create_organization(existing_organization)
+	new_deal = lead.create_deal(contact, organization, deal)
+	mark_converted(lead)
+	emit_lead_converted(lead, new_deal, contact, organization)
+	return new_deal
+
+
+def validate_conversion_access(lead: str, doc: Document | None = None):
+	if doc and doc.flags.get("ignore_permissions"):
+		return
+	if not frappe.has_permission("CRM Lead", "write", lead):
 		frappe.throw(_("Not allowed to convert Lead to Deal"), frappe.PermissionError)
 
-	lead = frappe.get_cached_doc("CRM Lead", lead)
+
+def lock_lead(lead: str):
+	"""Serialize concurrent conversions of the same Lead before reading its state."""
+	table = frappe.qb.DocType("CRM Lead")
+	frappe.qb.from_(table).select(table.name).where(table.name == lead).for_update().run()
+	return frappe.get_doc("CRM Lead", lead)
+
+
+def existing_deal(lead: str) -> str | None:
+	return frappe.db.get_value("CRM Deal", {"lead": lead}, "name")
+
+
+def settle_converted(lead, deal: str, if_converted: str) -> str:
+	if if_converted == "Fail":
+		frappe.throw(_("Lead {0} is already converted to Deal {1}").format(lead.name, deal))
+	return deal
+
+
+def mark_converted(lead):
 	if frappe.db.exists("CRM Lead Status", "Qualified"):
 		lead.db_set("status", "Qualified")
 	lead.db_set("converted", 1)
 	if lead.sla and frappe.db.exists("CRM Communication Status", "Replied"):
 		lead.db_set("communication_status", "Replied")
-	contact = lead.create_contact(existing_contact, False)
-	organization = lead.create_organization(existing_organization)
-	_deal = lead.create_deal(contact, organization, deal)
-	return _deal
+
+
+def get_deal_fieldname(field, deal_meta):
+	mapped_fieldname = LEAD_DEAL_FIELD_MAP.get(field.fieldname)
+	if mapped_fieldname:
+		return mapped_fieldname if deal_meta.has_field(mapped_fieldname) else None
+	if deal_meta.has_field(field.fieldname):
+		return field.fieldname
+	if not is_custom_field(field):
+		return None
+	return get_matching_custom_deal_field(field, deal_meta)
+
+
+def get_matching_custom_deal_field(field, deal_meta):
+	matches = [
+		deal_field.fieldname for deal_field in deal_meta.fields if is_matching_custom_field(field, deal_field)
+	]
+	return matches[0] if len(matches) == 1 else None
+
+
+def is_matching_custom_field(lead_field, deal_field):
+	return (
+		is_custom_field(deal_field)
+		and lead_field.label == deal_field.label
+		and lead_field.fieldtype == deal_field.fieldtype
+	)
+
+
+def is_custom_field(field):
+	return bool(
+		field.get("is_custom_field")
+		or field.get("custom")
+		or (field.fieldname or "").startswith("custom_")
+		or field.name == f"{field.parent}-{field.fieldname}"
+	)

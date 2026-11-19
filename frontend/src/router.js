@@ -1,12 +1,32 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, START_LOCATION } from 'vue-router'
 import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
 import { viewsStore } from '@/stores/views'
+import { getLandingPage, landingRoute, viewRoute } from '@/utils/landingPage'
+
+let setupChecked = false
+export const SETUP_DONE_KEY = 'crm_setup_completed'
+
+// sent with the page boot, so the redirect needs no request and nothing renders first;
+// the client flag guards against re-prompting if saving setup_completed failed
+function needsSetup() {
+  return (
+    Boolean(window.crm_setup_pending) && !localStorage.getItem(SETUP_DONE_KEY)
+  )
+}
+
+function getSetupRedirect(to) {
+  if (to.name === 'Setup') return needsSetup() ? null : { name: 'Home' }
+  if (setupChecked) return null
+  setupChecked = true
+  return needsSetup() ? { name: 'Setup' } : null
+}
 
 const routes = [
   {
     path: '/',
     name: 'Home',
+    component: () => import('@/pages/Home.vue'),
   },
   {
     path: '/notifications',
@@ -85,31 +105,39 @@ const routes = [
     component: () => import('@/pages/CallLogs.vue'),
   },
   {
+    alias: '/data-import',
+    path: '/data-import/view/:viewType?',
+    name: 'Data Imports',
+    component: () => import('@/pages/DataImports.vue'),
+  },
+  {
     path: '/calendar',
     name: 'Calendar',
     component: () => import('@/pages/Calendar.vue'),
   },
+  // one page across these routes, so an import stays open when its URL changes
+  // after the first save
   {
-    path: '/data-import',
-    name: 'DataImportList',
-    component: () => import('@/pages/DataImport.vue'),
-  },
-  {
-    path: '/data-import/doctype/:doctype',
+    path: '/data-import/doctype/:doctype?',
     name: 'NewDataImport',
     component: () => import('@/pages/DataImport.vue'),
-    props: true,
+    meta: { viewKey: 'data-import' },
   },
   {
     path: '/data-import/:importName',
     name: 'DataImport',
     component: () => import('@/pages/DataImport.vue'),
-    props: true,
+    meta: { viewKey: 'data-import' },
   },
   {
     path: '/welcome',
     name: 'Welcome',
     component: () => import('@/pages/Welcome.vue'),
+  },
+  {
+    path: '/setup',
+    name: 'Setup',
+    component: () => import('@/pages/Setup.vue'),
   },
   {
     path: '/:invalidpath',
@@ -123,8 +151,27 @@ const routes = [
   },
 ]
 
+const isMobileView = () => window.innerWidth < 768
+
 const handleMobileView = (componentName) => {
-  return window.innerWidth < 768 ? `Mobile${componentName}` : componentName
+  return isMobileView() ? `Mobile${componentName}` : componentName
+}
+
+async function mobileHomeRoute() {
+  const { views, getDefaultView } = viewsStore()
+  await views.promise
+
+  const defaultView = getDefaultView()
+  return defaultView ? viewRoute(defaultView) : { name: 'Leads' }
+}
+
+async function landingPageRoute() {
+  const page = getLandingPage()
+  if (page === 'Home') return null
+
+  const { views } = viewsStore()
+  await views.promise
+  return landingRoute(page, views.data, (name) => router.hasRoute(name))
 }
 
 let router = createRouter({
@@ -138,38 +185,32 @@ router.beforeEach(async (to, from, next) => {
   const { isLoggedIn } = sessionStore()
   const { users, isCrmUser } = usersStore()
 
+  if (isLoggedIn) {
+    const redirect = getSetupRedirect(to)
+    if (redirect) return next(redirect)
+  }
+
   if (isLoggedIn && !users.fetched) {
     try {
       await users.promise
     } catch (error) {
       console.error('Error loading users', error)
+      if (error?.exc_type !== 'PermissionError') {
+        return next(false)
+      }
     }
   }
 
   if (isLoggedIn && to.name !== 'Not Permitted' && !isCrmUser()) {
     next({ name: 'Not Permitted' })
-  } else if (to.name === 'Home' && isLoggedIn) {
-    const { views, getDefaultView } = viewsStore()
-    await views.promise
-
-    let defaultView = getDefaultView()
-    if (!defaultView) {
-      next({ name: 'Leads' })
-      return
-    }
-
-    let { route_name, type, name, is_standard } = defaultView
-    route_name = route_name || 'Leads'
-
-    if (name && !is_standard) {
-      next({
-        name: route_name,
-        params: { viewType: type },
-        query: { view: name },
-      })
-    } else {
-      next({ name: route_name, params: { viewType: type } })
-    }
+  } else if (to.name === 'Not Permitted' && isLoggedIn && isCrmUser()) {
+    next({ name: 'Home' })
+  } else if (to.name === 'Home' && isLoggedIn && isMobileView()) {
+    next(await mobileHomeRoute())
+  } else if (to.name === 'Home' && isLoggedIn && from === START_LOCATION) {
+    const landing = await landingPageRoute()
+    if (landing) next(landing)
+    else next()
   } else if (!isLoggedIn) {
     window.location.href = '/login?redirect-to=/crm'
   } else if (to.matched.length === 0) {
@@ -188,6 +229,7 @@ router.beforeEach(async (to, from, next) => {
       'Notes',
       'Tasks',
       'Call Logs',
+      'Data Imports',
     ].includes(to.name) &&
     !to.query?.view
   ) {
@@ -206,13 +248,14 @@ router.beforeEach(async (to, from, next) => {
         Notes: 'FCRM Note',
         Tasks: 'CRM Task',
         'Call Logs': 'CRM Call Log',
+        'Data Imports': 'Data Import',
       }
 
       const doctype = doctypeMap[to.name]
       let defaultViewType = 'list'
 
-      let globalDefault = getDefaultView()
-      if (globalDefault && globalDefault.route_name === to.name) {
+      let globalDefault = getDefaultView(to.name)
+      if (globalDefault) {
         defaultViewType = globalDefault.type || 'list'
         if (globalDefault.name && !globalDefault.is_standard) {
           next({

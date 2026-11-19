@@ -32,6 +32,11 @@
   "organization_details_section",
   "organization_name",
   "website",
+  "organization_logo",
+  "company_description",
+  "linkedin",
+  "twitter",
+  "facebook",
   "no_of_employees",
   "job_title",
   "column_break_xbyf",
@@ -72,6 +77,11 @@
   "last_response_time",
   "column_break_evzj",
   "last_responded_on",
+  "interactions_section",
+  "last_inbound_at",
+  "last_outbound_at",
+  "column_break_interactions",
+  "awaiting_reply_since",
   "log_tab",
   "status_change_log",
   "lost_details_tab",
@@ -96,6 +106,7 @@
    "fieldname": "annual_revenue",
    "fieldtype": "Currency",
    "label": "Annual Revenue",
+   "non_negative": 1,
    "options": "currency"
   },
   {
@@ -119,7 +130,8 @@
    "fieldname": "deal_owner",
    "fieldtype": "Link",
    "label": "Deal Owner",
-   "options": "User"
+   "options": "User",
+   "search_index": 1
   },
   {
    "default": "CRM-DEAL-.YYYY.-",
@@ -376,6 +388,7 @@
    "fieldname": "total",
    "fieldtype": "Currency",
    "label": "Total",
+   "non_negative": 1,
    "options": "currency",
    "read_only": 1
   },
@@ -384,6 +397,7 @@
    "fieldname": "net_total",
    "fieldtype": "Currency",
    "label": "Net Total",
+   "non_negative": 1,
    "options": "currency",
    "read_only": 1
   },
@@ -395,6 +409,7 @@
    "fieldname": "deal_value",
    "fieldtype": "Currency",
    "label": "Deal Value",
+   "non_negative": 1,
    "options": "currency"
   },
   {
@@ -424,6 +439,7 @@
    "fieldname": "expected_deal_value",
    "fieldtype": "Currency",
    "label": "Expected Deal Value",
+   "non_negative": 1,
    "options": "currency"
   },
   {
@@ -467,15 +483,80 @@
    "read_only": 1
   },
   {
+   "fieldname": "interactions_section",
+   "fieldtype": "Section Break",
+   "label": "Interactions"
+  },
+  {
+   "fieldname": "last_inbound_at",
+   "fieldtype": "Datetime",
+   "label": "Last Inbound At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "last_outbound_at",
+   "fieldtype": "Datetime",
+   "label": "Last Outbound At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_interactions",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "awaiting_reply_since",
+   "fieldtype": "Datetime",
+   "label": "Awaiting Reply Since",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
    "fieldname": "lost_details_tab",
    "fieldtype": "Tab Break",
    "label": "Lost Details"
+  },
+  {
+   "fieldname": "organization_logo",
+   "fieldtype": "Attach Image",
+   "label": "Organization Logo",
+   "no_copy": 1,
+   "description": "Company logo discovered by Domain Enrichment."
+  },
+  {
+   "fieldname": "company_description",
+   "fieldtype": "Small Text",
+   "label": "Company Description",
+   "no_copy": 1,
+   "description": "Company description discovered by Domain Enrichment."
+  },
+  {
+   "depends_on": "eval:doc.linkedin",
+   "fieldname": "linkedin",
+   "fieldtype": "Data",
+   "label": "LinkedIn",
+   "no_copy": 1
+  },
+  {
+   "depends_on": "eval:doc.twitter",
+   "fieldname": "twitter",
+   "fieldtype": "Data",
+   "label": "X (Twitter)",
+   "no_copy": 1
+  },
+  {
+   "depends_on": "eval:doc.facebook",
+   "fieldname": "facebook",
+   "fieldtype": "Data",
+   "label": "Facebook",
+   "no_copy": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-04 12:34:10.808282",
+ "modified": "2026-11-17 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "CRM Deal",
@@ -499,6 +580,7 @@
    "delete": 1,
    "email": 1,
    "export": 1,
+   "import": 1,
    "print": 1,
    "read": 1,
    "report": 1,
@@ -511,6 +593,7 @@
    "delete": 1,
    "email": 1,
    "export": 1,
+   "import": 1,
    "print": 1,
    "read": 1,
    "report": 1,
@@ -525,5 +608,7 @@
  "sort_order": "DESC",
  "states": [],
  "title_field": "organization",
- "track_changes": 1
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
 }

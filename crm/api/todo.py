@@ -4,14 +4,36 @@ from frappe import _
 from crm.fcrm.doctype.crm_notification.crm_notification import notify_user
 
 
+def validate(doc, method):
+	"""Require write access when a ToDo starts to assign a CRM lead or deal."""
+	# assign_to and assignment rules save with ignore_permissions after their own permission check.
+	if (
+		doc.reference_type in ["CRM Lead", "CRM Deal"]
+		and doc.reference_name
+		and not doc.flags.ignore_permissions
+		and (doc.is_new() or assignment_changed(doc))
+	):
+		frappe.get_doc(doc.reference_type, doc.reference_name).check_permission("write")
+
+
+def assignment_changed(doc):
+	"""An open ToDo gives its assignee access to the record, so each of these edits assigns anew."""
+	before = doc.get_doc_before_save()
+	if not before:
+		return True
+	return any(
+		(before.get(field) or None) != (doc.get(field) or None)
+		for field in ["reference_type", "reference_name", "allocated_to"]
+	) or (before.status == "Cancelled" and doc.status != "Cancelled")
+
+
 def after_insert(doc, method):
 	if doc.reference_type in ["CRM Lead", "CRM Deal"] and doc.reference_name and doc.allocated_to:
 		fieldname = "lead_owner" if doc.reference_type == "CRM Lead" else "deal_owner"
-		owner = frappe.db.get_value(doc.reference_type, doc.reference_name, fieldname)
-		if not owner:
-			frappe.db.set_value(
-				doc.reference_type, doc.reference_name, fieldname, doc.allocated_to, update_modified=False
-			)
+		# Mirror assign_to: the latest assignment owns the record, overriding any prior owner.
+		frappe.db.set_value(
+			doc.reference_type, doc.reference_name, fieldname, doc.allocated_to, update_modified=False
+		)
 
 	if doc.reference_type in ["CRM Lead", "CRM Deal", "CRM Task"] and doc.reference_name and doc.allocated_to:
 		notify_assigned_user(doc)
@@ -34,13 +56,15 @@ def clear_owner_on_unassign(doc):
 	if doc.reference_type not in ["CRM Lead", "CRM Deal"]:
 		return
 	fieldname = "lead_owner" if doc.reference_type == "CRM Lead" else "deal_owner"
-	owner = frappe.db.get_value(doc.reference_type, doc.reference_name, fieldname)
-	# Only clear when the user being unassigned is the current owner.
-	if owner and owner == doc.allocated_to:
-		frappe.db.set_value(doc.reference_type, doc.reference_name, fieldname, None, update_modified=False)
+	# Mirror assign_to: cancelling an assignment clears the owner. Wrinkle (accepted):
+	# removing one of several manual co-assignees also clears, since owner is single-valued.
+	frappe.db.set_value(doc.reference_type, doc.reference_name, fieldname, None, update_modified=False)
 
 
 def notify_assigned_user(doc, is_cancelled=False):
+	# a booking assigns its lead or deal as Guest; it sends the host its own notification
+	if frappe.flags.in_crm_booking:
+		return
 	_doc = frappe.get_doc(doc.reference_type, doc.reference_name)
 	owner = frappe.get_cached_value("User", frappe.session.user, "full_name")
 	notification_text = get_notification_text(owner, doc, _doc, is_cancelled)

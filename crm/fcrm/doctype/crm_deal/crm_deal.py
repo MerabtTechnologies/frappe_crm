@@ -7,6 +7,7 @@ from frappe.desk.form.assign_to import _add as assign
 from frappe.model.document import Document
 
 from crm.api.exchange_rate import get_exchange_rate
+from crm.api.whatsapp import guard_doc_recipient_change
 from crm.fcrm.doctype.crm_service_level_agreement.utils import get_sla
 from crm.fcrm.doctype.crm_status_change_log.crm_status_change_log import add_status_change_log
 from crm.fcrm.doctype.utils import add_or_remove_lost_reason_section_in_sidepanel
@@ -29,6 +30,7 @@ class CRMDeal(Document):
 		from crm.fcrm.doctype.crm_status_change_log.crm_status_change_log import CRMStatusChangeLog
 
 		annual_revenue: DF.Currency
+		awaiting_reply_since: DF.Datetime | None
 		closed_date: DF.Date | None
 		communication_status: DF.Link | None
 		contact: DF.Link | None
@@ -46,7 +48,9 @@ class CRMDeal(Document):
 		gender: DF.Link | None
 		industry: DF.Link | None
 		job_title: DF.Data | None
+		last_inbound_at: DF.Datetime | None
 		last_name: DF.Data | None
+		last_outbound_at: DF.Datetime | None
 		last_responded_on: DF.Datetime | None
 		last_response_time: DF.Duration | None
 		lead: DF.Link | None
@@ -77,6 +81,12 @@ class CRMDeal(Document):
 		website: DF.Data | None
 	# end: auto-generated types
 
+	def before_insert(self):
+		# apply CRM enrichment (source/organization/contact) when created via a web form
+		from crm.api.form import enrich_form_submission
+
+		enrich_form_submission(self)
+
 	def before_validate(self):
 		self.set_sla()
 
@@ -84,6 +94,7 @@ class CRMDeal(Document):
 		self.validate_status()
 		self.set_primary_contact()
 		self.set_primary_email_mobile_no()
+		guard_doc_recipient_change(self)
 		if not self.is_new() and self.has_value_changed("deal_owner") and self.deal_owner:
 			self.share_with_agent(self.deal_owner)
 			self.assign_agent(self.deal_owner)
@@ -94,12 +105,19 @@ class CRMDeal(Document):
 		self.validate_forecasting_fields()
 		self.validate_lost_reason()
 		self.update_exchange_rate()
+		if self.organization and (self.is_new() or self.has_value_changed("organization")):
+			self.copy_enrichment_from_organization()
 
 	def after_insert(self):
 		if self.deal_owner:
 			if self.deal_owner != frappe.session.user:
 				self.share_with_agent(self.deal_owner)
 			self.assign_agent(self.deal_owner)
+
+		# Auto-enrich a new Deal from its website (best-effort, background job).
+		from crm.domain_enrichment.tasks import auto_enrich_on_create
+
+		auto_enrich_on_create(self)
 
 	def before_save(self):
 		self.apply_sla()
@@ -192,6 +210,18 @@ class CRMDeal(Document):
 					user,
 					flags={"ignore_share_permission": True, "ignore_permissions": True},
 				)
+
+	def copy_enrichment_from_organization(self):
+		"""Fill-empty copy of the linked enriched Organization's fields onto this Deal.
+
+		Called from ``validate`` when ``organization`` is set or changed to an
+		already-enriched CRM Organization. The shared helper mutates ``self`` in place
+		(fill-empty, so user-entered data is preserved); the in-progress save persists
+		the changes. Best-effort -- never blocks the Deal save.
+		"""
+		from crm.domain_enrichment.cross_record import copy_enrichment_from_organization
+
+		return copy_enrichment_from_organization(self)
 
 	def set_sla(self):
 		"""
@@ -351,6 +381,7 @@ class CRMDeal(Document):
 
 @frappe.whitelist()
 def add_contact(deal: str, contact: str):
+	"""Link an existing Contact to a Deal."""
 	if not frappe.has_permission("CRM Deal", "write", deal):
 		frappe.throw(_("Not allowed to add contact to Deal"), frappe.PermissionError)
 
@@ -362,6 +393,7 @@ def add_contact(deal: str, contact: str):
 
 @frappe.whitelist()
 def remove_contact(deal: str, contact: str):
+	"""Unlink a Contact from a Deal."""
 	if not frappe.has_permission("CRM Deal", "write", deal):
 		frappe.throw(_("Not allowed to remove contact from Deal"), frappe.PermissionError)
 
@@ -373,6 +405,7 @@ def remove_contact(deal: str, contact: str):
 
 @frappe.whitelist()
 def set_primary_contact(deal: str, contact: str):
+	"""Make one of a Deal's linked Contacts its primary contact."""
 	if not frappe.has_permission("CRM Deal", "write", deal):
 		frappe.throw(_("Not allowed to set primary contact for Deal"), frappe.PermissionError)
 
@@ -400,6 +433,7 @@ def create_organization(doc):
 			"territory": doc.get("territory"),
 			"industry": doc.get("industry"),
 			"annual_revenue": doc.get("annual_revenue"),
+			"no_of_employees": doc.get("no_of_employees"),
 		}
 	)
 	organization.insert(ignore_permissions=True)
@@ -449,17 +483,32 @@ def create_contact(doc):
 
 @frappe.whitelist()
 def create_deal(doc: dict):
+	"""Create a Deal from `doc`, creating its Contact and Organization from the given details when they do not exist."""
+
+	frappe.has_permission("CRM Deal", "create", throw=True)
 	deal = frappe.new_doc("CRM Deal")
 
 	contact = doc.get("contact")
 	if not contact and (
 		doc.get("first_name") or doc.get("last_name") or doc.get("email") or doc.get("mobile_no")
 	):
-		contact = create_contact(doc)
+		contact = contact_exists(doc)
+		if not contact:
+			frappe.has_permission("Contact", "create", throw=True)
+			contact = create_contact(doc)
+
+	organization = doc.get("organization")
+	if not organization and doc.get("organization_name"):
+		organization = frappe.db.exists(
+			"CRM Organization", {"organization_name": doc.get("organization_name")}
+		)
+		if not organization:
+			frappe.has_permission("CRM Organization", "create", throw=True)
+			organization = create_organization(doc)
 
 	deal.update(
 		{
-			"organization": doc.get("organization") or create_organization(doc),
+			"organization": organization,
 			"contacts": [{"contact": contact, "is_primary": 1}] if contact else [],
 		}
 	)

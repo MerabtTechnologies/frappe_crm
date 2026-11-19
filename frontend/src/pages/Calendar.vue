@@ -4,12 +4,17 @@
       <ViewBreadcrumbs routeName="Calendar" />
     </template>
     <template #right-header>
+      <Button
+        :label="__('Booking pages')"
+        icon-left="lucide-calendar-plus"
+        @click="openBookingPages"
+      />
       <ShortcutTooltip :label="__('Create Event')" combo="Mod+E">
         <Button
           variant="solid"
           :label="__('Create')"
           :disabled="isCreateDisabled"
-          @click="newEvent"
+          @click="newEvent()"
         >
           <template #prefix
             ><span class="lucide-plus h-4" aria-hidden="true"
@@ -60,13 +65,13 @@
               :clearable="false"
               @update:modelValue="(val) => onMonthYearChange(val)"
             >
-              <template #target="{ togglePopover }">
+              <template #trigger="{ open, setOpen }">
                 <Button
                   variant="ghost"
                   class="text-lg-medium text-ink-gray-7"
                   :label="currentMonthYear"
                   iconRight="chevron-down"
-                  @click="togglePopover"
+                  @click="setOpen(!open)"
                 />
               </template>
             </DatePicker>
@@ -174,19 +179,38 @@ import { globalStore } from '@/stores/global'
 import { getSettings } from '@/stores/settings'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import {
-  Calendar,
   createListResource,
   dayjs,
+  dayjsLocal,
   DatePicker,
   Tooltip,
-  CalendarActiveEvent as activeEvent,
   call,
   toast,
 } from 'frappe-ui'
+import {
+  Calendar,
+  CalendarActiveEvent as activeEvent,
+} from 'frappe-ui/experimental'
 import { onMounted, ref, computed, provide, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
+import { activeSettingsPage, showSettings } from '@/composables/settings'
+import {
+  EVENT_LIST_URL,
+  endDateFor,
+  bookingOf,
+  confirmBookingMove,
+  deleteEventMessage,
+  movesBooking,
+  eventTime,
+  toSystemTime,
+} from '@/composables/event'
 
 const { user } = sessionStore()
+
+function openBookingPages() {
+  activeSettingsPage.value = __('Booking Pages')
+  showSettings.value = true
+}
 const { $dialog } = globalStore()
 const { settings } = getSettings()
 const { users, getUser } = usersStore()
@@ -217,10 +241,13 @@ async function updateUser(u) {
 function buildEventFilters(range) {
   const filters = [['status', '=', 'Open']]
   if (range?.startDate && range?.endDate) {
-    const start = dayjs(range.startDate)
-      .startOf('day')
-      .format('YYYY-MM-DD HH:mm:ss')
-    const end = dayjs(range.endDate).endOf('day').format('YYYY-MM-DD HH:mm:ss')
+    // the range is in the user's days; events are stored in system time
+    const start = toSystemTime(
+      dayjs(range.startDate).startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+    )
+    const end = toSystemTime(
+      dayjs(range.endDate).endOf('day').format('YYYY-MM-DD HH:mm:ss'),
+    )
     filters.push(['starts_on', '<=', end])
     filters.push(['ends_on', '>=', start])
   }
@@ -236,6 +263,7 @@ function buildEventOrFilters() {
 
 const events = createListResource({
   doctype: 'Event',
+  url: EVENT_LIST_URL,
   fields: [
     'name',
     'status',
@@ -254,7 +282,8 @@ const events = createListResource({
   filters: buildEventFilters(),
   orFilters: buildEventOrFilters(),
   pageLength: 9999,
-  auto: true,
+  // the calendar's first rangeChange loads the visible range
+  auto: false,
   transform: (data) =>
     data
       .map((ev) => ({
@@ -262,10 +291,10 @@ const events = createListResource({
         title: ev.subject,
         description: ev.description,
         status: ev.status,
-        fromDate: dayjs(ev.starts_on).format('YYYY-MM-DD'),
-        toDate: dayjs(ev.ends_on).format('YYYY-MM-DD'),
-        fromTime: dayjs(ev.starts_on).format('HH:mm'),
-        toTime: dayjs(ev.ends_on).format('HH:mm'),
+        fromDate: eventTime(ev.starts_on, ev.all_day).format('YYYY-MM-DD'),
+        toDate: eventTime(ev.ends_on, ev.all_day).format('YYYY-MM-DD'),
+        fromTime: eventTime(ev.starts_on, ev.all_day).format('HH:mm'),
+        toTime: eventTime(ev.ends_on, ev.all_day).format('HH:mm'),
         isFullDay: ev.all_day,
         eventType: ev.event_type,
         location: ev.location,
@@ -273,6 +302,7 @@ const events = createListResource({
         attending: ev.attending,
         referenceDoctype: ev.reference_doctype,
         referenceDocname: ev.reference_docname,
+        booking: bookingOf(ev),
       }))
       .filter(
         (ev, index, self) => index === self.findIndex((e) => e.id === ev.id),
@@ -317,8 +347,14 @@ function buildEventPayload(_event) {
   return {
     subject: _event.title,
     description: _event.description,
-    starts_on: `${_event.fromDate} ${_event.fromTime}`,
-    ends_on: `${_event.toDate} ${_event.toTime}`,
+    starts_on: toSystemTime(
+      `${_event.fromDate} ${_event.fromTime}`,
+      _event.isFullDay,
+    ),
+    ends_on: toSystemTime(
+      `${_event.toDate} ${_event.toTime}`,
+      _event.isFullDay,
+    ),
     all_day: _event.isFullDay || false,
     event_type: _event.eventType,
     location: _event.location,
@@ -333,7 +369,9 @@ function buildEventPayload(_event) {
 
 function createEvent(_event) {
   if (!_event?.title) return
-  events.insert.submit(buildEventPayload(_event), {
+  // the server adds it to the creator's Google Calendar when one is connected
+  const payload = { ...buildEventPayload(_event), sync_with_google_calendar: 1 }
+  events.insert.submit(payload, {
     onSuccess: async (e) => {
       await updateUser(user)
       toast.success(__('Event created successfully'))
@@ -383,19 +421,28 @@ async function updateEvent(_event, afterDrag = false) {
       )
     }
 
-    events.setValue.submit(
-      { name: _event.id, ...buildEventPayload(_event) },
-      {
-        onSuccess: async (e) => {
-          await events.reload()
-          if (showEventPanel.value) showDetails({ id: e.name }, true)
+    const submit = () =>
+      events.setValue.submit(
+        { name: _event.id, ...buildEventPayload(_event) },
+        {
+          onSuccess: async (e) => {
+            await events.reload()
+            if (showEventPanel.value) showDetails({ id: e.name }, true)
+          },
+          onError: (err) => {
+            toast.error(err.messages?.[0] || __('Could not move this event'))
+            // the calendar already shows the new time; put the event back
+            events.reload()
+          },
         },
-        onError: (err) => {
-          toast.error(err.messages[0])
-          console.error('Failed updating event', err)
-        },
-      },
-    )
+      )
+    const booking = bookingFor(_event.id)
+    if (movesBooking(booking, _event)) {
+      // not moving it after all: put it back where it was
+      confirmBookingMove(booking, submit, () => events.reload())
+    } else {
+      submit()
+    }
   } else {
     event.value = { ..._event }
   }
@@ -406,23 +453,23 @@ function deleteEvent(eventID) {
 
   $dialog({
     title: __('Delete'),
-    message: __('Are you sure you want to delete this event?'),
+    message: deleteEventMessage(bookingFor(eventID)),
     actions: [
       {
         label: __('Delete'),
         variant: 'solid',
         theme: 'red',
         onClick: (close) => {
-          events.delete.submit(eventID, {
-            onSuccess: () => {
+          // Frappe lets only System Managers delete events; the CRM lets owners too
+          call('crm.api.event.delete_event', { name: eventID })
+            .then(() => {
               toast.success(__('Event deleted successfully'))
               events.reload()
-            },
-            onError: (err) => {
-              toast.error(err.messages[0])
+            })
+            .catch((err) => {
+              toast.error(err.messages?.[0] || __('Could not delete the event'))
               console.error('Failed deleting event', err)
-            },
-          })
+            })
           showEventPanel.value = false
           event.value = {}
           activeEvent.value = ''
@@ -432,6 +479,10 @@ function deleteEvent(eventID) {
       },
     ],
   })
+}
+
+function bookingFor(eventID) {
+  return events.data?.find((e) => e.id === eventID)?.booking || null
 }
 
 function syncEvent(eventID, _event) {
@@ -486,8 +537,8 @@ useKeyboardShortcuts({
       guard: () => !isCreateDisabled.value,
       action: () =>
         newEvent({
-          date: dayjs().format('YYYY-MM-DD'),
-          time: dayjs().format('HH:mm'),
+          date: dayjsLocal().format('YYYY-MM-DD'),
+          time: dayjsLocal().format('HH:mm'),
           isFullDay: false,
         }),
     },
@@ -532,11 +583,13 @@ function newEvent(e = {}, duplicate = false) {
   let base = { ...e }
   if (!duplicate) {
     const [fromTime, toTime] = getFromToTime(e.time)
-    const fromDate = dayjs(e.date).format('YYYY-MM-DD')
+    const fromDate = (e.date ? dayjs(e.date) : dayjsLocal()).format(
+      'YYYY-MM-DD',
+    )
     base = {
       ...base,
       fromDate,
-      toDate: fromDate,
+      toDate: e.isFullDay ? fromDate : endDateFor(fromDate, fromTime, toTime),
       fromTime,
       toTime,
       isFullDay: e.isFullDay,
@@ -569,7 +622,7 @@ function close() {
 // utils
 function getFromToTime(time) {
   const pad = (v) => String(v).padStart(2, '0')
-  let now = dayjs()
+  let now = dayjsLocal()
   let h = now.hour()
   let m = Math.floor(now.minute() / 15) * 15
   let fromHour = h

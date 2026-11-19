@@ -48,6 +48,7 @@ class ERPNextCRMSettings(Document):
 		erpnext_site_url: DF.Data | None
 		is_erpnext_in_different_site: DF.Check
 		sync_issues: DF.Table[CRMProductSyncIssue]
+		sync_products: DF.Check
 	# end: auto-generated types
 
 	def validate(self):
@@ -253,6 +254,82 @@ def dismiss_sync_issue(issue_name: str):
 	return False
 
 
+@frappe.whitelist()
+def get_product_sync_status():
+	if not frappe.has_permission("CRM Product", "read"):
+		return {}
+	return {
+		"products": _get_products(),
+		"items": _get_synced_items(),
+		"failed": get_open_sync_issues(),
+		"unsynced": _get_unsynced_counts(),
+	}
+
+
+def _get_unsynced_counts():
+	settings = frappe.get_single("ERPNext CRM Settings")
+	items = _count_linked("Item", "crm_product_code", is_set=False) if _can_read_items() else 0
+	return {
+		"items": items,
+		"products": frappe.db.count("CRM Product", filters={"erpnext_item_code": ["is", "not set"]}),
+		"sync_products": bool(settings.sync_products),
+	}
+
+
+def _get_products():
+	rows = frappe.get_all(
+		"CRM Product",
+		fields=["name", "product_code", "product_name", "erpnext_item_code"],
+		limit=20,
+		order_by="modified desc",
+	)
+	_set_product_item_groups(rows)
+	return {
+		"count": frappe.db.count("CRM Product"),
+		"rows": rows,
+	}
+
+
+def _get_synced_items():
+	if not _can_read_items():
+		return {"count": 0, "rows": []}
+	return {
+		"count": _count_linked("Item", "crm_product_code"),
+		"rows": frappe.get_all(
+			"Item",
+			fields=["name", "item_code", "item_name", "item_group", "crm_product_code"],
+			filters={"crm_product_code": ["is", "set"]},
+			limit=20,
+			order_by="modified desc",
+		),
+	}
+
+
+def _set_product_item_groups(rows):
+	item_codes = [row.erpnext_item_code for row in rows if row.erpnext_item_code]
+	if not item_codes or not _can_read_items():
+		return
+	item_groups = frappe.get_all(
+		"Item",
+		fields=["name", "item_group"],
+		filters={"name": ["in", item_codes]},
+	)
+	item_groups = {row.name: row.item_group for row in item_groups}
+	for row in rows:
+		row["item_group"] = item_groups.get(row.erpnext_item_code)
+
+
+def _count_linked(doctype: str, fieldname: str, is_set: bool = True):
+	if not frappe.db.has_column(doctype, fieldname):
+		return 0
+	operator = "set" if is_set else "not set"
+	return frappe.db.count(doctype, filters={fieldname: ["is", operator]})
+
+
+def _can_read_items():
+	return frappe.db.exists("DocType", "Item") and frappe.has_permission("Item", "read")
+
+
 def get_erpnext_site_client(erpnext_crm_settings):
 	site_url = erpnext_crm_settings.erpnext_site_url
 	api_key = erpnext_crm_settings.api_key
@@ -291,6 +368,90 @@ def get_customer_link(crm_deal: str):
 		_log_and_throw(
 			"Error while fetching customer in ERPNext, check error log for more details",
 			f"Error while fetching customer in remote site: {erpnext_crm_settings.erpnext_site_url}",
+		)
+
+
+def _quotation_permission(ptype: str) -> bool:
+	"""Integration on and, same-site, the user holds `ptype` on ERPNext Quotation (remote is API-key governed)."""
+	settings = frappe.get_single("ERPNext CRM Settings")
+	if not settings.enabled:
+		return False
+	if settings.is_erpnext_in_different_site:
+		return True
+	return bool(frappe.has_permission("Quotation", ptype=ptype))
+
+
+@frappe.whitelist()
+def can_view_quotations():
+	"""Tab gate: whoever can READ ERPNext Quotations sees the deal Quotations tab."""
+	return _quotation_permission("read")
+
+
+@frappe.whitelist()
+def can_create_quotations():
+	"""Create Quotation action gate: whoever can CREATE ERPNext Quotations sees the button."""
+	return _quotation_permission("create")
+
+
+QUOTATION_LIST_FIELDS = ["name", "status", "grand_total", "currency", "transaction_date", "valid_till"]
+
+
+@frappe.whitelist()
+def get_deal_quotations(crm_deal: str):
+	"""ERPNext Quotations linked to a deal, for the deal's Quotations tab."""
+	if not isinstance(crm_deal, str):
+		frappe.throw(_("Invalid deal"), frappe.ValidationError)
+	settings = frappe.get_single("ERPNext CRM Settings")
+	if not settings.enabled:
+		return []
+	# viewer must be able to read the deal AND read ERPNext Quotations (same gate as the tab)
+	if not frappe.has_permission("CRM Deal", doc=crm_deal):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	if not settings.is_erpnext_in_different_site and not frappe.has_permission("Quotation", ptype="read"):
+		return []
+
+	if not settings.is_erpnext_in_different_site:
+		# get_list (not get_all) so per-document Quotation permissions are enforced.
+		rows = frappe.get_list(
+			"Quotation",
+			filters={"crm_deal": crm_deal},
+			fields=QUOTATION_LIST_FIELDS,
+			order_by="modified desc",
+			limit_page_length=0,
+		)
+		for row in rows:
+			row["url"] = get_url_to_form("Quotation", row["name"])
+		return rows
+
+	client = get_erpnext_site_client(settings)
+	try:
+		rows = client.get_list(
+			"Quotation",
+			filters={"crm_deal": crm_deal},
+			fields=QUOTATION_LIST_FIELDS,
+			order_by="modified desc",
+			limit_page_length=0,
+		)
+	except Exception:
+		_log_and_throw(
+			"Error while fetching quotations in ERPNext, check error log for more details",
+			f"Error while fetching quotations in remote site: {settings.erpnext_site_url}",
+		)
+	for row in rows:
+		row["url"] = f"{settings.erpnext_site_url}/app/quotation/{row['name']}"
+	return rows
+
+
+def notify_deal_quotation_change(doc, method=None):
+	"""Push a realtime event so an open deal's Quotations tab refreshes live (same-site)."""
+	crm_deal = doc.get("crm_deal")
+	if crm_deal:
+		frappe.publish_realtime(
+			"crm_quotation_update",
+			{"crm_deal": crm_deal},
+			doctype="CRM Deal",
+			docname=crm_deal,
+			after_commit=True,
 		)
 
 
@@ -552,7 +713,7 @@ def create_customer_from_deal(doc, erpnext_crm_settings):
 
 	if customer_name:
 		frappe.db.set_value("CRM Deal", doc.name, "erpnext_customer", customer_name)
-		frappe.publish_realtime("crm_customer_created")
+		frappe.publish_realtime("crm_customer_created", user=frappe.session.user)
 
 	return customer_name
 
@@ -573,26 +734,29 @@ def get_crm_form_script():
 		})
 	}
 	setActions() {
-		// Add Create Quotation Button
-		this.actions.push({
-			label: __("Create Quotation"),
-			onClick: () => {
-				call(
-					"crm.fcrm.doctype.erpnext_crm_settings.erpnext_crm_settings.get_quotation_url",
-					{
-						crm_deal: this.doc.name,
-						organization: this.doc.organization
-					}
-				).then((quotation_url) => {
-					if (quotation_url) {
-						window.open(quotation_url, '_blank');
-					} else {
-						toast.error("Error while creating quotation in ERPNext");
-					}
-				}).catch((e) => {
-					toast.error(e.messages[0] || "Error while creating quotation in ERPNext. Check error log in ERPNext for more details");
-				});
-			}
+		// Create Quotation button, only for users who can create ERPNext Quotations
+		call("crm.fcrm.doctype.erpnext_crm_settings.erpnext_crm_settings.can_create_quotations").then((canCreate) => {
+			if (!canCreate) return
+			this.actions.push({
+				label: __("Create Quotation"),
+				onClick: () => {
+					call(
+						"crm.fcrm.doctype.erpnext_crm_settings.erpnext_crm_settings.get_quotation_url",
+						{
+							crm_deal: this.doc.name,
+							organization: this.doc.organization
+						}
+					).then((quotation_url) => {
+						if (quotation_url) {
+							window.open(quotation_url, '_blank');
+						} else {
+							toast.error("Error while creating quotation in ERPNext");
+						}
+					}).catch((e) => {
+						toast.error(e.messages[0] || "Error while creating quotation in ERPNext. Check error log in ERPNext for more details");
+					});
+				}
+			})
 		})
 
 		// Add View Customer Button

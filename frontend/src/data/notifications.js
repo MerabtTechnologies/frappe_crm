@@ -1,5 +1,5 @@
 import { sessionStore } from '@/stores/session'
-import { useEvent } from '@/composables/event'
+import { useEvent, eventTime, toSystemTime } from '@/composables/event'
 import { dayjs } from 'frappe-ui'
 import isBetween from 'dayjs/plugin/isBetween'
 import { useStorage } from '@vueuse/core'
@@ -15,17 +15,19 @@ export const useEventNotifications = () => {
     filters: {
       status: 'Open',
       owner: user,
-      ends_on: ['>=', dayjs().toISOString()],
+      ends_on: ['>=', toSystemTime(dayjs().format('YYYY-MM-DD HH:mm:ss'))],
     },
     notifications: false,
   })
 }
 
 const eventNotificationAlerts = useStorage('eventNotificationAlerts', [])
+// shared by the popup and the sidebar, which each use this composable, so a reminder
+// dismissed in one is done in the other and neither saves over the other's list
+const completedEvents = ref([])
 
 export const useEventNotificationAlert = () => {
   const { save: saveUserSettings } = useUserSettings()
-  const completedEvents = ref([])
 
   // Load user settings on initialization
   const loadNotificationSettings = async () => {
@@ -65,7 +67,7 @@ export const useEventNotificationAlert = () => {
 
       const notification = alert.notification
       if (notification && notification.ends_on) {
-        const eventEndTime = dayjs(notification.ends_on)
+        const eventEndTime = eventTime(notification.ends_on)
         if (eventEndTime.isBefore(now)) {
           return false
         }
@@ -134,7 +136,7 @@ export const useEventNotificationAlert = () => {
 
       const notification = alert.notification
       if (notification && notification.ends_on) {
-        const eventEndTime = dayjs(notification.ends_on)
+        const eventEndTime = eventTime(notification.ends_on)
         return eventEndTime.isBefore(now)
       }
 

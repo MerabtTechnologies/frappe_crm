@@ -3,7 +3,8 @@ import requests
 from frappe import _
 from frappe.integrations.utils import create_request_log
 
-from crm.integrations.api import get_contact_by_phone_number
+from crm.integrations.api import find_contact_by_phone_number
+from crm.utils import sales_user_only
 
 # Endpoints for webhook
 
@@ -16,7 +17,7 @@ from crm.integrations.api import get_contact_by_phone_number
 
 
 # Incoming Call
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
 def handle_request(**kwargs):
 	validate_request()
 	if not is_integration_enabled():
@@ -38,14 +39,16 @@ def handle_request(**kwargs):
 
 		call_payload = kwargs
 
-		frappe.publish_realtime("exotel_call", call_payload)
+		if call_agent := get_call_agent(call_payload):
+			frappe.publish_realtime("exotel_call", call_payload, user=call_agent)
+
 		status = call_payload.get("Status")
 		if status == "free":
 			return
 
 		if call_log := get_call_log(call_payload):
 			update_call_log(call_payload, call_log=call_log)
-		else:
+		elif call_payload.get("Direction") == "incoming":
 			create_call_log(
 				call_id=call_payload.get("CallSid"),
 				from_number=call_payload.get("CallFrom"),
@@ -54,30 +57,39 @@ def handle_request(**kwargs):
 				status=get_call_log_status(call_payload),
 				agent=call_payload.get("AgentEmail"),
 			)
+		elif agent := frappe.request.args.get("agent"):
+			create_call_log(
+				call_id=call_payload.get("CallSid"),
+				from_number=call_payload.get("From") or call_payload.get("CallFrom"),
+				to_number=call_payload.get("DialWhomNumber") or call_payload.get("To"),
+				medium=call_payload.get("To"),
+				status=get_call_log_status(call_payload, direction=call_payload.get("Direction")),
+				agent=agent,
+				call_type="Outgoing",
+			)
 	except Exception:
 		request_log.status = "Failed"
 		request_log.error = frappe.get_traceback()
 		frappe.db.rollback()
 		frappe.log_error(title="Error while creating/updating call record")
-		frappe.db.commit()
+		frappe.db.commit()  # keep the error log after the rollback  # nosemgrep
 	finally:
 		request_log.save(ignore_permissions=True)
-		frappe.db.commit()
+		frappe.db.commit()  # passthru webhooks are GET, not auto-committed  # nosemgrep
 
 
 # Outgoing Call
-@frappe.whitelist()
-def make_a_call(to_number: str, from_number: str | None = None, caller_id: str | None = None):
+@frappe.whitelist(methods=["POST"])
+@sales_user_only
+def make_a_call(to_number: str):
 	if not is_integration_enabled():
-		frappe.throw(_("Please setup Exotel intergration"), title=_("Integration Not Enabled"))
+		frappe.throw(_("Please setup Exotel integration"), title=_("Integration Not Enabled"))
 
 	endpoint = get_exotel_endpoint("Calls/connect.json?details=true")
 
-	if not from_number:
-		from_number = frappe.get_value("CRM Telephony Agent", {"user": frappe.session.user}, "mobile_no")
-
-	if not caller_id:
-		caller_id = frappe.get_value("CRM Telephony Agent", {"user": frappe.session.user}, "exotel_number")
+	from_number, caller_id = frappe.get_value(
+		"CRM Telephony Agent", {"user": frappe.session.user}, ["mobile_no", "exotel_number"]
+	) or (None, None)
 
 	if not caller_id:
 		frappe.throw(
@@ -94,6 +106,7 @@ def make_a_call(to_number: str, from_number: str | None = None, caller_id: str |
 
 	record_call = frappe.db.get_single_value("CRM Exotel Settings", "record_call")
 
+	call_log_creation_failed = False
 	try:
 		response = requests.post(
 			endpoint,
@@ -115,17 +128,24 @@ def make_a_call(to_number: str, from_number: str | None = None, caller_id: str |
 		res = response.json()
 		call_payload = res.get("Call", {})
 
-		create_call_log(
-			call_id=call_payload.get("Sid"),
-			from_number=call_payload.get("From"),
-			to_number=call_payload.get("To"),
-			medium=call_payload.get("PhoneNumberSid"),
-			call_type="Outgoing",
-			agent=frappe.session.user,
-		)
+		try:
+			create_call_log(
+				call_id=call_payload.get("Sid"),
+				from_number=call_payload.get("From"),
+				to_number=call_payload.get("To"),
+				medium=call_payload.get("PhoneNumberSid"),
+				call_type="Outgoing",
+				agent=frappe.session.user,
+			)
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(title="Error while creating Exotel call log")
+			frappe.db.commit()
+			call_log_creation_failed = True
 
 	call_details = response.json().get("Call", {})
 	call_details["CallSid"] = call_details.get("Sid", "")
+	call_details["call_log_creation_failed"] = call_log_creation_failed
 	return call_details
 
 
@@ -151,7 +171,10 @@ def get_status_updater_url():
 	from frappe.utils.data import get_url
 
 	webhook_verify_token = frappe.db.get_single_value("CRM Exotel Settings", "webhook_verify_token")
-	return get_url(f"api/method/crm.integrations.exotel.handler.handle_request?key={webhook_verify_token}")
+	return get_url(
+		f"api/method/crm.integrations.exotel.handler.handle_request"
+		f"?key={webhook_verify_token}&agent={frappe.session.user}"
+	)
 
 
 def get_exotel_settings():
@@ -203,12 +226,12 @@ def create_call_log(
 	link(contact_number, call_log)
 
 	call_log.save(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # passthru webhooks are GET, not auto-committed  # nosemgrep
 	return call_log
 
 
 def link(contact_number, call_log):
-	contact = get_contact_by_phone_number(contact_number)
+	contact = find_contact_by_phone_number(contact_number)
 	if contact.get("name"):
 		doctype = "Contact"
 		docname = contact.get("name")
@@ -227,32 +250,71 @@ def get_call_log(call_payload):
 		return frappe.get_doc("CRM Call Log", call_log_id)
 
 
+def get_call_agent(call_payload):
+	if agent := call_payload.get("AgentEmail") or frappe.request.args.get("agent"):
+		return agent
+
+	if call_log := get_call_log(call_payload):
+		return call_log.receiver if call_log.type == "Incoming" else call_log.caller
+
+
+# Exotel reports call status in lowercase, hyphenated form. Map it onto the
+# options of the CRM Call Log status field, which is a mandatory Select.
+# https://support.exotel.com/support/solutions/articles/27323-call-status
+EXOTEL_CALL_STATUSES = {
+	"initiated": "Initiated",
+	"ringing": "Ringing",
+	"in-progress": "In Progress",
+	"completed": "Completed",
+	"failed": "Failed",
+	"busy": "Busy",
+	"no-answer": "No Answer",
+	"queued": "Queued",
+	"canceled": "Canceled",
+	"cancelled": "Canceled",
+}
+
+# Exotel sends these when a leg never connected, eg. the caller hung up before
+# an agent picked up. There is no status to record, not an unknown one.
+# Leg2Status is documented as empty when there is no second leg:
+# https://support.exotel.com/support/solutions/articles/27323-call-status
+EXOTEL_EMPTY_STATUSES = ("", "null", "none", "undefined")
+
+
+def normalize_call_status(status):
+	"""Map a raw Exotel status onto a CRM Call Log status, or None if there isn't one."""
+	if not status:
+		return None
+
+	status = str(status).strip().lower().replace("_", "-").replace(" ", "-")
+	if status in EXOTEL_EMPTY_STATUSES:
+		return None
+
+	if status not in EXOTEL_CALL_STATUSES:
+		frappe.log_error(
+			title="Unknown Exotel call status",
+			message=f"Exotel sent call status {status!r}, which is not in EXOTEL_CALL_STATUSES",
+		)
+		return None
+
+	return EXOTEL_CALL_STATUSES[status]
+
+
 def get_call_log_status(call_payload, direction="inbound"):
 	if direction == "outbound-api" or direction == "outbound-dial":
-		status = call_payload.get("Status")
-		if status == "completed":
-			return "Completed"
-		elif status == "in-progress":
-			return "In Progress"
-		elif status == "busy":
-			return "Ringing"
-		elif status == "no-answer":
-			return "No Answer"
-		elif status == "failed":
-			return "Failed"
+		status = normalize_call_status(call_payload.get("Status"))
+		if status == "Busy":
+			# the call is still ringing on another leg
+			status = "Ringing"
+		if status:
+			return status
 
 	call_type = call_payload.get("CallType")
-	status = call_payload.get("DialCallStatus") or call_payload.get("Status")
+	status = normalize_call_status(call_payload.get("DialCallStatus") or call_payload.get("Status"))
 
-	if call_type == "incomplete" and status == "no-answer":
-		status = "No Answer"
-	elif call_type == "client-hangup" and status == "canceled":
-		status = "Canceled"
-	elif call_type == "incomplete" and status == "failed":
-		status = "Failed"
-	elif call_type == "completed":
+	if call_type == "completed":
 		status = "Completed"
-	elif status == "busy":
+	elif status == "Busy":
 		status = "Ringing"
 
 	return status
@@ -264,7 +326,8 @@ def update_call_log(call_payload, status="Ringing", call_log=None):
 	status = get_call_log_status(call_payload, direction)
 	try:
 		if call_log:
-			call_log.status = status
+			if status:
+				call_log.status = status
 			# resetting this because call might be redirected to other number
 			call_log.to = call_payload.get("DialWhomNumber") or call_payload.get("To")
 			call_log.duration = (

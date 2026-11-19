@@ -40,7 +40,12 @@
       </div>
     </div>
 
-    <Tabs v-model="tabIndex" as="div" :tabs="tabs" class="mt-2">
+    <Tabs
+      v-model="activeTab"
+      as="div"
+      :tabs="tabs"
+      class="mt-2 flex-1 overflow-hidden [&>[data-slot=tab-panel]]:flex [&>[data-slot=tab-panel]]:min-h-0 [&>[data-slot=tab-panel]]:flex-col [&>[data-slot=tab-panel]]:overflow-auto"
+    >
       <template #tab-panel="{ tab }">
         <div
           v-if="tab.label == 'Details'"
@@ -50,18 +55,18 @@
           <div class="grid grid-cols-2 gap-4">
             <FormControl
               v-model="syncSource.type"
-              type="autocomplete"
+              type="combobox"
               required="true"
               :options="supportedSourceTypes"
               :label="__('Source Type')"
               :placeholder="__('Select Source Type')"
             >
-              <template v-if="syncSource.type" #prefix>
-                <component :is="syncSource.type.icon" class="mr-2 size-4" />
+              <template v-if="selectedSourceType" #prefix>
+                <component :is="selectedSourceType.icon" class="mr-2 size-4" />
               </template>
 
-              <template #item-prefix="{ option }">
-                <component :is="option.icon" class="size-4" />
+              <template #item-prefix="{ item }">
+                <component :is="item.icon" class="size-4" />
               </template>
             </FormControl>
 
@@ -194,22 +199,24 @@ const emit = defineEmits(['updateStep'])
 const tabs = computed(() => {
   const tabList = [
     {
+      value: 'details',
       label: __('Details'),
-      icon: DetailsIcon,
+      iconLeft: DetailsIcon,
     },
   ]
 
   if (!isLocal.value) {
     tabList.push({
+      value: 'failure_logs',
       label: __('Failure Logs'),
-      icon: RefreshIcon,
+      iconLeft: RefreshIcon,
     })
   }
 
   return tabList
 })
 
-const tabIndex = ref(0)
+const activeTab = ref('details')
 
 const docResource = ref(null)
 const mappingFormDocResource = ref(null)
@@ -253,6 +260,10 @@ const syncSource = ref({
 
 const isLocal = ref(true)
 
+const selectedSourceType = computed(() =>
+  supportedSourceTypes.find((type) => type.value === syncSource.value.type),
+)
+
 function updateSource(data) {
   sources.setValue.submit(
     {
@@ -268,7 +279,7 @@ function updateSource(data) {
         mappingFormDocResource.value.document.save.submit()
       },
       onError(e) {
-        toast.error(e.messages[0] || __('Error updating Lead Sync Source'))
+        toast.error(e.messages[0] || __('Error updating lead sync source'))
       },
     },
   )
@@ -278,16 +289,16 @@ function createSource() {
   sources.insert.submit(
     {
       ...syncSource.value,
-      type: syncSource.value.type.value,
+      type: syncSource.value.type,
     },
     {
       onSuccess: (newDoc) => {
-        toast.success(__('Lead Sync Source created successfully'))
+        toast.success(__('Lead sync source created successfully'))
         isLocal.value = false
         docResource.value = getSourceDocResource(newDoc.name)
       },
       onError(error) {
-        toast.error(error.messages[0] || __('Error creating Lead Sync Source'))
+        toast.error(error.messages[0] || __('Error creating lead sync source'))
       },
     },
   )
@@ -299,7 +310,7 @@ function createOrUpdateSource() {
   } else {
     updateSource({
       ...syncSource.value,
-      type: syncSource.value.type.value,
+      type: syncSource.value.type,
     })
   }
 }
@@ -325,9 +336,7 @@ watch(
     if (newDoc) {
       Object.assign(syncSource.value, {
         ...newDoc,
-        type:
-          supportedSourceTypes.find((type) => type.value === newDoc.type) ||
-          newDoc.type,
+        type: newDoc.type,
       })
 
       mappingFormDocResource.value = useDocument(

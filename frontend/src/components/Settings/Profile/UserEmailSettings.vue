@@ -14,7 +14,7 @@
           v-if="isDirty"
           :label="__('Not Saved')"
           variant="subtle"
-          theme="orange"
+          theme="amber"
         />
       </div>
     </template>
@@ -27,7 +27,11 @@
       />
     </template>
     <template #content>
-      <div class="flex flex-col gap-4">
+      <EmailSubjectSettings
+        :doc="user.doc"
+        @change="(field, val) => (user.doc[field] = val)"
+      />
+      <div class="flex flex-col gap-4 mt-16">
         <div class="flex flex-col gap-1">
           <span class="text-base-medium text-ink-gray-8">
             {{ __('Signature') }}
@@ -36,16 +40,15 @@
             {{ __('Manage your email signature') }}
           </span>
         </div>
-        <TextEditor
-          editor-class="prose-sm min-h-28 max-w-full border rounded-b-lg border-t-0 p-2 border-outline-elevation-2"
+        <RichTextField
+          editor-class="prose-sm min-h-28 max-w-full border rounded-b-6 border-t-0 p-2 border-outline-elevation-2"
           :content="user.doc.email_signature"
           placeholder="Type something..."
-          :bubbleMenu="true"
           :fixed-menu="true"
           @change="(val) => (user.doc.email_signature = val)"
         />
       </div>
-      <div class="flex flex-col gap-4 mt-6">
+      <div class="flex flex-col gap-4 mt-16">
         <div class="flex flex-col gap-1">
           <span class="text-base-medium text-ink-gray-8">
             {{ __('Emails') }}
@@ -59,7 +62,7 @@
         <div>
           <div
             v-if="user.doc.user_emails?.length"
-            class="w-full border rounded-md mb-2 border-outline-elevation-2"
+            class="w-full border rounded-5 mb-2 border-outline-elevation-2"
           >
             <div
               class="grid grid-cols-[4fr_4fr_0.3fr] gap-2 px-4 py-3 text-sm-medium text-ink-gray-5 border-b border-outline-elevation-2"
@@ -88,43 +91,45 @@
               </div>
             </div>
           </div>
-          <Autocomplete
-            value=""
+          <Combobox
+            :model-value="null"
             :options="filteredEmails"
-            @change="(e) => addEmail(e)"
+            @update:selected-option="(e) => addEmail(e)"
           >
-            <template #target="{ togglePopover }">
+            <template #trigger="{ open, setOpen }">
               <Button
                 class="!bg-surface-elevation-2"
                 variant="outline"
                 :label="__('Add Email')"
-                iconLeft="plus"
-                @click="togglePopover()"
+                iconLeft="lucide-plus"
+                @click="setOpen(!open)"
               />
             </template>
-            <template #item-label="{ option }">
+            <template #item-label="{ item }">
               <div class="flex flex-col gap-1 text-ink-gray-9">
-                <div>{{ option.label }}</div>
+                <div>{{ item.label }}</div>
                 <div class="text-ink-gray-4 text-sm">
-                  {{ option.email }}
+                  {{ item.email }}
                 </div>
               </div>
             </template>
-          </Autocomplete>
+          </Combobox>
         </div>
       </div>
     </template>
   </SettingsLayoutBase>
 </template>
 <script setup>
-import Autocomplete from '@/components/frappe-ui/Autocomplete.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import RichTextField from '@/components/RichTextField.vue'
+import EmailSubjectSettings from '@/components/Settings/Profile/EmailSubjectSettings.vue'
+import { userEmailSubjects } from '@/composables/emailSubject'
 import {
   Badge,
   Button,
+  Combobox,
   createDocumentResource,
   createListResource,
-  TextEditor,
   toast,
 } from 'frappe-ui'
 import { computed, inject } from 'vue'
@@ -178,6 +183,7 @@ function removeEmail(email) {
 function update() {
   user.save.submit(null, {
     onSuccess: () => {
+      userEmailSubjects.reload()
       toast.success(__('Email settings updated successfully'))
     },
   })
