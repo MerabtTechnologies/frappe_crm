@@ -106,7 +106,7 @@
           v-else-if="fieldName == 'description'"
           class="truncate text-base max-h-44"
         >
-          <TextEditor
+          <RichTextField
             v-if="getRow(itemName, fieldName).label"
             :content="getRow(itemName, fieldName).label"
             :editable="false"
@@ -217,11 +217,11 @@ import ViewControls from '@/components/ViewControls.vue'
 import ProjectTasksListView from '@/components/ListViews/ProjectTasksListView.vue'
 import KanbanView from '@/components/Kanban/KanbanView.vue'
 import CreateNewProjectTaskModal from '@/components/Modals/CreateNewProjectTaskModal.vue'
+import RichTextField from '@/components/RichTextField.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { formatDate, timeAgo } from '@/utils'
 import { Tooltip, Avatar, Dropdown, call } from 'frappe-ui'
-import { TextEditor } from 'frappe-ui/experimental'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 

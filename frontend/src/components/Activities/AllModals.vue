@@ -141,8 +141,8 @@ function showQuotation(q) {
     naming_series: 'SAL-QTN-.YYYY.-',
     transaction_date: today, // Check if your fieldname is 'date' or 'transaction_date'
     order_type: 'Sales',
-    quotation_to: 'Customer',
-    crm_deal: props.doctype === 'CRM Deal' ? props.doc.name : undefined,
+    quotation_to: props.doctype === 'CRM Deal' ? 'CRM Deal' : 'Customer',
+    party_name: props.doctype === 'CRM Deal' ? props.doc.name : undefined,
   }
   showQuotationModal.value = true
 }

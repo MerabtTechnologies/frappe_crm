@@ -1,10 +1,10 @@
 <template>
   <Dialog
-    v-model="show"
-    :options="{ title: __('Won Amount') }"
+    v-model:open="show"
+    :title="__('Won Amount')"
     @close="cancel"
   >
-    <template #body-content>
+    <template #default>
       <div class="-mt-3 mb-4 text-p-base text-ink-gray-7">
         {{ __('Please enter the won amount and optional notes') }}
       </div>

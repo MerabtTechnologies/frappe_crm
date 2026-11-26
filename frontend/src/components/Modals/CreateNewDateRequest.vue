@@ -1,6 +1,6 @@
 <template>
-  <Dialog v-model="show" :options="{ size: '3xl' }">
-    <template #body>
+  <Dialog v-model:open="show" :size="'3xl'" bare>
+    <template #default>
       <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
         <div class="mb-5 flex items-center justify-between">
           <div>
@@ -82,7 +82,7 @@ import { isMobileView } from '@/composables/settings'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
 import { useTelemetry } from '@framework/ui/telemetry'
-import { Switch, createResource } from 'frappe-ui'
+import { Dialog, Switch, createResource } from 'frappe-ui'
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -135,7 +135,7 @@ const tabs = createResource({
   auto: true,
   transform: (_tabs) => {
     hasOrganizationSections.value = false
-    return _tabs.forEach((tab) => {
+    _tabs.forEach((tab) => {
       tab.sections.forEach((section) => {
         section.columns.forEach((column) => {
           // if (
@@ -165,6 +165,7 @@ const tabs = createResource({
         })
       })
     })
+    return _tabs
   },
 })
 

@@ -1,6 +1,6 @@
 <template>
-  <Dialog v-model="show" :options="{ size: 'xl' }">
-    <template #body-title>
+  <Dialog v-model:open="show" :size="'xl'">
+    <template #title>
       <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
           <div>
@@ -72,7 +72,7 @@
       </div>
     </template>
 
-    <template #body-content>
+    <template #default>
       <div class="flex flex-col gap-4">
         <div class="space-y-4">
           <div>
@@ -117,7 +117,7 @@
               <div class="mb-1.5 text-xs text-ink-gray-5">
                 {{ __('Description') }}
               </div>
-              <TextEditor
+              <RichTextField
                 :editable="false"
                 :content="unwrap(_task.description)"
                 editor-class="!prose-sm overflow-auto min-h-[180px] max-h-80 py-1.5 px-2 rounded bg-transparent"
@@ -158,7 +158,7 @@
                   </Tooltip>
                 </div>
                 <div class="mt-1 text-sm text-ink-gray-9">
-                  <TextEditor
+                  <RichTextField
                     :editable="false"
                     :content="c.content"
                     editor-class="!prose-sm max-h-40 overflow-auto bg-transparent"
@@ -173,7 +173,7 @@
           <div class="mb-1.5 text-xs text-ink-gray-5">
             {{ __('Add a comment') }}
           </div>
-          <TextEditor
+          <RichTextField
             :editable="true"
             :content="newComment"
             @change="(val) => (newComment = val)"
@@ -228,11 +228,13 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
+import RichTextField from '@/components/RichTextField.vue'
 import { taskPriorityOptions, getFormat, toServerDatetime } from '@/utils'
 import { usersStore } from '@/stores/users'
 import { useTelemetry } from '@framework/ui/telemetry'
 import {
   Avatar,
+  Dialog,
   Dropdown,
   Tooltip,
   DateTimePicker,
@@ -241,7 +243,6 @@ import {
   TextInput,
   FormLabel,
 } from 'frappe-ui'
-import { TextEditor } from 'frappe-ui/experimental'
 import { ref, watch, nextTick, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMeta } from '@/stores/meta'

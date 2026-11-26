@@ -20,7 +20,7 @@
     </div>
     <div class="mt-2 text-sm text-ink-gray-5">
       <div v-if="item.description">
-        <TextEditor
+        <RichTextField
           :content="label(item.description)"
           :editable="false"
           editor-class="!prose-sm max-w-none focus:outline-none"
@@ -68,8 +68,8 @@
 import TaskStatusIcon from '@/components/Icons/TaskStatusIcon.vue'
 import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
+import RichTextField from '@/components/RichTextField.vue'
 import { Avatar, Dropdown } from 'frappe-ui'
-import { TextEditor } from 'frappe-ui/experimental'
 import { formatDate } from '@/utils'
 import { defineProps, defineEmits } from 'vue'
 

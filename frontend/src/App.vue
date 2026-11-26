@@ -24,11 +24,12 @@
         <router-view :key="$route.meta.viewKey || $route.fullPath" />
       </Layout>
       <Dialog
-        v-model="showModal"
-        :options="{ size: 'sm', title: 'app-root-modal' }"
-        :disable-outside-click-to-close="true"
+        v-model:open="showModal"
+        :size="'sm'"
+        bare
+        :dismissible="false"
       >
-        <template #body>
+        <template #default>
           <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
             <div class="mb-2 items-start gap-3 place-items-center">
               <div class="pt-1 mb-6">

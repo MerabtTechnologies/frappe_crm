@@ -1,6 +1,6 @@
 <template>
-  <Dialog v-model="show" :options="{ size: 'xl' }">
-    <template #body>
+  <Dialog v-model:open="show" :size="'xl'" bare>
+    <template #default>
       <template v-if="!confirmDeleteInfo.show">
         <div class="bg-surface-modal px-4 pb-6 pt-5 sm:px-6">
           <div class="mb-6 flex items-center justify-between">
@@ -131,7 +131,7 @@
 </template>
 
 <script setup>
-import { createResource, call } from 'frappe-ui'
+import { Dialog, createResource, call } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
 

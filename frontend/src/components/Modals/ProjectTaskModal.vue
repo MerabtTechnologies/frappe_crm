@@ -1,6 +1,6 @@
 <template>
-  <Dialog v-model="show" :options="{ size: 'xl' }">
-    <template #body-title>
+  <Dialog v-model:open="show" :size="'xl'">
+    <template #title>
       <div class="flex items-center gap-3">
         <h3 class="text-2xl font-semibold leading-6 text-ink-gray-9">
           {{ editMode ? __('Edit Project Task') : __('Create Project Task') }}
@@ -20,7 +20,7 @@
         />
       </div>
     </template>
-    <template #body-content>
+    <template #default>
       <div class="flex flex-col gap-4">
         <div>
           <FormControl
@@ -36,7 +36,7 @@
           <div class="mb-1.5 text-xs text-ink-gray-5">
             {{ __('Description') }}
           </div>
-          <TextEditor
+          <RichTextField
             variant="outline"
             ref="description"
             editor-class="!prose-sm overflow-auto min-h-[180px] max-h-80 py-1.5 px-2 rounded border border-[--surface-gray-2] bg-surface-gray-2 placeholder-ink-gray-4 hover:border-outline-gray-modals hover:bg-surface-gray-3 hover:shadow-sm focus:bg-surface-white focus:border-outline-gray-4 focus:shadow-sm focus:ring-0 focus-visible:ring-2 focus-visible:ring-outline-gray-3 text-ink-gray-8 transition-colors"
@@ -119,6 +119,7 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
+import RichTextField from '@/components/RichTextField.vue'
 import {
   projectTaskStatusOptions,
   projectTaskPriorityOptions,
@@ -126,8 +127,7 @@ import {
 } from '@/utils'
 import { usersStore } from '@/stores/users'
 import { useTelemetry } from '@framework/ui/telemetry'
-import { Dropdown, Tooltip, call, DateTimePicker } from 'frappe-ui'
-import { TextEditor } from 'frappe-ui/experimental'
+import { Dialog, Dropdown, Tooltip, call, DateTimePicker } from 'frappe-ui'
 import { ref, watch, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
